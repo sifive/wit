@@ -9,16 +9,20 @@ wit resolves this hierarchy of dependencies and generates a flattened directory 
 ## How Do I Use wit?
 ### Creating A Workspace
 Creating a workspace does not require a git repository to be specified. You may create an empty workspace with:
- wit create soc
+
+    wit create soc
  
 If you want to specify a repository when you generate the workspace you can use the -a option
- wit create soc -a ~/projects/wit/repos/soc.git
+
+    wit create soc -a /path/to/git/repo/soc.git
  
 ### Adding A Repository To A Workspace
 To add a repository a workspace that has already been created you use the add sub-command.
- wit add ~/projects/wit/repos/soc.git
+
+    wit add /path/to/git/repo/soc.git
  
 ### Checkout And Resolve Repository Dependencies
 Once you have added one or more repositories to your workspace you can recursively read the dependency files and checkout dependent repositories.
- wit update
+
+    wit update
  
