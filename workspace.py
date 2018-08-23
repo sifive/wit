@@ -3,11 +3,10 @@
 import os
 import sys
 from pathlib import Path
-import git
-from queue import PriorityQueue
 import json
 from pprint import pformat
 import logging
+import subprocess
 
 logging.basicConfig()
 log = logging.getLogger(os.path.basename(__file__))
@@ -18,6 +17,10 @@ class NotAncestorError(Exception):
 
 
 class RepoAgeConflict(Exception):
+    pass
+
+
+class GitError(Exception):
     pass
 
     
@@ -45,7 +48,7 @@ class WorkSpace:
         for p in ([cwd] + list(cwd.parents)):
             print("Checking [{}]".format(p / self.MANIFEST))
             if Path(p / self.MANIFEST).is_file():
-                log.debug("Found workspace at [{}].format(p)")
+                log.debug("Found workspace at [{}]".format(p))
                 self.path = p
 
                 os.chdir(p)
@@ -152,7 +155,7 @@ class WorkSpace:
     # for instantiating other repo types here
     def add_repo(self, source=None, revision=None, explicit=False):
         repo = GitRepo.create(source, explicit=explicit)
-        repo.checkout(revision)
+        repo.checkout(revision or repo.get_latest_commit())
         if repo.name not in self.manifest:
             self.manifest[repo.name] = repo.manifest()
             print("Adding [{}] to manifest as [{}]".format(source, repo.name))
@@ -175,7 +178,7 @@ class Package:
 
 
 class GitRepo:
-    WIT_DEPENDENCIES = "wit_dependencies.json"
+    WIT_DEPENDENCY_FILE = "wit_dependencies.json"
     instance_map = {}
 
     def __init__(self, source, explicit=False):
@@ -196,52 +199,75 @@ class GitRepo:
         # We're already in the root of the workspace, so this will put the
         # clone directly at the top level of the workspace
         self.clone_path = Path(self.name).resolve()
-        if self.clone_path.is_dir():
-            self.repo = git.Repo(str(self.clone_path))
-        
-        else:
-            self.repo = git.Repo.clone_from(
-                self.source, self.clone_path, no_checkout=True)
-        
+        if not self.clone_path.is_dir():
+            os.mkdir(self.clone_path)
+            proc = self._git_command("clone", "--no-checkout", str(self.source), str(self.clone_path))
+            self._git_check(proc)
+
         return self
 
 
     def get_latest_commit(self):
-        return self.repo.commit()
+        proc = self._git_command('rev-parse', 'HEAD')
+        self._git_check(proc)
+        return proc.stdout.rstrip()
 
 
     def commit_to_time(self, hash):
-        return self.repo.commit(hash).committed_date
+        proc = self._git_command('log', '--format=%ct', hash)
+        self._git_check(proc)
+
+        return proc.stdout.rstrip()
     
 
     def is_ancestor(self, ancestor, current=None):
-        return self.repo.is_ancestor(ancestor, current or self.repo.commit())
-            
+        proc = self._git_command("merge-base", "--is-ancestor", ancestor, current or self.get_latest_commit())
+        if proc.returncode != 0:
+            return False
+
+        else:
+            return True
+
 
     def get_dependencies(self, hash=None):
-        try:
-            wit_dependencies = self.repo.git.show("{}:{}".format(hash, GitRepo.WIT_DEPENDENCIES))
-        except:
-            print("No dependencies found in repo [{}:{}].".format(self.clone_path, hash))
+        proc = self._git_command("show", "{}:{}".format(hash, GitRepo.WIT_DEPENDENCY_FILE))
+        if proc.returncode:
+            log.info("No dependency file found in repo [{}:{}]".format(hash, self.clone_path))
             return []
 
-        return json.loads(wit_dependencies)
+        return json.loads(proc.stdout)
         
     
     def checkout(self, hash):
-        print("Checking out commit [{}] in repo [{}]".format(hash, self.repo.git_dir))
-        self.repo.git.checkout(hash)
+        proc = self._git_command("checkout", hash)
+        self._git_check(proc)
 
     
     def manifest(self):
         return {
             'name': self.name,
             'source': self.source,
-            'commit': str(self.repo.commit()),
+            'commit': str(self.get_latest_commit()),
             'explicit': self.explicit
         }
 
-    
+
+    def _git_command(self, *args):
+        log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), self.clone_path))
+        proc = subprocess.run(['git', *args], capture_output=True, cwd=self.clone_path, text=True)
+        return proc
+
+
+    def _git_check(self, proc):
+        if proc.returncode:
+            log.error("Command [{}] exited with non-zero exit status [{}]".format(' '.join(proc.args), proc.returncode))
+            log.error("stdout: [{}]".format(proc.stdout))
+            log.error("stderr: [{}]".format(proc.stderr))
+            raise GitError("Error while running [{}]".format(' '.join(proc.args)))
+
+        return proc.returncode
+
+
     @staticmethod
     def path_to_name(path):
         return Path(path).name.replace('.git', '')
