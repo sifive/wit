@@ -16,7 +16,6 @@ from workspace import WorkSpace, GitRepo
 import logging
 import os
 import sys
-import tabulate
 
 logging.basicConfig(level = logging.INFO)
 log = logging.getLogger(os.path.basename(__file__))

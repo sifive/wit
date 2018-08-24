@@ -35,8 +35,9 @@ class WorkSpace:
     # create a new workspace root given a name.
     def create(self, name):
         self.path = Path.cwd() / name
-        os.mkdir(self.path)
-        os.chdir(self.path)
+        self.path.mkdir()
+#        os.mkdir(str(self.path))
+#        os.chdir(str(self.path))
 
         self.write_manifest()
 
@@ -51,7 +52,7 @@ class WorkSpace:
                 log.debug("Found workspace at [{}]".format(p))
                 self.path = p
 
-                os.chdir(p)
+#                os.chdir(str(p))
                 self.read_manifest()
                 return
         
@@ -69,7 +70,7 @@ class WorkSpace:
         for reponame in self.manifest:
             source = self.manifest[reponame]['source']
             commit = self.manifest[reponame]['commit']
-            repo = GitRepo.create(source)
+            repo = GitRepo.create(source, dest=self.path)
             commit_time = repo.commit_to_time(commit)
 
             queue.append((commit_time, commit, reponame, repo))
@@ -108,7 +109,7 @@ class WorkSpace:
 
             for dependent in dependencies:
                 # 8. Clone without checking out the dependency
-                dep_repo = GitRepo.create(source=dependent['path'], explicit=False)
+                dep_repo = GitRepo.create(source=dependent['path'], dest=self.path, explicit=False)
                 
                 # 9. Find the committer date
                 dep_commit_time = dep_repo.commit_to_time(dependent['hash'])
@@ -141,20 +142,22 @@ class WorkSpace:
 
 
     def write_manifest(self):
-        with open(self.MANIFEST, "w") as manifest:
-            json.dump(self.manifest, manifest, sort_keys=True, indent=4)
+        manifest_path = self.path / self.MANIFEST
+        manifest_json = json.dumps(self.manifest, sort_keys=True, indent=4)
+        manifest_path.write_text(manifest_json)
             
 
     def read_manifest(self):
-        with open(self.MANIFEST, "r") as manifest:
-            self.manifest = json.load(manifest)
+        manifest_path = self.path / self.MANIFEST
+        manifest_json = manifest_path.read_text()
+        self.manifest = json.loads(manifest_json)
 
 
     # FIXME: Too much going on here, and this couples WorkSpace too closely
     # wit git repos. Need to move manifest generation into GitRepo, and allow
     # for instantiating other repo types here
     def add_repo(self, source=None, revision=None, explicit=False):
-        repo = GitRepo.create(source, explicit=explicit)
+        repo = GitRepo.create(source, dest=self.path, explicit=explicit)
         repo.checkout(revision or repo.get_latest_commit())
         if repo.name not in self.manifest:
             self.manifest[repo.name] = repo.manifest()
@@ -190,7 +193,7 @@ class GitRepo:
 
     # Instantiate a git object and, if not already done, create a clone
     @classmethod
-    def create(cls, source, explicit=False, commit=None):
+    def create(cls, source, dest=None, explicit=False, commit=None):
         if source in cls.instance_map:
             self = cls.instance_map[source]
         else:
@@ -198,9 +201,9 @@ class GitRepo:
 
         # We're already in the root of the workspace, so this will put the
         # clone directly at the top level of the workspace
-        self.clone_path = Path(self.name).resolve()
+        self.clone_path = dest / self.name
         if not self.clone_path.is_dir():
-            os.mkdir(self.clone_path)
+            os.mkdir(str(self.clone_path))
             proc = self._git_command("clone", "--no-checkout", str(self.source), str(self.clone_path))
             self._git_check(proc)
 
@@ -214,7 +217,7 @@ class GitRepo:
 
 
     def commit_to_time(self, hash):
-        proc = self._git_command('log', '--format=%ct', hash)
+        proc = self._git_command('log', '-n1', '--format=%ct', hash)
         self._git_check(proc)
 
         return proc.stdout.rstrip()
@@ -254,7 +257,8 @@ class GitRepo:
 
     def _git_command(self, *args):
         log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), self.clone_path))
-        proc = subprocess.run(['git', *args], capture_output=True, cwd=self.clone_path, text=True)
+        proc = subprocess.run(['git', *args], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            cwd=str(self.clone_path), universal_newlines=True)
         return proc
 
 
