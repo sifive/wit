@@ -36,8 +36,6 @@ class WorkSpace:
     def create(self, name):
         self.path = Path.cwd() / name
         self.path.mkdir()
-#        os.mkdir(str(self.path))
-#        os.chdir(str(self.path))
 
         self.write_manifest()
 
@@ -52,7 +50,6 @@ class WorkSpace:
                 log.debug("Found workspace at [{}]".format(p))
                 self.path = p
 
-#                os.chdir(str(p))
                 self.read_manifest()
                 return
         
@@ -274,9 +271,22 @@ class GitRepo:
 
     @staticmethod
     def path_to_name(path):
+        """
+        >>> GitRepo.path_to_name("a.git")
+        'a'
+        >>> GitRepo.path_to_name("/a/b/c/def.git")
+        'def'
+        >>> GitRepo.path_to_name("ghi")
+        'ghi'
+        """
         return Path(path).name.replace('.git', '')
 
 
     # Enable prettyish-printing of the class
     def __repr__(self):
         return pformat(vars(self), indent=4, width=1)
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
