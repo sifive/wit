@@ -9,8 +9,8 @@ import logging
 import subprocess
 
 logging.basicConfig()
-log = logging.getLogger(os.path.basename(__file__))
-log.setLevel(logging.DEBUG)
+log = logging.getLogger('wit')
+
 
 class NotAncestorError(Exception):
     pass
@@ -27,15 +27,26 @@ class GitError(Exception):
 class WorkSpace:
     MANIFEST = "wit_manifest.json"
 
-    def __init__(self):
+    def __init__(self, repomap):
         self.path = None
         self.manifest = {}
 
+        if repomap is not None:
+            self.repomap = self.read_repomap(repomap)
+
+        else:
+            self.repomap = None
+    
 
     # create a new workspace root given a name.
     def create(self, name):
         self.path = Path.cwd() / name
-        self.path.mkdir()
+
+        try:
+            self.path.mkdir()
+        except Exception as e:
+            log.error("Unable to create workspace [{}]: {}".format(str(self.path), e))
+            sys.exit(1)
 
         self.write_manifest()
 
@@ -45,7 +56,7 @@ class WorkSpace:
     def find(self):
         cwd = Path.cwd().resolve()
         for p in ([cwd] + list(cwd.parents)):
-            print("Checking [{}]".format(p / self.MANIFEST))
+            log.info("Checking [{}]".format(p / self.MANIFEST))
             if Path(p / self.MANIFEST).is_file():
                 log.debug("Found workspace at [{}]".format(p))
                 self.path = p
@@ -93,7 +104,7 @@ class WorkSpace:
 
             # 6. set the version selector for this repo to the tuple's hash
             # FIXME: Right now I'm also storing the repo in here. This is for
-            # convenience but is poor data hygiene. Need to think of a beter
+            # convenience but is poor data hygiene. Need to think of a better
             # solution here.
             version_selector_map[reponame] = {
                 'commit': commit,
@@ -101,10 +112,14 @@ class WorkSpace:
             }
 
             # 7. Examine the repository's children
-            dependencies = repo.get_dependencies(hash=commit)
+            dependencies = repo.get_dependencies(hash=commit)            
             log.debug("Dependencies for [{}]: [{}]".format(repo.clone_path, dependencies))
 
             for dependent in dependencies:
+                # Check to see if there is a path specified in the repomap.
+                # If so, use that path instead.
+                dependent['path'] = self.resolve_repomap(dependent['path'])
+
                 # 8. Clone without checking out the dependency
                 dep_repo = GitRepo.create(source=dependent['path'], dest=self.path, explicit=False)
                 
@@ -113,7 +128,7 @@ class WorkSpace:
 
                 # 10. Fail if the dependent commit date is newer than the parent date
                 if dep_commit_time > commit_time:
-                    # dependent is newer than dependee. Panic
+                    # dependent is newer than dependee. Panic.
                     raise RepoAgeConflict
 
                 # 11. Push a tuple onto the queue
@@ -138,22 +153,26 @@ class WorkSpace:
             self.write_manifest()
 
 
+    def manifest_path(self):
+        return self.path / self.MANIFEST
+        
+        
     def write_manifest(self):
-        manifest_path = self.path / self.MANIFEST
         manifest_json = json.dumps(self.manifest, sort_keys=True, indent=4)
-        manifest_path.write_text(manifest_json)
+        self.manifest_path().write_text(manifest_json)
             
 
     def read_manifest(self):
-        manifest_path = self.path / self.MANIFEST
-        manifest_json = manifest_path.read_text()
+        manifest_json = self.manifest_path().read_text()
         self.manifest = json.loads(manifest_json)
 
 
     # FIXME: Too much going on here, and this couples WorkSpace too closely
-    # wit git repos. Need to move manifest generation into GitRepo, and allow
+    # with git repos. Need to move manifest generation into GitRepo, and allow
     # for instantiating other repo types here
     def add_repo(self, source=None, revision=None, explicit=False):
+        source = self.resolve_repomap(source)
+
         repo = GitRepo.create(source, dest=self.path, explicit=explicit)
         repo.checkout(revision or repo.get_latest_commit())
         if repo.name not in self.manifest:
@@ -164,8 +183,29 @@ class WorkSpace:
 
 
     def repo_status(self, source):
-        raise NotImplementedError
+        raise NotImplementedError   
+
+
+    @staticmethod
+    def read_repomap(repomap):
+        repomap_path = Path(repomap)
+        try:
+            repomap_json = repomap_path.read_text()
+            data = json.loads(repomap_json)
+        except Exception as e:
+            log.error("Unable to read repomap [{}] for reading: {}".format(repomap_path, e))
+            sys.exit(1)
+
+        return data
+
+
+    def resolve_repomap(self, path):
+        if self.repomap and path in self.repomap:
+            log.info("Mapped repo [{}] to [{}] using repomap.".format(path, self.repomap[path]))
+            path = self.repomap[path]
         
+        return path
+
 
     # Enable prettyish-printing of the class
     def __repr__(self):
@@ -202,7 +242,12 @@ class GitRepo:
         if not self.clone_path.is_dir():
             os.mkdir(str(self.clone_path))
             proc = self._git_command("clone", "--no-checkout", str(self.source), str(self.clone_path))
-            self._git_check(proc)
+            
+            try:
+                self._git_check(proc)
+            except Exception as e:
+                log.error("Error cloning into workspace: {}".format(e))
+                sys.exit(1)
 
         return self
 
@@ -262,9 +307,9 @@ class GitRepo:
     def _git_check(self, proc):
         if proc.returncode:
             log.error("Command [{}] exited with non-zero exit status [{}]".format(' '.join(proc.args), proc.returncode))
-            log.error("stdout: [{}]".format(proc.stdout))
-            log.error("stderr: [{}]".format(proc.stderr))
-            raise GitError("Error while running [{}]".format(' '.join(proc.args)))
+            log.error("stdout: [{}]".format(proc.stdout.rstrip()))
+            log.error("stderr: [{}]".format(proc.stderr.rstrip()))
+            raise GitError(proc.stderr.rstrip())
 
         return proc.returncode
 

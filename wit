@@ -5,10 +5,10 @@
 # * Log all commands into workspace
 # * De-couple WorkSpace from GitRepos
 # * Write unit tests
-# * What to do in case of corrupt dependencies.json
-# * How to handle exceptional conditions
+# * Handle corrupt dependencies.json
+# * Handle exceptional conditions
 # * Use a real logger
-# * handle partial sha1s correctly
+# * Handle partial sha1s correctly
 
  
 import argparse
@@ -18,13 +18,15 @@ import os
 import sys
 
 logging.basicConfig(level = logging.INFO)
-log = logging.getLogger(os.path.basename(__file__))
-log.setLevel(logging.DEBUG)
+log = logging.getLogger('wit')
+
 
 def main() -> None:
     # Parse arguments. Create sub-commands for each of the modes of operation
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('--repomap', default=None)
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 
     create_parser = subparsers.add_parser('create', help='create workspace')
@@ -39,7 +41,16 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    ws = WorkSpace()
+    if args.verbose:
+        log.setLevel(logging.WARNING)
+        
+    elif args.debug:
+        log.setLevel(logging.DEBUG)
+
+    else:
+        log.setLevel(logging.INFO)
+
+    ws = WorkSpace(args.repomap)
     # FIXME: This big switch statement... no good.
     if args.command == 'create':
         create(ws, args)
@@ -90,7 +101,6 @@ def status(ws, args):
 
         print("    Manifest commit: {}".format(manifest_commit))
         print("    Latest commit:   {}".format(latest_commit))
-
 
 
 def update(ws, args):
