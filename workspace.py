@@ -158,7 +158,7 @@ class WorkSpace:
         
         
     def write_manifest(self):
-        manifest_json = json.dumps(self.manifest, sort_keys=True, indent=4)
+        manifest_json = json.dumps(self.manifest, sort_keys=True, indent=4) + '\n'
         self.manifest_path().write_text(manifest_json)
             
 
