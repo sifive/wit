@@ -25,11 +25,13 @@ class GitError(Exception):
 
     
 class WorkSpace:
-    MANIFEST = "wit_manifest.json"
+    MANIFEST = "wit-manifest.json"
+    LOCK = "wit-lock.json"
 
     def __init__(self, repomap):
         self.path = None
-        self.manifest = {}
+        self.manifest = []
+        self.lock = {}
 
         if repomap is not None:
             self.repomap = self.read_repomap(repomap)
@@ -72,16 +74,15 @@ class WorkSpace:
         # https://sifive.atlassian.net/browse/FRAM-1
         # 1. Initialize an empty version selector map
         version_selector_map = {}
+        self.lock = {}
 
         # 2. For every existing repo put a tuple (name, hash, commit time) into queue
         queue = []
-        for reponame in self.manifest:
-            source = self.manifest[reponame]['source']
-            commit = self.manifest[reponame]['commit']
-            repo = GitRepo.create(source, dest=self.path)
-            commit_time = repo.commit_to_time(commit)
+        for ws in self.manifest:
+            repo = GitRepo.create(ws['source'], dest=self.path)
+            commit_time = repo.commit_to_time(ws['commit'])
 
-            queue.append((commit_time, commit, reponame, repo))
+            queue.append((commit_time, ws['commit'], ws['name'], repo))
         
         # sort by the first element of the tuple (commit time in epoch seconds)
         queue.sort(key=lambda tup: tup[0])
@@ -118,13 +119,13 @@ class WorkSpace:
             for dependent in dependencies:
                 # Check to see if there is a path specified in the repomap.
                 # If so, use that path instead.
-                dependent['path'] = self.resolve_repomap(dependent['path'])
+                dependent['source'] = self.resolve_repomap(dependent['source'])
 
                 # 8. Clone without checking out the dependency
-                dep_repo = GitRepo.create(source=dependent['path'], dest=self.path, explicit=False)
+                dep_repo = GitRepo.create(source=dependent['source'], dest=self.path)
                 
                 # 9. Find the committer date
-                dep_commit_time = dep_repo.commit_to_time(dependent['hash'])
+                dep_commit_time = dep_repo.commit_to_time(dependent['commit'])
 
                 # 10. Fail if the dependent commit date is newer than the parent date
                 if dep_commit_time > commit_time:
@@ -132,7 +133,7 @@ class WorkSpace:
                     raise RepoAgeConflict
 
                 # 11. Push a tuple onto the queue
-                queue.append((dep_commit_time, dependent['hash'], dep_repo.name, dep_repo))
+                queue.append((dep_commit_time, dependent['commit'], dep_repo.name, dep_repo))
         
             # Keep the queue ordered
             queue.sort(key = lambda tup: tup[0])
@@ -144,19 +145,28 @@ class WorkSpace:
             commit = version_selector_map[reponame]['commit']
             print("Repo name [{}] commit [{}]".format(reponame, commit))
 
-        # 14. Check out repos and add to manifest
+        # 14. Check out repos and add to lock
         for reponame in version_selector_map:
             commit = version_selector_map[reponame]['commit']
             repo = version_selector_map[reponame]['repo']
             repo.checkout(commit)
-            self.manifest[reponame] = repo.manifest()
-            self.write_manifest()
+            self.lock[reponame] = repo.manifest()
+            self.write_lockfile()
 
 
     def manifest_path(self):
         return self.path / self.MANIFEST
+
+
+    def lockfile_path(self):
+        return self.path / self.LOCK
         
         
+    def write_lockfile(self):
+        lockfile_json = json.dumps(self.lock, sort_keys=True, indent=4) + '\n'
+        self.lockfile_path().write_text(lockfile_json)
+
+
     def write_manifest(self):
         manifest_json = json.dumps(self.manifest, sort_keys=True, indent=4) + '\n'
         self.manifest_path().write_text(manifest_json)
@@ -170,13 +180,13 @@ class WorkSpace:
     # FIXME: Too much going on here, and this couples WorkSpace too closely
     # with git repos. Need to move manifest generation into GitRepo, and allow
     # for instantiating other repo types here
-    def add_repo(self, source=None, revision=None, explicit=False):
+    def add_repo(self, source=None, revision=None):
         source = self.resolve_repomap(source)
 
-        repo = GitRepo.create(source, dest=self.path, explicit=explicit)
+        repo = GitRepo.create(source, dest=self.path)
         repo.checkout(revision or repo.get_latest_commit())
         if repo.name not in self.manifest:
-            self.manifest[repo.name] = repo.manifest()
+            self.manifest.append(repo.manifest())
             print("Adding [{}] to manifest as [{}]".format(source, repo.name))
 
         self.write_manifest()
@@ -218,23 +228,22 @@ class Package:
 
 
 class GitRepo:
-    WIT_DEPENDENCY_FILE = "wit_dependencies.json"
+    WIT_DEPENDENCY_FILE = "wit-manifest.json"
     instance_map = {}
 
-    def __init__(self, source, explicit=False):
+    def __init__(self, source):
         self.source = source
-        self.explicit = explicit
         self.name = GitRepo.path_to_name(source)
         GitRepo.instance_map[source] = self
 
 
     # Instantiate a git object and, if not already done, create a clone
     @classmethod
-    def create(cls, source, dest=None, explicit=False, commit=None):
+    def create(cls, source, dest=None, commit=None):
         if source in cls.instance_map:
             self = cls.instance_map[source]
         else:
-            self = cls(source, explicit=explicit)
+            self = cls(source)
 
         # We're already in the root of the workspace, so this will put the
         # clone directly at the top level of the workspace
@@ -293,7 +302,6 @@ class GitRepo:
             'name': self.name,
             'source': self.source,
             'commit': str(self.get_latest_commit()),
-            'explicit': self.explicit
         }
 
 

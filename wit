@@ -29,9 +29,9 @@ def main() -> None:
     parser.add_argument('--repomap', default=None)
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 
-    create_parser = subparsers.add_parser('create', help='create workspace')
-    create_parser.add_argument('-a', '--add', metavar='repo', help='add an initial repo')
-    create_parser.add_argument('workspace_name')
+    init_parser = subparsers.add_parser('init', help='create workspace')
+    init_parser.add_argument('-a', '--add', metavar='repo', help='add an initial repo')
+    init_parser.add_argument('workspace_name')
 
     add_parser = subparsers.add_parser('add', help='add repo to workspace')
     add_parser.add_argument('repo_name')
@@ -52,7 +52,7 @@ def main() -> None:
 
     ws = WorkSpace(args.repomap)
     # FIXME: This big switch statement... no good.
-    if args.command == 'create':
+    if args.command == 'init':
         create(ws, args)
 
     else:
@@ -81,13 +81,13 @@ def create(ws, args):
     ws.create(args.workspace_name)
     if args.add is not None:
         source, revision = split_repo_rev(args.add)
-        ws.add_repo(source=source, revision=revision, explicit=True)
+        ws.add_repo(source=source, revision=revision)
 
 
 def add(ws, args):
     log.info("Adding repo to workspace")
     source, revision = split_repo_rev(args.repo_name)
-    ws.add_repo(source=source, revision=revision, explicit=True)
+    ws.add_repo(source=source, revision=revision)
 
 
 def status(ws, args):
