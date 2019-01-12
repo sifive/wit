@@ -10,7 +10,7 @@ wit resolves this hierarchy of dependencies and generates a flattened directory 
 ### Creating A Workspace
 Creating a workspace does not require a git repository to be specified. You may create an empty workspace with:
 
-    wit create soc
+    wit init soc
  
 If you want to specify a repository when you generate the workspace you can use the -a option
 
