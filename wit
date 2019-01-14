@@ -76,7 +76,7 @@ def main() -> None:
 
 
 def create(ws, args):
-    print("Creating workspace [{}]".format(args.workspace_name))
+    log.info("Creating workspace [{}]".format(args.workspace_name))
 
     ws.create(args.workspace_name)
     if args.add is not None:

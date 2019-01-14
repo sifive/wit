@@ -44,12 +44,24 @@ class WorkSpace:
     def create(self, name):
         self.path = Path.cwd() / name
 
-        try:
-            self.path.mkdir()
-        except Exception as e:
-            log.error("Unable to create workspace [{}]: {}".format(str(self.path), e))
-            sys.exit(1)
+        if self.path.exists():
+            log.info("Using existing directory [{}]".format(str(self.path)))
 
+            manifest_file = self.path / self.MANIFEST
+            if manifest_file.exists():
+                log.error("Manifest file [{}] already exists.".format(manifest_file))
+                sys.exit(1)
+
+        else:
+            log.info("Creating new workspace [{}]".format(str(self.path)))
+            try:
+                self.path.mkdir()
+
+            except Exception as e:
+                log.error("Unable to create workspace [{}]: {}".format(str(self.path), e))
+                sys.exit(1)
+
+        self.path = self.path.resolve()
         self.write_manifest()
 
 
