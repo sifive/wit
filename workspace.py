@@ -7,6 +7,7 @@ import json
 from pprint import pformat
 import logging
 import subprocess
+from collections import OrderedDict
 
 logging.basicConfig()
 log = logging.getLogger('wit')
@@ -31,7 +32,7 @@ class WorkSpace:
     def __init__(self, repomap):
         self.path = None
         self.manifest = []
-        self.lock = {}
+        self.lock = OrderedDict()
 
         if repomap is not None:
             self.repomap = self.read_repomap(repomap)
@@ -87,7 +88,7 @@ class WorkSpace:
         # https://sifive.atlassian.net/browse/FRAM-1
         # 1. Initialize an empty version selector map
         version_selector_map = {}
-        self.lock = {}
+        self.lock = OrderedDict()
 
         # 2. For every existing repo put a tuple (name, hash, commit time) into queue
         queue = []
@@ -181,7 +182,7 @@ class WorkSpace:
 
     def read_lockfile(self):
         lockfile_json = self.lockfile_path().read_text()
-        self.lock = json.loads(lockfile_json)
+        self.lock = json.loads(lockfile_json, object_pairs_hook=OrderedDict)
 
     def write_manifest(self):
         manifest_json = json.dumps(self.manifest, sort_keys=True, indent=4) + '\n'
@@ -281,6 +282,27 @@ class GitRepo:
         proc = self._git_command('rev-parse', 'HEAD')
         self._git_check(proc)
         return proc.stdout.rstrip()
+
+    def clean(self):
+        proc = self._git_command('status', '--porcelain')
+        self._git_check(proc)
+        return proc.stdout == ""
+
+    def modified(self):
+        proc = self._git_command('status', '--porcelain')
+        self._git_check(proc)
+        for line in proc.stdout.split("\n"):
+            if line.lstrip().startswith("M"):
+                return True
+        return False
+
+    def untracked(self):
+        proc = self._git_command('status', '--porcelain')
+        self._git_check(proc)
+        for line in proc.stdout.split("\n"):
+            if line.lstrip().startswith("??"):
+                return True
+        return False
 
 
     def commit_to_time(self, hash):
