@@ -16,6 +16,7 @@ from workspace import WorkSpace, GitRepo
 import logging
 import os
 import sys
+from collections import OrderedDict
 
 logging.basicConfig(level = logging.INFO)
 log = logging.getLogger('wit')
@@ -92,15 +93,35 @@ def add(ws, args):
 
 def status(ws, args):
     log.info("Checking workspace status")
+    clean = []
+    dirty = OrderedDict()
     for reponame in ws.lock:
-        print("Status for repo [{}]".format(reponame))
-
         # FIXME: cheating by diving into the object.
         manifest_commit = ws.lock[reponame]['commit']
-        latest_commit = GitRepo.create(ws.lock[reponame]['source'], dest=ws.path).get_latest_commit()
+        repo = GitRepo.create(ws.lock[reponame]['source'], dest=ws.path)
+        latest_commit = repo.get_latest_commit()
 
-        print("    Manifest commit: {}".format(manifest_commit))
-        print("    Latest commit:   {}".format(latest_commit))
+        new_commits = manifest_commit != latest_commit
+
+        if new_commits or not repo.clean():
+            status = []
+            if new_commits:
+                status.append("new commits")
+            if repo.modified():
+                status.append("modified content")
+            if repo.untracked():
+                status.append("untracked content")
+            dirty[reponame] = status
+        else:
+            clean.append(reponame)
+
+    print("Clean repos:")
+    for repo in clean:
+        print("    {}".format(repo))
+    print("Dirty repos:")
+    for repo, content in dirty.items():
+        msg = ", ".join(content)
+        print("    {} ({})".format(repo, msg))
 
 
 def update(ws, args):
