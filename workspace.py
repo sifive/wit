@@ -77,7 +77,8 @@ class WorkSpace:
                 self.path = p
 
                 self.read_manifest()
-                self.read_lockfile()
+                if Path(self.lockfile_path()).is_file():
+                    self.read_lockfile()
                 return
         
         raise FileNotFoundError("Couldn't find manifest file")
