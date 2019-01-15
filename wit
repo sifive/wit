@@ -92,12 +92,12 @@ def add(ws, args):
 
 def status(ws, args):
     log.info("Checking workspace status")
-    for reponame in ws.manifest:
+    for reponame in ws.lock:
         print("Status for repo [{}]".format(reponame))
 
         # FIXME: cheating by diving into the object.
-        manifest_commit = ws.manifest[reponame]['commit']
-        latest_commit = GitRepo.create(ws.manifest[reponame]['source']).get_latest_commit()
+        manifest_commit = ws.lock[reponame]['commit']
+        latest_commit = GitRepo.create(ws.lock[reponame]['source'], dest=ws.path).get_latest_commit()
 
         print("    Manifest commit: {}".format(manifest_commit))
         print("    Latest commit:   {}".format(latest_commit))

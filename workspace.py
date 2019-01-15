@@ -76,6 +76,7 @@ class WorkSpace:
                 self.path = p
 
                 self.read_manifest()
+                self.read_lockfile()
                 return
         
         raise FileNotFoundError("Couldn't find manifest file")
@@ -178,6 +179,9 @@ class WorkSpace:
         lockfile_json = json.dumps(self.lock, sort_keys=True, indent=4) + '\n'
         self.lockfile_path().write_text(lockfile_json)
 
+    def read_lockfile(self):
+        lockfile_json = self.lockfile_path().read_text()
+        self.lock = json.loads(lockfile_json)
 
     def write_manifest(self):
         manifest_json = json.dumps(self.manifest, sort_keys=True, indent=4) + '\n'
