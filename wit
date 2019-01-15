@@ -93,6 +93,10 @@ def add(ws, args):
 
 def status(ws, args):
     log.info("Checking workspace status")
+    if not ws.lock:
+        log.info("{} is empty. Have you run `wit update`?".format(ws.LOCK))
+        return
+
     clean = []
     dirty = OrderedDict()
     for reponame in ws.lock:
