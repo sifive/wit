@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 ## List of tests to ignore
 test_ignore_list=( test_fail )

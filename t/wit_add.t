@@ -2,21 +2,24 @@
 
 . $(dirname $0)/regress_util.sh
 
-# This is an arbitrary hash from the wit repo
-hash=e8e3572be10994a140f0086abc7a0533272832eb
-echo "Verify that we can create a workspace with no initial repo"
-wit init myws -a ${wit_repo}::${hash}
+# Set up repo foo
+mkdir foo
+git -C foo init
+touch foo/file
+git -C foo add -A
+git -C foo commit -m "commit1"
+foo_commit=$(git -C foo rev-parse HEAD)
+foo_dir=$PWD/foo
 
-# Extract the wit hash recorded in the wit-manifest
+# Now create an empty workspace
+wit init myws
+
 cd myws
-wit_manifest_hash=$(jq -r '.[] | select(.name=="wit") | .commit' wit-manifest.json)
-check "Wit manifest contains requested hash" [ "$wit_manifest_hash" = "$hash" ]
+wit add $foo_dir
+check "wit add should succeed" [ $? -eq 0 ]
 
-# Get the latest checked out version of the wit repo and make
-# sure it matches what we expect
-wit update
-git_repo_hash=$(git --git-dir=wit/.git rev-parse HEAD)
-check "Updated wit repo is at requested hash" [ "$git_repo_hash" = "$hash" ]
+foo_ws_commit=$(jq -r '.[] | select(.name=="foo") | .commit' wit-workspace.json)
+check "Added repo should have correct commit" [ "$foo_ws_commit" = "$foo_commit" ]
 
 report
 finish

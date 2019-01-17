@@ -10,13 +10,15 @@
 # * Use a real logger
 # * Handle partial sha1s correctly
 
- 
+
 import argparse
-from workspace import WorkSpace, GitRepo
+from workspace import WorkSpace
+from package import Package
 import logging
 import os
 import sys
 from collections import OrderedDict
+from pathlib import Path
 
 logging.basicConfig(level = logging.INFO)
 log = logging.getLogger('wit')
@@ -31,11 +33,11 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 
     init_parser = subparsers.add_parser('init', help='create workspace')
-    init_parser.add_argument('-a', '--add', metavar='repo', help='add an initial repo')
+    init_parser.add_argument('-a', '--add', metavar='repo[::revision]', action='append', type=Package.from_arg, help='add an initial repo')
     init_parser.add_argument('workspace_name')
 
     add_parser = subparsers.add_parser('add', help='add repo to workspace')
-    add_parser.add_argument('repo_name')
+    add_parser.add_argument('repo', metavar='repo[::revision]', type=Package.from_arg)
 
     subparsers.add_parser('status', help='show status of workspace')
     subparsers.add_parser('update', help='update git repos')
@@ -44,28 +46,28 @@ def main() -> None:
 
     if args.verbose:
         log.setLevel(logging.WARNING)
-        
+
     elif args.debug:
         log.setLevel(logging.DEBUG)
 
     else:
         log.setLevel(logging.INFO)
 
-    ws = WorkSpace(args.repomap)
+    #ws = WorkSpace(args.repomap)
     # FIXME: This big switch statement... no good.
     if args.command == 'init':
-        create(ws, args)
+        create(args)
 
     else:
         # These commands assume the workspace already exists. Error out if the
         # workspace cannot be found.
         try:
-            ws.find()
-            
+            ws = WorkSpace.find(Path.cwd())
+
         except FileNotFoundError as e:
             log.error("Unable to find workspace root [{}]. Cannot continue.".format(e))
             sys.exit(1)
-            
+
         if args.command == 'add':
             add(ws, args)
 
@@ -76,19 +78,18 @@ def main() -> None:
             update(ws, args)
 
 
-def create(ws, args):
+def create(args):
     log.info("Creating workspace [{}]".format(args.workspace_name))
 
-    ws.create(args.workspace_name)
-    if args.add is not None:
-        source, revision = split_repo_rev(args.add)
-        ws.add_repo(source=source, revision=revision)
-
+    if args.add is None:
+        packages = []
+    else:
+        packages = args.add
+    WorkSpace.create(args.workspace_name, packages)
 
 def add(ws, args):
     log.info("Adding repo to workspace")
-    source, revision = split_repo_rev(args.repo_name)
-    ws.add_repo(source=source, revision=revision)
+    ws.add_package(args.repo)
 
 
 def status(ws, args):
@@ -98,34 +99,33 @@ def status(ws, args):
         return
 
     clean = []
-    dirty = OrderedDict()
-    for reponame in ws.lock:
+    dirty = []
+    for package in ws.lock.packages:
         # FIXME: cheating by diving into the object.
-        manifest_commit = ws.lock[reponame]['commit']
-        repo = GitRepo.create(ws.lock[reponame]['source'], dest=ws.path)
-        latest_commit = repo.get_latest_commit()
+        lock_commit = package.revision
+        latest_commit = package.get_latest_commit()
 
-        new_commits = manifest_commit != latest_commit
+        new_commits = lock_commit != latest_commit
 
-        if new_commits or not repo.clean():
+        if new_commits or not package.clean():
             status = []
             if new_commits:
                 status.append("new commits")
-            if repo.modified():
+            if package.modified():
                 status.append("modified content")
-            if repo.untracked():
+            if package.untracked():
                 status.append("untracked content")
-            dirty[reponame] = status
+            dirty.append((package, status))
         else:
-            clean.append(reponame)
+            clean.append(package)
 
-    print("Clean repos:")
-    for repo in clean:
-        print("    {}".format(repo))
+    print("Clean packages:")
+    for package in clean:
+        print("    {}".format(package.name))
     print("Dirty repos:")
-    for repo, content in dirty.items():
+    for package, content in dirty:
         msg = ", ".join(content)
-        print("    {} ({})".format(repo, msg))
+        print("    {} ({})".format(package.name, msg))
 
 
 def update(ws, args):
@@ -133,12 +133,6 @@ def update(ws, args):
     ws.update()
 
 
-def split_repo_rev(repo_string):
-    # FIXME: This is ugly. Split on '::' into a path and revision, but
-    # there may not be a revision. So add an additional array
-    source, rev = (repo_string.split("::") + [None])[:2]
-    return source, rev
-
-
 if __name__ == '__main__':
     main()
+
