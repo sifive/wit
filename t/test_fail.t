@@ -1,3 +1,6 @@
 #!/bin/sh
 
-exit 1
+. $(dirname $0)/regress_util.sh
+
+check "a is not b" [ "a" = "b" ]
+finish

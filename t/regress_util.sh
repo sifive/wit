@@ -8,8 +8,8 @@ check() {
         shift;
 
         if $@
-        then echo "${check_name} PASS"; ((pass++))
-        else echo "${check_name} FAIL"; ((fail++))
+        then echo "PASS - ${check_name}"; ((pass++))
+        else echo "FAIL - ${check_name}"; ((fail++))
         fi
 }
 
