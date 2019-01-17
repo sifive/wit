@@ -1,18 +1,16 @@
 #!/bin/sh
 
 ## List of tests to ignore
-test_ignore_list=( test_fail test_pass )
+test_ignore_list=( test_fail )
 ignore_test () {
         local test_name=$1
 
         if [[ "${test_ignore_list[@]}" =~ "${test_name}" ]]
         then return 0
+        else return 1
         fi
-
-        return 1
 }
 
-wit_repo='git@github.com:sifive/wit'
 test_root=$(dirname $(realpath $0))
 wit_root=$(realpath $test_root/..)
 
@@ -52,10 +50,15 @@ for test_path in $test_root/*.t; do
         fi
 done
 
-for test_name in ${!test_results[@]}; do echo "${test_name} - ${test_results[$test_name]}"; done
+for test_name in ${!test_results[@]}; do echo "${test_results[$test_name]} - ${test_name}"; done
 
 echo
 echo
 echo "Results:"
 echo "Passing: $pass"
 echo "Failing: $fail"
+
+if [ $fail -ne 0 ]
+then exit 1
+else exit 0
+fi

@@ -1,5 +1,11 @@
 #!/bin/sh
 
+wit_repo='git@github.com:sifive/wit'
+test_root=$(dirname $(realpath $0))
+wit_root=$(realpath $test_root/..)
+
+export PATH=$wit_root:${PATH}
+
 fail=0
 pass=0
 
