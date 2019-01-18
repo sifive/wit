@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+. $(dirname $0)/regress_util.sh
+
 ## List of tests to ignore
 test_ignore_list=( test_fail )
 ignore_test () {
@@ -10,9 +12,6 @@ ignore_test () {
         else return 1
         fi
 }
-
-test_root=$(dirname $(readlink -f $0))
-wit_root=$(readlink -f $test_root/..)
 
 export PATH=$wit_root:${PATH}
 
