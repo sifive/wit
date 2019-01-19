@@ -3,6 +3,7 @@
 import argparse
 import lib.gitrepo
 
+
 # Make this a factory for different VCS types
 class Package:
     """
@@ -26,7 +27,7 @@ class Package:
         # FIXME: This is ugly. Split on '::' into a path and revision, but
         # there may not be a revision. So add an additional array
         source, rev = (s.split("::") + [None])[:2]
-        if rev == None:
+        if rev is None:
             rev = "HEAD"
         if not lib.gitrepo.GitRepo.is_git_repo(source):
             msg = "Remote git repo '{}' does not exist!".format(source)
@@ -40,14 +41,12 @@ class Package:
         name = m['name']
         source = m['source']
         path = wsroot / name
-        #if not lib.gitrepo.GitRepo.is_git_repo(path):
+        # if not lib.gitrepo.GitRepo.is_git_repo(path):
         #    # TODO implement redownloading from remote
         #    msg = "path '{}' is not a git repo even though it's in the manifest!".format(path)
         #    raise Exception(msg)
 
-        return lib.gitrepo.GitRepo(source=source, revision=commit, name=name, path=path)
-
-
+        return lib.gitrepo.GitRepo(source, commit, name=name, path=path)
 
 
 if __name__ == '__main__':

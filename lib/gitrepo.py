@@ -11,8 +11,10 @@ import lib.manifest
 logging.basicConfig()
 log = logging.getLogger('wit')
 
+
 class GitError(Exception):
     pass
+
 
 class GitRepo:
     """
@@ -26,7 +28,7 @@ class GitRepo:
         self.path = path
         self.source = source
         self.revision = revision
-        if name == None:
+        if name is None:
             self.name = GitRepo.path_to_name(source)
         else:
             self.name = name
@@ -36,7 +38,7 @@ class GitRepo:
     # GitRepo (see Package.from_arg) during argument parsing, we don't yet know
     # the path
     def set_path(self, wsroot):
-        assert self.path == None, "Trying to set path, but it has already been set!"
+        assert self.path is None, "Trying to set path, but it has already been set!"
         self.path = wsroot / self.name
 
     def clone(self):
@@ -57,8 +59,6 @@ class GitRepo:
         self.checkout()
         # If our revision was a branch or tag, get the actual commit
         self.revision = self.get_latest_commit()
-
-
 
     def get_latest_commit(self):
         proc = self._git_command('rev-parse', 'HEAD')
@@ -86,18 +86,15 @@ class GitRepo:
                 return True
         return False
 
-
     # TODO Since we're storing the revision, should we be passing it as an argument?
     def commit_to_time(self, hash):
         proc = self._git_command('log', '-n1', '--format=%ct', hash)
         self._git_check(proc)
         return proc.stdout.rstrip()
 
-
     def is_ancestor(self, ancestor, current=None):
         proc = self._git_command("merge-base", "--is-ancestor", ancestor, current or self.get_latest_commit())
         return proc.returncode == 0
-
 
     # FIXME should we pass wsroot or should it be a member of the GitRepo?
     # Should this be a separate mutation or part of normal construction?
@@ -113,7 +110,6 @@ class GitRepo:
         proc = self._git_command("checkout", self.revision)
         self._git_check(proc)
 
-
     def manifest(self):
         return {
             'name': self.name,
@@ -121,23 +117,22 @@ class GitRepo:
             'commit': self.revision,
         }
 
-
     def _git_command(self, *args):
         log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), self.path))
-        proc = subprocess.run(['git', *args], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            cwd=str(self.path), universal_newlines=True)
+        proc = subprocess.run(['git', *args], stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE,
+                              cwd=str(self.path), universal_newlines=True)
         return proc
-
 
     def _git_check(self, proc):
         if proc.returncode:
-            log.error("Command [{}] exited with non-zero exit status [{}]".format(' '.join(proc.args), proc.returncode))
+            log.error("Command [{}] exited with non-zero exit status [{}]"
+                      .format(' '.join(proc.args), proc.returncode))
             log.error("stdout: [{}]".format(proc.stdout.rstrip()))
             log.error("stderr: [{}]".format(proc.stderr.rstrip()))
             raise GitError(proc.stderr.rstrip())
 
         return proc.returncode
-
 
     @staticmethod
     def path_to_name(path):
@@ -158,12 +153,11 @@ class GitRepo:
         ret = proc.returncode
         return ret == 0
 
-
     # Enable prettyish-printing of the class
     def __repr__(self):
         return pformat(vars(self), indent=4, width=1)
 
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
-

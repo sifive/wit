@@ -8,6 +8,7 @@ import logging
 logging.basicConfig()
 log = logging.getLogger('wit')
 
+
 # TODO
 # Should we use different datastructures?
 # The JSON file format slightly differs from manifest, why?
@@ -45,6 +46,7 @@ class LockFile:
     def process(wsroot, content):
         packages = [Package.from_manifest(wsroot, x) for _, x in content.items()]
         return LockFile(packages)
+
 
 if __name__ == '__main__':
     import doctest

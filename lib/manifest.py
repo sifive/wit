@@ -3,6 +3,7 @@
 import json
 from lib.package import Package
 
+
 # TODO
 # Should this actually be shared between package manifests and workspace descriptions?
 # Should we use different datastructures?
@@ -40,6 +41,7 @@ class Manifest:
     def process_manifest(wsroot, json_content):
         packages = [Package.from_manifest(wsroot, x) for x in json_content]
         return Manifest(packages)
+
 
 if __name__ == '__main__':
     import doctest
