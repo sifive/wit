@@ -1,8 +1,8 @@
 #!/bin/sh
 
 wit_repo='git@github.com:sifive/wit'
-test_root=$(dirname $(readlink -f $0))
-wit_root=$(readlink -f $test_root/..)
+test_root=$(dirname $(perl -MCwd -e "print Cwd::realpath('$0')"))
+wit_root=$(perl -MCwd -e "print Cwd::realpath('$test_root/..')")
 
 export PATH=$wit_root:${PATH}
 
