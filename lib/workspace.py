@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
 
-import os
 import sys
 from pathlib import Path
-import json
 from pprint import pformat
 import logging
-import subprocess
-from collections import OrderedDict
-from gitrepo import GitRepo
-from manifest import Manifest
-from package import Package
-from lock import LockFile
+from lib.gitrepo import GitRepo
+from lib.manifest import Manifest
+from lib.lock import LockFile
 
 logging.basicConfig()
 log = logging.getLogger('wit')

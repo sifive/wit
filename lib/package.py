@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 
-import subprocess
 import argparse
-import gitrepo
+import lib.gitrepo
 
 # Make this a factory for different VCS types
 class Package:
@@ -14,7 +13,7 @@ class Package:
     def from_arg(s):
         """
         >>> Package.from_arg(".::HEAD")
-        gitrepo.GitRepo(source='.', revision='HEAD')
+        lib.gitrepo.GitRepo(source='.', revision='HEAD')
         >>> Package.from_arg("not-a-repo")
         Traceback (most recent call last):
             ...
@@ -29,11 +28,11 @@ class Package:
         source, rev = (s.split("::") + [None])[:2]
         if rev == None:
             rev = "HEAD"
-        if not gitrepo.GitRepo.is_git_repo(source):
+        if not lib.gitrepo.GitRepo.is_git_repo(source):
             msg = "Remote git repo '{}' does not exist!".format(source)
             raise argparse.ArgumentTypeError(msg)
 
-        return gitrepo.GitRepo(source, rev)
+        return lib.gitrepo.GitRepo(source, rev)
 
     @staticmethod
     def from_manifest(wsroot, m):
@@ -41,12 +40,12 @@ class Package:
         name = m['name']
         source = m['source']
         path = wsroot / name
-        #if not gitrepo.GitRepo.is_git_repo(path):
+        #if not lib.gitrepo.GitRepo.is_git_repo(path):
         #    # TODO implement redownloading from remote
         #    msg = "path '{}' is not a git repo even though it's in the manifest!".format(path)
         #    raise Exception(msg)
 
-        return gitrepo.GitRepo(source=source, revision=commit, name=name, path=path)
+        return lib.gitrepo.GitRepo(source=source, revision=commit, name=name, path=path)
 
 
 

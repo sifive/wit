@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 
 import json
-from package import Package
+from lib.package import Package
+from collections import OrderedDict
+import logging
+
+logging.basicConfig()
+log = logging.getLogger('wit')
 
 # TODO
-# Should this actually be shared between package manifests and workspace descriptions?
 # Should we use different datastructures?
-class Manifest:
+# The JSON file format slightly differs from manifest, why?
+class LockFile:
     """
     Common class for the description of package dependencies and a workspace
     """
 
-    def __init__(self, packages):
+    def __init__(self, packages=[]):
         self.packages = packages
 
     def contains_package(self, package):
@@ -24,22 +29,22 @@ class Manifest:
         self.packages.append(package)
 
     def write(self, path):
-        contents = [p.manifest() for p in self.packages]
+        log.debug("Writing lock file to {}".format(path))
+        contents = OrderedDict((p.name, p.manifest()) for p in self.packages)
         manifest_json = json.dumps(contents, sort_keys=True, indent=4) + '\n'
         path.write_text(manifest_json)
 
-    # FIXME It's maybe a little weird that we need wsroot but that's because
-    # this method is being used for both wit-workspace and wit-manifest in
-    # packages
     @staticmethod
-    def read_manifest(wsroot, path):
+    def read(path):
+        log.debug("Reading lock file from {}".format(path))
         content = json.loads(path.read_text())
-        return Manifest.process_manifest(wsroot, content)
+        wsroot = path.parent
+        return LockFile.process(wsroot, content)
 
     @staticmethod
-    def process_manifest(wsroot, json_content):
-        packages = [Package.from_manifest(wsroot, x) for x in json_content]
-        return Manifest(packages)
+    def process(wsroot, content):
+        packages = [Package.from_manifest(wsroot, x) for _, x in content.items()]
+        return LockFile(packages)
 
 if __name__ == '__main__':
     import doctest

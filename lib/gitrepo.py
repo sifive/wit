@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 import subprocess
-import argparse
 from pathlib import Path
 import logging
 from pprint import pformat
-import manifest
 import json
+import sys
+import lib.manifest
 
 logging.basicConfig()
 log = logging.getLogger('wit')
@@ -107,7 +107,7 @@ class GitRepo:
             log.info("No dependency file found in repo [{}:{}]".format(self.revision, self.path))
             return []
         json_content = json.loads(proc.stdout)
-        return manifest.Manifest.process_manifest(wsroot, json_content).packages
+        return lib.manifest.Manifest.process_manifest(wsroot, json_content).packages
 
     def checkout(self):
         proc = self._git_command("checkout", self.revision)

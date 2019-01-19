@@ -10,14 +10,11 @@
 # * Use a real logger
 # * Handle partial sha1s correctly
 
-
-import argparse
-from workspace import WorkSpace
-from package import Package
-import logging
-import os
 import sys
-from collections import OrderedDict
+import argparse
+from lib.workspace import WorkSpace
+from lib.package import Package
+import logging
 from pathlib import Path
 
 logging.basicConfig(level = logging.INFO)
