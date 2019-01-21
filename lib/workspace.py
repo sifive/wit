@@ -15,8 +15,10 @@ log = logging.getLogger('wit')
 class NotAncestorError(Exception):
     pass
 
+
 class RepoAgeConflict(Exception):
     pass
+
 
 class WorkSpace:
     MANIFEST = "wit-workspace.json"
@@ -95,8 +97,8 @@ class WorkSpace:
 
         raise FileNotFoundError("Couldn't find manifest file")
 
-
-    # FIXME Should we run this algorithm upon `wit status` to mention if lockfile out of sync?
+    # FIXME Should we run this algorithm upon `wit status` to mention if
+    # lockfile out of sync?
     def update(self):
         # This algorithm courtesy of Wes
         # https://sifive.atlassian.net/browse/FRAM-1
@@ -146,7 +148,7 @@ class WorkSpace:
             for dep_repo in dependencies:
                 # Check to see if there is a path specified in the repomap.
                 # If so, use that path instead.
-                #dependent['source'] = self.resolve_repomap(dependent['source'])
+                # dependent['source'] = self.resolve_repomap(dependent['source'])
 
                 # 8. Clone without checking out the dependency
                 if not GitRepo.is_git_repo(dep_repo.path):
@@ -164,8 +166,7 @@ class WorkSpace:
                 queue.append((dep_commit_time, dep_repo.revision, dep_repo.name, dep_repo))
 
             # Keep the queue ordered
-            queue.sort(key = lambda tup: tup[0])
-
+            queue.sort(key=lambda tup: tup[0])
 
             # 12. Go to step 3 (finish loop)
 
@@ -188,9 +189,7 @@ class WorkSpace:
         new_lock.write(self.lockfile_path())
         self.lock = new_lock
 
-
     def add_package(self, package):
-        #source = self.resolve_repomap(source)
         package.set_path(self.path)
 
         if GitRepo.is_git_repo(package.path):
@@ -208,10 +207,8 @@ class WorkSpace:
         print('my manifest_path = {}'.format(self.manifest_path()))
         self.manifest.write(self.manifest_path())
 
-
     def repo_status(self, source):
         raise NotImplementedError
-
 
     # Enable prettyish-printing of the class
     def __repr__(self):

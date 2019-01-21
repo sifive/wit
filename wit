@@ -17,7 +17,7 @@ from lib.package import Package
 import logging
 from pathlib import Path
 
-logging.basicConfig(level = logging.INFO)
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('wit')
 
 
@@ -50,7 +50,6 @@ def main() -> None:
     else:
         log.setLevel(logging.INFO)
 
-    #ws = WorkSpace(args.repomap)
     # FIXME: This big switch statement... no good.
     if args.command == 'init':
         create(args)
@@ -83,6 +82,7 @@ def create(args):
     else:
         packages = args.add
     WorkSpace.create(args.workspace_name, packages)
+
 
 def add(ws, args):
     log.info("Adding repo to workspace")
@@ -132,4 +132,3 @@ def update(ws, args):
 
 if __name__ == '__main__':
     main()
-
