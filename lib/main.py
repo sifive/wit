@@ -30,10 +30,11 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 
     init_parser = subparsers.add_parser('init', help='create workspace')
-    init_parser.add_argument('-a', '--add', metavar='repo[::revision]', action='append', type=Package.from_arg, help='add an initial repo')
+    init_parser.add_argument('-a', '--add-pkg', metavar='repo[::revision]', action='append',
+                             type=Package.from_arg, help='add an initial package')
     init_parser.add_argument('workspace_name')
 
-    add_parser = subparsers.add_parser('add', help='add repo to workspace')
+    add_parser = subparsers.add_parser('add-pkg', help='add a package to the workspace')
     add_parser.add_argument('repo', metavar='repo[::revision]', type=Package.from_arg)
 
     subparsers.add_parser('status', help='show status of workspace')
@@ -64,7 +65,7 @@ def main() -> None:
             log.error("Unable to find workspace root [{}]. Cannot continue.".format(e))
             sys.exit(1)
 
-        if args.command == 'add':
+        if args.command == 'add-pkg':
             add(ws, args)
 
         elif args.command == 'status':
@@ -77,10 +78,10 @@ def main() -> None:
 def create(args):
     log.info("Creating workspace [{}]".format(args.workspace_name))
 
-    if args.add is None:
+    if args.add_pkg is None:
         packages = []
     else:
-        packages = args.add
+        packages = args.add_pkg
     WorkSpace.create(args.workspace_name, packages)
 
 
