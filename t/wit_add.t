@@ -15,8 +15,8 @@ foo_dir=$PWD/foo
 wit init myws
 
 cd myws
-wit add $foo_dir
-check "wit add should succeed" [ $? -eq 0 ]
+wit add-pkg $foo_dir
+check "wit add-pkg should succeed" [ $? -eq 0 ]
 
 foo_ws_commit=$(jq -r '.[] | select(.name=="foo") | .commit' wit-workspace.json)
 check "Added repo should have correct commit" [ "$foo_ws_commit" = "$foo_commit" ]
