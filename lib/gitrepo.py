@@ -148,8 +148,8 @@ class GitRepo:
 
     @staticmethod
     def is_git_repo(path):
-        cmd = ['git', 'ls-remote', '--exit-code', path]
-        proc = subprocess.run(cmd, capture_output=True)
+        cmd = ['git', 'ls-remote', '--exit-code', str(path)]
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         ret = proc.returncode
         return ret == 0
 
