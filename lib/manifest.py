@@ -2,6 +2,7 @@
 
 import json
 from lib.package import Package
+from pathlib import Path
 
 
 # TODO
@@ -23,11 +24,20 @@ class Manifest:
 
     def add_package(self, package):
         self.packages.append(package)
+        return self
 
     def write(self, path):
         contents = [p.manifest() for p in self.packages]
         manifest_json = json.dumps(contents, sort_keys=True, indent=4) + '\n'
         path.write_text(manifest_json)
+
+    @staticmethod
+    def read(path, safe=False):
+        if safe and not Path(path).exists():
+            return Manifest([])
+
+        content = json.loads(path.read_text())
+        return Manifest(content)
 
     # FIXME It's maybe a little weird that we need wsroot but that's because
     # this method is being used for both wit-workspace and wit-manifest in

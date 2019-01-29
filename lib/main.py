@@ -34,8 +34,14 @@ def main() -> None:
                              type=Package.from_arg, help='add an initial package')
     init_parser.add_argument('workspace_name')
 
-    add_parser = subparsers.add_parser('add-pkg', help='add a package to the workspace')
-    add_parser.add_argument('repo', metavar='repo[::revision]', type=Package.from_arg)
+    add_pkg_parser = subparsers.add_parser('add-pkg', help='add a package to the workspace')
+    add_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=Package.from_arg)
+
+    update_pkg_parser = subparsers.add_parser('update-pkg', help='update the revision of a previously added package')
+    update_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=Package.from_arg)
+
+    add_dep_parser = subparsers.add_parser('add-dep', help='add a dependency to a package')
+    add_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=Package.from_arg)
 
     subparsers.add_parser('status', help='show status of workspace')
     subparsers.add_parser('update', help='update git repos')
@@ -66,7 +72,13 @@ def main() -> None:
             sys.exit(1)
 
         if args.command == 'add-pkg':
-            add(ws, args)
+            add_pkg(ws, args)
+
+        if args.command == 'update-pkg':
+            update_pkg(ws, args)
+
+        if args.command == 'add-dep':
+            add_dep(ws, args)
 
         elif args.command == 'status':
             status(ws, args)
@@ -85,9 +97,23 @@ def create(args):
     WorkSpace.create(args.workspace_name, packages)
 
 
-def add(ws, args):
-    log.info("Adding repo to workspace")
+def add_pkg(ws, args):
+    log.info("Adding package to workspace")
     ws.add_package(args.repo)
+
+
+def update_pkg(ws, args):
+    log.info("Updating package in workspace")
+    ws.update_package(args.repo)
+
+
+def add_dep(ws, args):
+    log.info("Adding dependency to package")
+    pkg = Package.from_cwd()
+    if not pkg:
+        raise FileNotFoundError("Could not find package root from cwd.")
+
+    pkg.add_dependency(args.pkg)
 
 
 def status(ws, args):

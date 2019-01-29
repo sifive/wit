@@ -52,8 +52,9 @@ class WorkSpace:
                 sys.exit(1)
 
         for package in packages:
-            package.set_path(path)
+            package.set_wsroot(path)
             package.clone_and_checkout()
+
         manifest = Manifest(packages)
         manifest.write(manifest_path)
         return WorkSpace(path, manifest)
@@ -73,6 +74,11 @@ class WorkSpace:
 
     def lockfile_path(self):
         return WorkSpace._lockfile_path(self.path)
+
+    @classmethod
+    def is_workspace(cls, path):
+        manifest_path = Path(path) / cls.MANIFEST
+        return manifest_path.is_file()
 
     # find a workspace root by iteratively walking up the path
     # until a manifest file is found.
@@ -96,6 +102,7 @@ class WorkSpace:
                 return WorkSpace(wspath, manifest, lock=lock)
 
         raise FileNotFoundError("Couldn't find manifest file")
+
 
     # FIXME Should we run this algorithm upon `wit status` to mention if
     # lockfile out of sync?
@@ -180,7 +187,7 @@ class WorkSpace:
         for reponame in version_selector_map:
             commit = version_selector_map[reponame]['commit']
             repo = version_selector_map[reponame]['repo']
-            lock_repo = GitRepo(repo.source, commit, name=repo.name, path=repo.path)
+            lock_repo = GitRepo(repo.source, commit, name=repo.name, wsroot=self.path)
             lock_repo.checkout()
             lock_packages.append(lock_repo)
 
@@ -190,7 +197,7 @@ class WorkSpace:
         self.lock = new_lock
 
     def add_package(self, package):
-        package.set_path(self.path)
+        package.set_wsroot(self.path)
 
         if GitRepo.is_git_repo(package.path):
             raise NotImplementedError
@@ -206,6 +213,9 @@ class WorkSpace:
 
         print('my manifest_path = {}'.format(self.manifest_path()))
         self.manifest.write(self.manifest_path())
+
+    def update_package(self, package):
+        raise NotImplementedError
 
     def repo_status(self, source):
         raise NotImplementedError
