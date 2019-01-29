@@ -14,8 +14,8 @@ check() {
         shift;
 
         if $@
-        then echo "PASS - ${check_name}"; ((pass++))
-        else echo "FAIL - ${check_name}"; ((fail++))
+        then echo "PASS - ${check_name}"; pass=$((pass+1))
+        else echo "FAIL - ${check_name}"; fail=$((fail+1))
         fi
 }
 
