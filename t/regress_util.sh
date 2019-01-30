@@ -9,24 +9,34 @@ export PATH=$wit_root:${PATH}
 fail=0
 pass=0
 
-check() {
-        check_name=$1
-        shift;
+make_repo() {
+    repo_name=$1
 
-        if $@
-        then echo "PASS - ${check_name}"; pass=$((pass+1))
-        else echo "FAIL - ${check_name}"; fail=$((fail+1))
-        fi
+    mkdir $repo_name
+    git -C $repo_name init
+    touch $repo_name/file
+    git -C $repo_name add -A
+    git -C $repo_name commit -m "commit1"
+}
+
+check() {
+    check_name=$1
+    shift;
+
+    if $@
+    then echo "PASS - ${check_name}"; pass=$((pass+1))
+    else echo "FAIL - ${check_name}"; fail=$((fail+1))
+    fi
 }
 
 report() {
-        echo "PASS: $pass"
-        echo "FAIL: $fail"
+    echo "PASS: $pass"
+    echo "FAIL: $fail"
 }
 
 finish() {
-        if [ $fail -eq 0 ]
-        then echo "Test passed"; exit 0
-        else echo "Test failed"; exit 1
-        fi
+    if [ $fail -eq 0 ]
+    then echo "Test passed"; exit 0
+    else echo "Test failed"; exit 1
+    fi
 }
