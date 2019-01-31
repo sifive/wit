@@ -6,7 +6,7 @@ import logging
 from pprint import pformat
 import json
 import sys
-import lib.manifest
+#import lib.manifest
 
 logging.basicConfig()
 log = logging.getLogger('wit')
@@ -18,59 +18,67 @@ class GitError(Exception):
 
 class GitRepo:
     """
-    In memory data structure representing a Git repo package
-    It may not be in sync with data structures on the file system
-    Note there can be multiple GitRepo objects for the same package
+    In memory data structure representing a Git repository
     """
-    PKG_DEPENDENCY_FILE = "wit-manifest.json"
 
-    def __init__(self, source, revision, name=None, wsroot=None):
-        self.wsroot = wsroot
-        self.source = source
-        self.revision = revision
-        if name is None:
-            self.name = GitRepo.path_to_name(source)
+    # TODO
+    #   - we accept path as a String, should we?
+    #   - should we verify the creation was correct?
+    def __init__(self, name, remote, path):
+        self.name = name
+        self.remote = remote
+        if not path is Path:
+            self.path = Path(path)
         else:
-            self.name = name
+            self.path = path
 
-    def set_wsroot(self, wsroot):
-        self.wsroot = wsroot
+    @staticmethod
+    def fromPackage(package, path):
+        """
+        Creates a GitRepo from a package description into a path
+        """
+        repo = GitRepo(package.name, package.remote, path)
+        repo.clone()
+        return repo
 
-    def path(self):
-        return self.wsroot / self.name
+    @staticmethod
+    def from_path(path):
+        """
+        Create a GitRepo from an existing repo on disk
+        """
+        assert GitRepo.is_git_repo(path), "Cannot create git repo from {}".format(path)
+        proc = GitRepo._raw_git_command(str(path), "remote", "get-url", "origin")
+        GitRepo._git_check(proc)
+        remote = proc.stdout.rstrip("\r\n")
+        name = GitRepo.remote_to_name(remote)
+        return GitRepo(name, remote, path)
 
+
+    # TODO Should this be folding in to fromPackage?
     def clone(self):
-        assert self.wsroot is not None, "Workstation Root must be set before cloning!"
-        assert not GitRepo.is_git_repo(self.path()), "Trying to clone and checkout into existing git repo!"
+        assert not GitRepo.is_git_repo(self.path), "Trying to clone into existing git repo!"
 
-        path = self.path()
-        path.mkdir()
-        proc = self._git_command("clone", "--no-checkout", str(self.source), str(path))
+        cwd = self.path.parent
+        proc = GitRepo._raw_git_command(str(cwd), "clone", "--no-checkout", str(self.remote), str(self.path))
         try:
-            self._git_check(proc)
+            GitRepo._git_check(proc)
         except Exception as e:
             log.error("Error cloning into workspace: {}".format(e))
             sys.exit(1)
 
-    def clone_and_checkout(self):
-        self.clone()
-        self.checkout()
-        # If our revision was a branch or tag, get the actual commit
-        self.revision = self.get_latest_commit()
-
     def get_latest_commit(self):
         proc = self._git_command('rev-parse', 'HEAD')
-        self._git_check(proc)
+        GitRepo._git_check(proc)
         return proc.stdout.rstrip()
 
     def clean(self):
         proc = self._git_command('status', '--porcelain')
-        self._git_check(proc)
+        GitRepo._git_check(proc)
         return proc.stdout == ""
 
     def modified(self):
         proc = self._git_command('status', '--porcelain')
-        self._git_check(proc)
+        GitRepo._git_check(proc)
         for line in proc.stdout.split("\n"):
             if line.lstrip().startswith("M"):
                 return True
@@ -78,58 +86,57 @@ class GitRepo:
 
     def untracked(self):
         proc = self._git_command('status', '--porcelain')
-        self._git_check(proc)
+        GitRepo._git_check(proc)
         for line in proc.stdout.split("\n"):
             if line.lstrip().startswith("??"):
                 return True
         return False
 
     # TODO Since we're storing the revision, should we be passing it as an argument?
-    def commit_to_time(self, hash):
-        proc = self._git_command('log', '-n1', '--format=%ct', hash)
-        self._git_check(proc)
+    def commit_to_time(self, commit):
+        proc = self._git_command('log', '-n1', '--format=%ct', commit)
+        GitRepo._git_check(proc)
         return proc.stdout.rstrip()
 
     def is_ancestor(self, ancestor, current=None):
         proc = self._git_command("merge-base", "--is-ancestor", ancestor, current or self.get_latest_commit())
         return proc.returncode == 0
 
-    # FIXME should we pass wsroot or should it be a member of the GitRepo?
-    # Should this be a separate mutation or part of normal construction?
-    def get_dependencies(self, wsroot):
-        proc = self._git_command("show", "{}:{}".format(self.revision, GitRepo.PKG_DEPENDENCY_FILE))
+    ## FIXME should we pass wsroot or should it be a member of the GitRepo?
+    ## Should this be a separate mutation or part of normal construction?
+    #def get_dependencies(self, wsroot):
+    #    proc = self._git_command("show", "{}:{}".format(self.revision, GitRepo.PKG_DEPENDENCY_FILE))
+    #    if proc.returncode:
+    #        log.info("No dependency file found in repo [{}:{}]".format(self.revision, self.path()))
+    #        return []
+    #    json_content = json.loads(proc.stdout)
+    #    return lib.manifest.Manifest.process_manifest(wsroot, json_content).packages
+
+    # Reads a file from a certain commit
+    # Returns the contents of the file or a string if the file does not exist in that commit
+    def show_file(self, commit, file_path):
+        proc = self._git_command("show", "{}:{}".format(commit, file_path))
         if proc.returncode:
-            log.info("No dependency file found in repo [{}:{}]".format(self.revision, self.path()))
-            return []
-        json_content = json.loads(proc.stdout)
-        return lib.manifest.Manifest.process_manifest(wsroot, json_content).packages
+            return None
+        return proc.stdout
 
-    def add_dependency(self, package):
-        path = self.manifest_path()
-        lib.manifest.Manifest.read(path, safe=True).add_package(package).write(path)
-
-    def checkout(self):
-        proc = self._git_command("checkout", self.revision)
-        self._git_check(proc)
-
-    def manifest_path(self):
-        return self.path() / self.PKG_DEPENDENCY_FILE
-
-    def manifest(self):
-        return {
-            'name': self.name,
-            'source': self.source,
-            'commit': self.revision,
-        }
+    def checkout(self, commit):
+        proc = self._git_command("checkout", commit)
+        GitRepo._git_check(proc)
 
     def _git_command(self, *args):
-        log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), self.path()))
+        return GitRepo._raw_git_command(self.path, *args)
+
+    @staticmethod
+    def _raw_git_command(path, *args):
+        log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), str(path)))
         proc = subprocess.run(['git', *args], stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
-                              cwd=str(self.path()), universal_newlines=True)
+                              cwd=str(path), universal_newlines=True)
         return proc
 
-    def _git_check(self, proc):
+    @staticmethod
+    def _git_check(proc):
         if proc.returncode:
             log.error("Command [{}] exited with non-zero exit status [{}]"
                       .format(' '.join(proc.args), proc.returncode))
@@ -152,7 +159,20 @@ class GitRepo:
         return Path(path).name.replace('.git', '')
 
     @staticmethod
+    def remote_to_name(remote):
+        """
+        >>> GitRepo.remote_to_name("git@github.com:sifive/wit.git")
+        'wit'
+        >>> GitRepo.remote_to_name("https://github.com/sifive/wit.git")
+        'wit'
+        """
+        import re
+        return re.sub('\.git', '', remote.split("/")[-1])
+
+    @staticmethod
     def is_git_repo(path):
+        if not path.is_dir():
+            return False
         cmd = ['git', 'ls-remote', '--exit-code', str(path)]
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         ret = proc.returncode
@@ -166,3 +186,5 @@ class GitRepo:
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+
+

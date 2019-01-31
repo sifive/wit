@@ -23,11 +23,14 @@ class RepoAgeConflict(Exception):
 class WorkSpace:
     MANIFEST = "wit-workspace.json"
     LOCK = "wit-lock.json"
+    PRIVATE_DIR = ".wit"
+    PRIVATE_REPOS_DIR = "{}/repos".format(PRIVATE_DIR)
 
-    def __init__(self, path, manifest, lock=None):
+    def __init__(self, path, manifest=None, lock=None, repos={}):
         self.path = path
         self.manifest = manifest
         self.lock = lock
+        self.repos = repos
 
     # create a new workspace root given a name.
     @staticmethod
@@ -84,25 +87,46 @@ class WorkSpace:
     # until a manifest file is found.
     @staticmethod
     def find(start):
+        def read_repos(path):
+            from itertools import chain
+            repos = {}
+            candidates = path.iterdir()
+            private_repos_dir = (path / WorkSpace.PRIVATE_REPOS_DIR)
+            if private_repos_dir.is_dir():
+                candidates = chain(candidates, private_repos_dir.iterdir())
+
+            for p in candidates:
+                if GitRepo.is_git_repo(p):
+                    repo = GitRepo.from_path(p)
+                    assert not repo.name in repos, (
+                        "Error, duplicate repo named {} found at {} and {}"
+                        .format(repo.path, repos[repo.name].path)
+                    )
+                    repos[repo.name] = repo
+            return repos
+
         cwd = start.resolve()
         for p in ([cwd] + list(cwd.parents)):
             manifest_path = WorkSpace._manifest_path(p)
             log.info("Checking [{}]".format(manifest_path))
             if Path(manifest_path).is_file():
-                log.debug("Found workspace at [{}]".format(p))
                 wspath = p
-                manifest = Manifest.read_manifest(wspath, manifest_path)
+                log.debug("Found workspace at [{}]".format(wspath))
+                manifest = Manifest.read_manifest(manifest_path)
 
                 lockfile_path = WorkSpace._lockfile_path(p)
                 if lockfile_path.is_file():
                     lock = LockFile.read(lockfile_path)
                 else:
                     lock = None
+                repos = read_repos(wspath)
 
-                return WorkSpace(wspath, manifest, lock=lock)
+                return WorkSpace(wspath, manifest, lock=lock, repos=repos)
 
         raise FileNotFoundError("Couldn't find manifest file")
 
+    def get_repo(self, package):
+        return self.repos[package.name]
 
     # FIXME Should we run this algorithm upon `wit status` to mention if
     # lockfile out of sync?

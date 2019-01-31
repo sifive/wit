@@ -43,13 +43,13 @@ class Manifest:
     # this method is being used for both wit-workspace and wit-manifest in
     # packages
     @staticmethod
-    def read_manifest(wsroot, path):
+    def read_manifest(path):
         content = json.loads(path.read_text())
-        return Manifest.process_manifest(wsroot, content)
+        return Manifest.process_manifest(content)
 
     @staticmethod
-    def process_manifest(wsroot, json_content):
-        packages = [Package.from_manifest(wsroot, x) for x in json_content]
+    def process_manifest(json_content):
+        packages = [Package.from_manifest(x) for x in json_content]
         return Manifest(packages)
 
 

@@ -126,18 +126,19 @@ def status(ws, args):
     dirty = []
     for package in ws.lock.packages:
         # FIXME: cheating by diving into the object.
-        lock_commit = package.revision
-        latest_commit = package.get_latest_commit()
+        lock_commit = package.commit
+        repo = ws.get_repo(package)
+        latest_commit = repo.get_latest_commit()
 
         new_commits = lock_commit != latest_commit
 
-        if new_commits or not package.clean():
+        if new_commits or not repo.clean():
             status = []
             if new_commits:
                 status.append("new commits")
-            if package.modified():
+            if repo.modified():
                 status.append("modified content")
-            if package.untracked():
+            if repo.untracked():
                 status.append("untracked content")
             dirty.append((package, status))
         else:

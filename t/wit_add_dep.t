@@ -27,8 +27,16 @@ cd myws
 wit add-pkg $foo_dir
 check "wit add-pkg should succeed" [ $? -eq 0 ]
 
-(cd foo; wit add-dep $bar_dir)
+cd foo
+wit add-dep $bar_dir
 check "wit add-dep should succeed" [ $? -eq 0 ]
+
+manifest_bar_commit=$(jq -r '.[] | select(.name=="bar") | .commit' wit-manifest.json)
+check "wit add-dep should add correct commit of bar to foo's wit-manifest" [
+  "$manifest_bar_commit" = "$bar_commit"
+]
+
+cd ..
 
 wit update
 check "Wit update" [ $? -eq 0 ]

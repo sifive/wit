@@ -2,6 +2,7 @@
 
 import argparse
 import lib.gitrepo
+import lib.git_package
 import lib.workspace
 import os
 from pathlib import Path
@@ -39,16 +40,12 @@ class Package:
         return lib.gitrepo.GitRepo(source, rev)
 
     @staticmethod
-    def from_manifest(wsroot, m):
+    def from_manifest(m):
         commit = m['commit']
         name = m['name']
         source = m['source']
-        # if not lib.gitrepo.GitRepo.is_git_repo(path):
-        #    # TODO implement redownloading from remote
-        #    msg = "path '{}' is not a git repo even though it's in the manifest!".format(path)
-        #    raise Exception(msg)
 
-        return lib.gitrepo.GitRepo(source, commit, name=name, wsroot=wsroot)
+        return lib.git_package.GitPackage(commit, name, source)
 
     @staticmethod
     def from_cwd():

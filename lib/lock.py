@@ -39,12 +39,11 @@ class LockFile:
     def read(path):
         log.debug("Reading lock file from {}".format(path))
         content = json.loads(path.read_text())
-        wsroot = path.parent
-        return LockFile.process(wsroot, content)
+        return LockFile.process(content)
 
     @staticmethod
-    def process(wsroot, content):
-        packages = [Package.from_manifest(wsroot, x) for _, x in content.items()]
+    def process(content):
+        packages = [Package.from_manifest(x) for _, x in content.items()]
         return LockFile(packages)
 
 
