@@ -99,6 +99,7 @@ class WorkSpace:
     # FIXME Should we run this algorithm upon `wit status` to mention if
     # lockfile out of sync?
     def update(self):
+        log.info("Updating workspace...")
         # This algorithm courtesy of Wes
         # https://sifive.atlassian.net/browse/FRAM-1
         # 1. Initialize an empty version selector map
