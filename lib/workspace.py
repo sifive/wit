@@ -8,7 +8,6 @@ from lib.gitrepo import GitRepo
 from lib.manifest import Manifest
 from lib.lock import LockFile
 
-logging.basicConfig()
 log = logging.getLogger('wit')
 
 
@@ -81,7 +80,7 @@ class WorkSpace:
         cwd = start.resolve()
         for p in ([cwd] + list(cwd.parents)):
             manifest_path = WorkSpace._manifest_path(p)
-            log.info("Checking [{}]".format(manifest_path))
+            log.debug("Checking [{}]".format(manifest_path))
             if Path(manifest_path).is_file():
                 log.debug("Found workspace at [{}]".format(p))
                 wspath = p
@@ -173,7 +172,7 @@ class WorkSpace:
         # 13. Print out summary
         for reponame in version_selector_map:
             commit = version_selector_map[reponame]['commit']
-            print("Repo name [{}] commit [{}]".format(reponame, commit))
+            log.info("Checked out '{}' at '{}'".format(reponame, commit))
 
         # 14. Check out repos and add to lock
         lock_packages = []
@@ -201,10 +200,10 @@ class WorkSpace:
             # TODO Update the revision
             raise NotImplementedError
         else:
-            log.info("Adding [{}] to manifest as [{}]".format(package.source, package.name))
+            log.info("Added '{}' to workspace at '{}'".format(package.source, package.revision))
             self.manifest.add_package(package)
 
-        print('my manifest_path = {}'.format(self.manifest_path()))
+        log.debug('my manifest_path = {}'.format(self.manifest_path()))
         self.manifest.write(self.manifest_path())
 
     def repo_status(self, source):

@@ -8,7 +8,6 @@ import json
 import sys
 import lib.manifest
 
-logging.basicConfig()
 log = logging.getLogger('wit')
 
 
@@ -44,6 +43,7 @@ class GitRepo:
     def clone(self):
         assert self.path is not None, "Path must be set before cloning!"
         assert not GitRepo.is_git_repo(self.path), "Trying to clone and checkout into existing git repo!"
+        log.info('Cloning {}...'.format(self.name))
 
         self.path.mkdir()
 
@@ -101,7 +101,7 @@ class GitRepo:
     def get_dependencies(self, wsroot):
         proc = self._git_command("show", "{}:{}".format(self.revision, GitRepo.WIT_DEPENDENCY_FILE))
         if proc.returncode:
-            log.info("No dependency file found in repo [{}:{}]".format(self.revision, self.path))
+            log.debug("No dependency file found in repo [{}:{}]".format(self.revision, self.path))
             return []
         json_content = json.loads(proc.stdout)
         return lib.manifest.Manifest.process_manifest(wsroot, json_content).packages
