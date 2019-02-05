@@ -15,11 +15,13 @@ import argparse
 from lib.workspace import WorkSpace
 from lib.package import Package
 import logging
+from lib.formatter import WitFormatter
 from pathlib import Path
 
-logging.basicConfig(level=logging.INFO)
+_handler = logging.StreamHandler(sys.stdout)
+_handler.setFormatter(WitFormatter())
+logging.basicConfig(level=logging.INFO, handlers=[_handler])
 log = logging.getLogger('wit')
-
 
 def main() -> None:
     # Parse arguments. Create sub-commands for each of the modes of operation
@@ -43,11 +45,9 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.verbose:
-        log.setLevel(logging.WARNING)
-
+        log.setLevel(logging.INFO)
     elif args.debug:
         log.setLevel(logging.DEBUG)
-
     else:
         log.setLevel(logging.INFO)
 
@@ -76,8 +76,6 @@ def main() -> None:
 
 
 def create(args):
-    log.info("Creating workspace [{}]".format(args.workspace_name))
-
     if args.add_pkg is None:
         packages = []
     else:
@@ -91,7 +89,7 @@ def add(ws, args):
 
 
 def status(ws, args):
-    log.info("Checking workspace status")
+    log.debug("Checking workspace status")
     if not ws.lock:
         log.info("{} is empty. Have you run `wit update`?".format(ws.LOCK))
         return
@@ -117,13 +115,13 @@ def status(ws, args):
         else:
             clean.append(package)
 
-    print("Clean packages:")
+    log.info("Clean packages:")
     for package in clean:
-        print("    {}".format(package.name))
-    print("Dirty repos:")
+        log.info("    {}".format(package.name))
+    log.info("Dirty repos:")
     for package, content in dirty:
         msg = ", ".join(content)
-        print("    {} ({})".format(package.name, msg))
+        log.info("    {} ({})".format(package.name, msg))
 
 
 def update(ws, args):
