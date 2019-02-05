@@ -32,6 +32,8 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 
     init_parser = subparsers.add_parser('init', help='create workspace')
+    init_parser.add_argument('--no-update', action='store_true',
+                             help='don\'t run update upon creating the workspace')
     init_parser.add_argument('-a', '--add-pkg', metavar='repo[::revision]', action='append',
                              type=Package.from_arg, help='add an initial package')
     init_parser.add_argument('workspace_name')
@@ -80,7 +82,9 @@ def create(args):
         packages = []
     else:
         packages = args.add_pkg
-    WorkSpace.create(args.workspace_name, packages)
+    ws = WorkSpace.create(args.workspace_name, packages)
+    if not args.no_update:
+        ws.update()
 
 
 def add(ws, args):
@@ -125,5 +129,4 @@ def status(ws, args):
 
 
 def update(ws, args):
-    log.info("Updating workspace")
     ws.update()

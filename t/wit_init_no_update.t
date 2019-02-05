@@ -14,11 +14,15 @@ git -C bar add -A
 git -C bar commit -m "commit1"
 bar_commit=$(git -C bar rev-parse HEAD)
 
-# Now create a workspace from bar
-wit init myws -a $PWD/bar
+# Create a workspace but do NOT update
+wit init --no-update myws -a $PWD/bar
 cd myws
 
-check "foo should be pulled in as a dependency of bar" [ -d foo ]
+check "foo should not be cloned if --no-update is given" [ ! -d foo ]
+# the update brings in foo
+wit update
+
+check "foo should be pulled in upon calling update" [ -d foo ]
 foo_ws_commit=$(git -C foo rev-parse HEAD)
 check "foo commit should match the dependency in bar" [ "$foo_ws_commit" = "$foo_commit" ]
 
