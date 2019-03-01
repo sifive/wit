@@ -54,6 +54,8 @@ class WorkSpace:
                 log.error("Unable to create workspace [{}]: {}".format(str(path), e))
                 sys.exit(1)
 
+        ws = WorkSpace(path)
+
         for package in packages:
             package.set_wsroot(path)
             package.clone_and_checkout()

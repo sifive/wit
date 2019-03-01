@@ -25,6 +25,7 @@ class GitRepo:
     #   - we accept path as a String, should we?
     #   - should we verify the creation was correct?
     def __init__(self, name, remote, path):
+        print('here')
         self.name = name
         self.remote = remote
         if not path is Path:
@@ -171,6 +172,8 @@ class GitRepo:
 
     @staticmethod
     def is_git_repo(path):
+        if not path is Path:
+            path = Path(path)
         if not path.is_dir():
             return False
         cmd = ['git', 'ls-remote', '--exit-code', str(path)]
@@ -186,5 +189,4 @@ class GitRepo:
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
-
 

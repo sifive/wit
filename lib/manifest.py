@@ -13,8 +13,8 @@ class Manifest:
     Common class for the description of package dependencies and a workspace
     """
 
-    def __init__(self, packages):
-        self.packages = packages
+    def __init__(self, packages=None):
+        self.packages = packages or []
 
     def contains_package(self, package):
         for p in self.packages:

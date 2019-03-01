@@ -37,7 +37,8 @@ class Package:
             msg = "Remote git repo '{}' does not exist!".format(source)
             raise argparse.ArgumentTypeError(msg)
 
-        return lib.gitrepo.GitRepo(source, rev)
+        name = lib.gitrepo.GitRepo.remote_to_name(source)
+        return lib.git_package.GitPackage(rev, name, source)
 
     @staticmethod
     def from_manifest(m):
