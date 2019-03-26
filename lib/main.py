@@ -87,8 +87,11 @@ def create(args):
     else:
         packages = args.add_pkg
     ws = WorkSpace.create(args.workspace_name, packages)
+    ws.set_repo_path(args.repo_path)
+    for package in packages:
+        ws.add_package(package)
+
     if not args.no_update:
-        ws.set_repo_path(args.repo_path)
         ws.update()
 
 

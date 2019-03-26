@@ -20,9 +20,9 @@ git -C bar init
 
 cat << EOF | jq . > bar/wit-manifest.json
 [
-    { "commit": "$foo_commit", "name": "foo", "source": "$PWD/foo" },
-    { "commit": "$foo2_commit", "name": "foo2", "source": "$PWD/foo2" },
-    { "commit": "$foo3_commit", "name": "foo3", "source": "$PWD/foo3" }
+    { "commit": "$foo_commit", "name": "foo" },
+    { "commit": "$foo2_commit", "name": "foo2" },
+    { "commit": "$foo3_commit", "name": "foo3" }
 ]
 EOF
 

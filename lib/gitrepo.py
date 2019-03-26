@@ -40,7 +40,6 @@ class GitRepo:
         assert self.path is None, "Trying to set path, but it has already been set!"
         self.path = wsroot / self.name
 
-
     # find the repo based on path variable
     def find_source(self, repo_paths):
         for path in repo_paths:

@@ -14,7 +14,7 @@ make_repo() {
 
     mkdir $repo_name
     git -C $repo_name init
-    touch $repo_name/file
+    echo $RANDOM > $repo_name/file
     git -C $repo_name add -A
     git -C $repo_name commit -m "commit1"
 }

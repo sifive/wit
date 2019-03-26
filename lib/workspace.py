@@ -50,11 +50,7 @@ class WorkSpace:
                 log.error("Unable to create workspace [{}]: {}".format(str(path), e))
                 sys.exit(1)
 
-        for package in packages:
-            package.set_path(path)
-            package.clone_and_checkout()
-
-        manifest = Manifest(packages)
+        manifest = Manifest([ ])
         manifest.write(manifest_path)
         return WorkSpace(path, manifest)
 
@@ -195,6 +191,7 @@ class WorkSpace:
 
     def add_package(self, package):
         package.set_path(self.path)
+        package.find_source(self.repo_paths)
 
         if GitRepo.is_git_repo(package.path):
             raise NotImplementedError
