@@ -44,10 +44,10 @@ wit init myws -a $PWD/bar
 check "wit init with missing dependency fails" [ $? -ne 0 ]
 
 
-wit --repo-path=$PWD:$PWD/newdir:$PWD/newdir2 init myws2 -a $PWD/bar
+wit --repo-path="$PWD $PWD/newdir $PWD/newdir2" init myws2 -a $PWD/bar
 check "wit with path set succeeds" [ $? -eq 0 ]
 
-WIT_REPO_PATH=$PWD:$PWD/newdir:$PWD/newdir2 wit init myws3 -a $PWD/bar
+WIT_REPO_PATH="$PWD $PWD/newdir $PWD/newdir2" wit init myws3 -a $PWD/bar
 check "wit with \$WIT_REPO_PATH succeeds" [ $? -eq 0 ]
 
 cd myws2
