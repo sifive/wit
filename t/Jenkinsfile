@@ -1,0 +1,9 @@
+#!groovy
+
+node('tiny') {
+    stage('Test') {
+        timeout(time: 5, unit: 'MINUTES') {
+            sh 't/regress.sh'
+        }
+    }
+}
