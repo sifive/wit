@@ -28,14 +28,14 @@ mv foo bar newdir/
 wit init myws -a bar
 
 # Should fail because bar wasn't found
-check "wit init with missing dependency fails" [ "$?" != 0 ]
+check "wit init with missing dependency fails" [ $? -ne 0 ]
 
 
 wit --repo-path=$PWD/newdir init myws2 -a bar
-check "wit with path set succeeds" [ $? == 0 ]
+check "wit with path set succeeds" [ $? -eq 0 ]
 
 WIT_REPO_PATH=$PWD/newdir wit init myws3 -a bar
-check "wit with \$WIT_REPO_PATH succeeds" [ $? == 0 ]
+check "wit with \$WIT_REPO_PATH succeeds" [ $? -eq 0 ]
 
 cd myws2
 
