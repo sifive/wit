@@ -20,7 +20,7 @@ class Package:
             ...
         argparse.ArgumentTypeError: Remote git repo 'not-a-repo' does not exist!
         """
-        # TODO Could speed up valiation
+        # TODO Could speed up validation
         #   - use git ls-remote to validate remote exists
         #   - use git ls-remote to validate revision for tags and branches
         #   - if github repo, check if page exists (or if you get 404)

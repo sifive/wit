@@ -27,12 +27,12 @@ class WorkSpace:
         self.path = path
         self.manifest = manifest
         self.lock = lock
+        self.repo_paths = [ ]
 
     # create a new workspace root given a name.
     @staticmethod
     def create(name, packages):
         path = Path.cwd() / name
-
         manifest_path = WorkSpace._manifest_path(path)
         if path.exists():
             log.info("Using existing directory [{}]".format(str(path)))
@@ -53,6 +53,7 @@ class WorkSpace:
         for package in packages:
             package.set_path(path)
             package.clone_and_checkout()
+
         manifest = Manifest(packages)
         manifest.write(manifest_path)
         return WorkSpace(path, manifest)
@@ -146,10 +147,7 @@ class WorkSpace:
             log.debug("Dependencies for [{}]: [{}]".format(repo.path, dependencies))
 
             for dep_repo in dependencies:
-                # Check to see if there is a path specified in the repomap.
-                # If so, use that path instead.
-                # dependent['source'] = self.resolve_repomap(dependent['source'])
-
+                dep_repo.find_source(self.repo_paths)
                 # 8. Clone without checking out the dependency
                 if not GitRepo.is_git_repo(dep_repo.path):
                     dep_repo.clone()
@@ -188,6 +186,12 @@ class WorkSpace:
         new_lock = LockFile(lock_packages)
         new_lock.write(self.lockfile_path())
         self.lock = new_lock
+
+    def set_repo_path(self, repo_path):
+        if repo_path is not None:
+            self.repo_paths = repo_path.split(":")
+        else:
+            self.repo_paths = [ ]
 
     def add_package(self, package):
         package.set_path(self.path)

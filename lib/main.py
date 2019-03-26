@@ -12,6 +12,7 @@
 
 import sys
 import argparse
+import os
 from lib.workspace import WorkSpace
 from lib.package import Package
 import logging
@@ -28,7 +29,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('--repomap', default=None)
+    parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'))
+    parser.add_argument('--prepend-repo-path', default=None)
+
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 
     init_parser = subparsers.add_parser('init', help='create workspace')
@@ -62,6 +65,7 @@ def main() -> None:
         # workspace cannot be found.
         try:
             ws = WorkSpace.find(Path.cwd())
+            ws.set_repo_path(args.repo_path)
 
         except FileNotFoundError as e:
             log.error("Unable to find workspace root [{}]. Cannot continue.".format(e))
@@ -84,6 +88,7 @@ def create(args):
         packages = args.add_pkg
     ws = WorkSpace.create(args.workspace_name, packages)
     if not args.no_update:
+        ws.set_repo_path(args.repo_path)
         ws.update()
 
 
