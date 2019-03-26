@@ -29,8 +29,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'))
-    parser.add_argument('--prepend-repo-path', default=None)
+    parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'),
+            help='Specify alternative paths to look for packages')
 
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 

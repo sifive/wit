@@ -185,7 +185,7 @@ class WorkSpace:
 
     def set_repo_path(self, repo_path):
         if repo_path is not None:
-            self.repo_paths = repo_path.split(":")
+            self.repo_paths = repo_path.split(" ")
         else:
             self.repo_paths = [ ]
 
