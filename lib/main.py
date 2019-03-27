@@ -31,6 +31,8 @@ def main() -> None:
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'),
             help='Specify alternative paths to look for packages')
+    parser.add_argument('--prepend-repo-path', default=None,
+            help='Prepend paths to the default repo search path.')
 
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 
@@ -48,6 +50,11 @@ def main() -> None:
     subparsers.add_parser('update', help='update git repos')
 
     args = parser.parse_args()
+
+    if args.prepend_repo_path and args.repo_path:
+        args.repo_path = " ".join([args.prepend_repo_path, args.repo_path])
+    elif args.prepend_repo_path:
+        args.repo_path = args.prepend_repo_path
 
     if args.verbose:
         log.setLevel(logging.INFO)

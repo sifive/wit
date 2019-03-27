@@ -168,7 +168,7 @@ class WorkSpace:
                 # 10. Fail if the dependent commit date is newer than the parent date
                 if dep_commit_time > commit_time:
                     # dependent is newer than dependee. Panic.
-                    log.error("Repo [{}] has a dependent that is newer than the source. Tis should not happen.\n".format(dep_repo.name))
+                    log.error("Repo [{}] has a dependent that is newer than the source. This should not happen.\n".format(dep_repo.name))
                     sys.exit(1)
 
                 # 11. Push a tuple onto the queue
