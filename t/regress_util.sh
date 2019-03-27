@@ -31,7 +31,7 @@ check() {
 }
 
 prereq() {
-    if [ "$1" == "off" ]
+    if [ "$1" = "off" ]
     then in_prereq=0; set +e
     else in_prereq=1; set -e
     fi
