@@ -8,6 +8,7 @@ export PATH=$wit_root:${PATH}
 
 fail=0
 pass=0
+in_prereq=0
 
 make_repo() {
     repo_name=$1
@@ -29,12 +30,27 @@ check() {
     fi
 }
 
+prereq() {
+    if [ "$1" == "off" ]
+    then in_prereq=0; set +e
+    else in_prereq=1; set -e
+    fi
+}
+
 report() {
     echo "PASS: $pass"
     echo "FAIL: $fail"
 }
 
 finish() {
+    if [ $in_prereq -eq 1 ]
+    then fail=$((fail+1))
+    fi
+
+    if [ $pass -eq 0 ] && [ $fail -eq 0 ]
+    then fail=$((fail+1))
+    fi
+
     if [ $fail -eq 0 ]
     then echo "Test passed"; exit 0
     else echo "Test failed"; exit 1
