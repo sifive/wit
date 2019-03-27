@@ -40,6 +40,14 @@ class GitRepo:
         assert self.path is None, "Trying to set path, but it has already been set!"
         self.path = wsroot / self.name
 
+    # find the repo based on path variable
+    def find_source(self, repo_paths):
+        for path in repo_paths:
+            tmp_path = str(Path(path) / self.name)
+            if GitRepo.is_git_repo(tmp_path):
+                self.source = tmp_path
+                return
+
     def clone(self):
         assert self.path is not None, "Path must be set before cloning!"
         assert not GitRepo.is_git_repo(self.path), "Trying to clone and checkout into existing git repo!"
