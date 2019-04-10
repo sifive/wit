@@ -1,6 +1,7 @@
 
 import logging
 
+
 class WitFormatter(logging.Formatter):
     """
     Custom formatter to prefix messages except for log.info

@@ -16,6 +16,7 @@ import os
 from lib.workspace import WorkSpace
 from lib.package import Package
 import logging
+from lib import scalaplugin
 from lib.formatter import WitFormatter
 from pathlib import Path
 
@@ -24,21 +25,25 @@ _handler.setFormatter(WitFormatter())
 logging.basicConfig(level=logging.INFO, handlers=[_handler])
 log = logging.getLogger('wit')
 
+
 def main() -> None:
     # Parse arguments. Create sub-commands for each of the modes of operation
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'),
-            help='Specify alternative paths to look for packages')
+                        help='Specify alternative paths to look for packages')
     parser.add_argument('--prepend-repo-path', default=None,
-            help='Prepend paths to the default repo search path.')
+                        help='Prepend paths to the default repo search path.')
 
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 
     init_parser = subparsers.add_parser('init', help='create workspace')
-    init_parser.add_argument('--no-update', action='store_true',
-                             help='don\'t run update upon creating the workspace')
+    init_parser.add_argument('--no-update', dest='update', action='store_false',
+                             help=('don\'t run update upon creating the workspace'
+                                   ' (implies --no-fetch-scala)'))
+    init_parser.add_argument('--no-fetch-scala', dest='fetch_scala', action='store_false',
+                             help='don\'t run fetch-scala upon creating the workspace')
     init_parser.add_argument('-a', '--add-pkg', metavar='repo[::revision]', action='append',
                              type=Package.from_arg, help='add an initial package')
     init_parser.add_argument('workspace_name')
@@ -54,6 +59,8 @@ def main() -> None:
 
     subparsers.add_parser('status', help='show status of workspace')
     subparsers.add_parser('update', help='update git repos')
+
+    subparsers.add_parser('fetch-scala', help='Fetch dependencies for Scala projects')
 
     args = parser.parse_args()
 
@@ -99,6 +106,9 @@ def main() -> None:
         elif args.command == 'update':
             update(ws, args)
 
+        elif args.command == 'fetch-scala':
+            fetch_scala(ws, args, agg=False)
+
 
 def create(args):
     if args.add_pkg is None:
@@ -111,8 +121,11 @@ def create(args):
     for package in packages:
         ws.add_package(package)
 
-    if not args.no_update:
-        ws.update()
+    if args.update:
+        update(ws, args)
+
+        if args.fetch_scala:
+            fetch_scala(ws, args, agg=True)
 
 
 def add_pkg(ws, args):
@@ -172,3 +185,49 @@ def status(ws, args):
 
 def update(ws, args):
     ws.update()
+
+
+def fetch_scala(ws, args, agg=True):
+    """Fetches bloop, coursier, and ivy dependencies
+
+    It only fetches if ivydependencies.json files are found in packages
+    ws -- the Workspace
+    args -- arguments to the parser
+    agg -- indicates if this invocation is part of a larger command (like init)
+    """
+
+    # Collect ivydependency files
+    files = []
+    for package in ws.lock.packages:
+        ivyfile = scalaplugin.ivy_deps_file(package)
+        if os.path.isfile(ivyfile):
+            files.append(ivyfile)
+        else:
+            log.debug("No ivydependencies.json file found in package {}".format(package.name))
+
+    if len(files) == 0:
+        msg = "No ivydependency.json files found, skipping fetching Scala..."
+        if agg:
+            log.debug(msg)
+        else:
+            # We want to print something if you run `wit fetch-scala` directly and nothing happens
+            log.info(msg)
+    else:
+        log.info("Fetching Scala install and dependencies...")
+
+        install_dir = scalaplugin.scala_install_dir(ws)
+
+        ivy_cache_dir = scalaplugin.ivy_cache_dir(ws)
+        os.makedirs(ivy_cache_dir, exist_ok=True)
+
+        # Check if we need to install Bloop
+        if os.path.isdir(install_dir):
+            log.info("Scala install directory {} exists, skipping installation..."
+                     .format(install_dir))
+        else:
+            log.info("Installing Scala to {}...".format(install_dir))
+            os.makedirs(install_dir, exist_ok=True)
+            scalaplugin.install_bloop(install_dir, ivy_cache_dir)
+
+        log.info("Fetching ivy dependencies...")
+        scalaplugin.fetch_ivy_dependencies(files, install_dir, ivy_cache_dir)

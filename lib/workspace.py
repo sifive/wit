@@ -23,7 +23,7 @@ class WorkSpace:
         self.path = path
         self.manifest = manifest
         self.lock = lock
-        self.repo_paths = [ ]
+        self.repo_paths = []
 
     # create a new workspace root given a name.
     @staticmethod
@@ -46,7 +46,7 @@ class WorkSpace:
                 log.error("Unable to create workspace [{}]: {}".format(str(path), e))
                 sys.exit(1)
 
-        manifest = Manifest([ ])
+        manifest = Manifest([])
         manifest.write(manifest_path)
         return WorkSpace(path, manifest)
 
@@ -157,10 +157,10 @@ class WorkSpace:
                 if dep_repo.name in source_map:
                     if dep_repo.source != source_map[dep_repo.name]:
                         log.error("Repo [{}] has multiple conflicting paths:\n"
-                                "  {}\n"
-                                "  {}\n".format(dep_repo.name, dep_repo.source, source_map[dep_repo.name]))
+                                  "  {}\n"
+                                  "  {}\n".format(dep_repo.name, dep_repo.source,
+                                                  source_map[dep_repo.name]))
                         sys.exit(1)
-
 
                 # 8. Clone without checking out the dependency
                 # FIXME: This should clone to a temporary area. If this were
@@ -174,7 +174,9 @@ class WorkSpace:
                 # 10. Fail if the dependent commit date is newer than the parent date
                 if dep_commit_time > commit_time:
                     # dependent is newer than dependee. Panic.
-                    log.error("Repo [{}] has a dependent that is newer than the source. This should not happen.\n".format(dep_repo.name))
+                    msg = ("Repo [{}] has a dependent that is newer than the source. "
+                           "This should not happen.\n".format(dep_repo.name))
+                    log.error(msg)
                     sys.exit(1)
 
                 # 11. Push a tuple onto the queue
@@ -209,7 +211,7 @@ class WorkSpace:
         if repo_path is not None:
             self.repo_paths = repo_path.split(" ")
         else:
-            self.repo_paths = [ ]
+            self.repo_paths = []
 
     def add_package(self, package):
         package.set_path(self.path)

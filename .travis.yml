@@ -1,4 +1,13 @@
 language: python
+
 python:
     - '3.5'
-script: ./t/regress.sh
+
+jobs:
+  include:
+    - stage: test
+      script: ./t/regress.sh
+    - stage: test
+      script:
+          - pip3 install -r requirements.txt
+          - flake8
