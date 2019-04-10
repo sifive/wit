@@ -8,17 +8,22 @@ import os
 
 log = logging.getLogger('wit')
 
+
 def scala_install_dir(ws):
     return str(ws.path / "scala")
+
 
 def ivy_cache_dir(ws):
     return str(ws.path / "ivycache")
 
+
 def coursier_bin(install_dir):
     return "{}/blp-coursier".format(install_dir)
 
+
 def ivy_deps_file(package):
     return str(package.path / "ivydependencies.json")
+
 
 def download_bloop_install(install_dir):
     filename = "{}/install.py".format(install_dir)
@@ -33,17 +38,19 @@ def download_bloop_install(install_dir):
             raise Exception("Error! Unable to download bloop install script from {}".format(url))
     return filename
 
+
 def install_bloop(install_dir, ivy_cache_dir):
 
     install_script = download_bloop_install(install_dir)
 
-    environ = os.environ.copy() # Is this necessary?
+    environ = os.environ.copy()  # Is this necessary?
     environ["COURSIER_CACHE"] = str(ivy_cache_dir)
 
     cmd = ["python", install_script, "-d", install_dir]
     proc = subprocess.run(cmd, env=environ)
     if proc.returncode != 0:
         raise Exception("Error! Unable to install bloop!")
+
 
 def split_scala_version(version):
     parts = version.split('.')
@@ -53,8 +60,10 @@ def split_scala_version(version):
         raise Exception("Only Scala 2.X.Y are supported!")
     return parts
 
+
 def get_major_version(version):
     return '.'.join(split_scala_version(version)[:2])
+
 
 def unique_list(l):
     d = OrderedDict()
@@ -62,14 +71,18 @@ def unique_list(l):
         d[e] = None
     return list(d.keys())
 
+
 # TODO More validation?
 def expand_scala_dep(version, dep):
     parts = dep.split(':')
+
     def errMalformed():
         raise Exception("Malformed IvyDependency {}!".format(dep))
+
     def assertHasScala():
         if version is None:
             raise Exception("Must specify scalaVersion for IvyDependency {}!".format(dep))
+
     if len(parts) == 3:
         # Java dep
         return dep
@@ -133,12 +146,14 @@ def resolve_dependencies(projects):
     uniqueDeps = unique_list(deps)
     return uniqueDeps
 
+
 def fetch_ivy_dep(coursier, cache, dep):
     log.debug("Fetching {}...".format(dep))
     cmd = [coursier, "fetch", "--cache", cache, dep]
     proc = subprocess.run(cmd)
     if proc.returncode != 0:
         raise Exception("Unable to fetch dependency {}".format(dep))
+
 
 def fetch_ivy_dependencies(dep_files, install_dir, ivy_cache_dir):
     coursier = coursier_bin(install_dir)
@@ -151,5 +166,3 @@ def fetch_ivy_dependencies(dep_files, install_dir, ivy_cache_dir):
 
     for dep in deps:
         fetch_ivy_dep(coursier, ivy_cache_dir, dep)
-
-

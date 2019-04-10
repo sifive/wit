@@ -50,7 +50,8 @@ class GitRepo:
 
     def clone(self):
         assert self.path is not None, "Path must be set before cloning!"
-        assert not GitRepo.is_git_repo(self.path), "Trying to clone and checkout into existing git repo!"
+        assert not GitRepo.is_git_repo(self.path), \
+            "Trying to clone and checkout into existing git repo!"
         log.info('Cloning {}...'.format(self.name))
 
         self.path.mkdir()
@@ -101,7 +102,8 @@ class GitRepo:
         return proc.stdout.rstrip()
 
     def is_ancestor(self, ancestor, current=None):
-        proc = self._git_command("merge-base", "--is-ancestor", ancestor, current or self.get_latest_commit())
+        proc = self._git_command("merge-base", "--is-ancestor", ancestor,
+                                 current or self.get_latest_commit())
         return proc.returncode == 0
 
     # FIXME should we pass wsroot or should it be a member of the GitRepo?

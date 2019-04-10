@@ -25,21 +25,23 @@ _handler.setFormatter(WitFormatter())
 logging.basicConfig(level=logging.INFO, handlers=[_handler])
 log = logging.getLogger('wit')
 
+
 def main() -> None:
     # Parse arguments. Create sub-commands for each of the modes of operation
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'),
-            help='Specify alternative paths to look for packages')
+                        help='Specify alternative paths to look for packages')
     parser.add_argument('--prepend-repo-path', default=None,
-            help='Prepend paths to the default repo search path.')
+                        help='Prepend paths to the default repo search path.')
 
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 
     init_parser = subparsers.add_parser('init', help='create workspace')
     init_parser.add_argument('--no-update', dest='update', action='store_false',
-                             help='don\'t run update upon creating the workspace (implies --no-fetch-scala)')
+                             help=('don\'t run update upon creating the workspace'
+                                   ' (implies --no-fetch-scala)'))
     init_parser.add_argument('--no-fetch-scala', dest='fetch_scala', action='store_false',
                              help='don\'t run fetch-scala upon creating the workspace')
     init_parser.add_argument('-a', '--add-pkg', metavar='repo[::revision]', action='append',
@@ -157,6 +159,7 @@ def status(ws, args):
 def update(ws, args):
     ws.update()
 
+
 def fetch_scala(ws, args, agg=True):
     """Fetches bloop, coursier, and ivy dependencies
 
@@ -192,7 +195,8 @@ def fetch_scala(ws, args, agg=True):
 
         # Check if we need to install Bloop
         if os.path.isdir(install_dir):
-            log.info("Scala install directory {} exists, skipping installation...".format(install_dir))
+            log.info("Scala install directory {} exists, skipping installation..."
+                     .format(install_dir))
         else:
             log.info("Installing Scala to {}...".format(install_dir))
             os.makedirs(install_dir, exist_ok=True)
@@ -200,4 +204,3 @@ def fetch_scala(ws, args, agg=True):
 
         log.info("Fetching ivy dependencies...")
         scalaplugin.fetch_ivy_dependencies(files, install_dir, ivy_cache_dir)
-
