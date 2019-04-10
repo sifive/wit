@@ -8,7 +8,6 @@ import json
 import sys
 import lib.manifest
 
-logging.basicConfig()
 log = logging.getLogger('wit')
 
 
@@ -33,17 +32,37 @@ class GitRepo:
         else:
             self.name = name
 
+    # FIXME
+    # Ideally we would always set the path on construction, but constructing
+    # GitRepo (see Package.from_arg) during argument parsing, we don't yet know
+    # the path
+    def set_path(self, wsroot):
+        #assert self.path is None, "Trying to set path, but it has already been set!"
+        self.path = wsroot / self.name
+
+    def get_path(self):
+        try:
+            return self.path
+
+        except AttributeError:
+            return self.wsroot / self.name
+
     def set_wsroot(self, wsroot):
         self.wsroot = wsroot
 
-    def path(self):
-        return self.wsroot / self.name
+    # find the repo based on path variable
+    def find_source(self, repo_paths):
+        for path in repo_paths:
+            tmp_path = str(Path(path) / self.name)
+            if GitRepo.is_git_repo(tmp_path):
+                self.source = tmp_path
+                return
 
     def clone(self):
-        assert self.wsroot is not None, "Workstation Root must be set before cloning!"
-        assert not GitRepo.is_git_repo(self.path()), "Trying to clone and checkout into existing git repo!"
+        assert not GitRepo.is_git_repo(self.get_path()), "Trying to clone and checkout into existing git repo!"
+        log.info('Cloning {}...'.format(self.name))
 
-        path = self.path()
+        path = self.get_path()
         path.mkdir()
         proc = self._git_command("clone", "--no-checkout", str(self.source), str(path))
         try:
@@ -99,7 +118,7 @@ class GitRepo:
     def get_dependencies(self, wsroot):
         proc = self._git_command("show", "{}:{}".format(self.revision, GitRepo.PKG_DEPENDENCY_FILE))
         if proc.returncode:
-            log.info("No dependency file found in repo [{}:{}]".format(self.revision, self.path()))
+            log.debug("No dependency file found in repo [{}:{}]".format(self.revision, self.get_path()))
             return []
         json_content = json.loads(proc.stdout)
         return lib.manifest.Manifest.process_manifest(wsroot, json_content).packages
@@ -113,7 +132,7 @@ class GitRepo:
         self._git_check(proc)
 
     def manifest_path(self):
-        return self.path() / self.PKG_DEPENDENCY_FILE
+        return self.get_path() / self.PKG_DEPENDENCY_FILE
 
     def manifest(self):
         return {
@@ -123,10 +142,10 @@ class GitRepo:
         }
 
     def _git_command(self, *args):
-        log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), self.path()))
+        log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), self.get_path()))
         proc = subprocess.run(['git', *args], stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
-                              cwd=str(self.path()), universal_newlines=True)
+                              cwd=str(self.get_path()), universal_newlines=True)
         return proc
 
     def _git_check(self, proc):

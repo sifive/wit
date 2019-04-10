@@ -8,15 +8,10 @@ from lib.gitrepo import GitRepo
 from lib.manifest import Manifest
 from lib.lock import LockFile
 
-logging.basicConfig()
 log = logging.getLogger('wit')
 
 
 class NotAncestorError(Exception):
-    pass
-
-
-class RepoAgeConflict(Exception):
     pass
 
 
@@ -28,12 +23,12 @@ class WorkSpace:
         self.path = path
         self.manifest = manifest
         self.lock = lock
+        self.repo_paths = [ ]
 
     # create a new workspace root given a name.
     @staticmethod
     def create(name, packages):
         path = Path.cwd() / name
-
         manifest_path = WorkSpace._manifest_path(path)
         if path.exists():
             log.info("Using existing directory [{}]".format(str(path)))
@@ -51,11 +46,7 @@ class WorkSpace:
                 log.error("Unable to create workspace [{}]: {}".format(str(path), e))
                 sys.exit(1)
 
-        for package in packages:
-            package.set_wsroot(path)
-            package.clone_and_checkout()
-
-        manifest = Manifest(packages)
+        manifest = Manifest([ ])
         manifest.write(manifest_path)
         return WorkSpace(path, manifest)
 
@@ -87,7 +78,7 @@ class WorkSpace:
         cwd = start.resolve()
         for p in ([cwd] + list(cwd.parents)):
             manifest_path = WorkSpace._manifest_path(p)
-            log.info("Checking [{}]".format(manifest_path))
+            log.debug("Checking [{}]".format(manifest_path))
             if Path(manifest_path).is_file():
                 log.debug("Found workspace at [{}]".format(p))
                 wspath = p
@@ -107,6 +98,14 @@ class WorkSpace:
     # FIXME Should we run this algorithm upon `wit status` to mention if
     # lockfile out of sync?
     def update(self):
+        log.info("Updating workspace...")
+
+        # FIXME: This is a hack to ensure that we don't have multiple repos
+        # with the same name but different source paths. Ideally this could
+        # use the version_selector_map but due to a shortcoming in wit we
+        # do not update the version selector map in time.
+        source_map = {}
+
         # This algorithm courtesy of Wes
         # https://sifive.atlassian.net/browse/FRAM-1
         # 1. Initialize an empty version selector map
@@ -119,6 +118,7 @@ class WorkSpace:
             commit_time = repo.commit_to_time(commit)
 
             queue.append((commit_time, commit, repo.name, repo))
+            source_map[repo.name] = repo.source
 
         # sort by the first element of the tuple (commit time in epoch seconds)
         queue.sort(key=lambda tup: tup[0])
@@ -150,15 +150,22 @@ class WorkSpace:
 
             # 7. Examine the repository's children
             dependencies = repo.get_dependencies(self.path)
-            log.debug("Dependencies for [{}]: [{}]".format(repo.path, dependencies))
+            log.debug("Dependencies for [{}]: [{}]".format(repo.get_path(), dependencies))
 
             for dep_repo in dependencies:
-                # Check to see if there is a path specified in the repomap.
-                # If so, use that path instead.
-                # dependent['source'] = self.resolve_repomap(dependent['source'])
+                dep_repo.find_source(self.repo_paths)
+                if dep_repo.name in source_map:
+                    if dep_repo.source != source_map[dep_repo.name]:
+                        log.error("Repo [{}] has multiple conflicting paths:\n"
+                                "  {}\n"
+                                "  {}\n".format(dep_repo.name, dep_repo.source, source_map[dep_repo.name]))
+                        sys.exit(1)
+
 
                 # 8. Clone without checking out the dependency
-                if not GitRepo.is_git_repo(dep_repo.path):
+                # FIXME: This should clone to a temporary area. If this were
+                # fixed we could get rid of the source_map dictionary hack
+                if not GitRepo.is_git_repo(dep_repo.get_path()):
                     dep_repo.clone()
 
                 # 9. Find the committer date
@@ -167,10 +174,12 @@ class WorkSpace:
                 # 10. Fail if the dependent commit date is newer than the parent date
                 if dep_commit_time > commit_time:
                     # dependent is newer than dependee. Panic.
-                    raise RepoAgeConflict
+                    log.error("Repo [{}] has a dependent that is newer than the source. This should not happen.\n".format(dep_repo.name))
+                    sys.exit(1)
 
                 # 11. Push a tuple onto the queue
                 queue.append((dep_commit_time, dep_repo.revision, dep_repo.name, dep_repo))
+                source_map[dep_repo.name] = dep_repo.source
 
             # Keep the queue ordered
             queue.sort(key=lambda tup: tup[0])
@@ -180,7 +189,7 @@ class WorkSpace:
         # 13. Print out summary
         for reponame in version_selector_map:
             commit = version_selector_map[reponame]['commit']
-            print("Repo name [{}] commit [{}]".format(reponame, commit))
+            log.info("Checked out '{}' at '{}'".format(reponame, commit))
 
         # 14. Check out repos and add to lock
         lock_packages = []
@@ -196,10 +205,17 @@ class WorkSpace:
         new_lock.write(self.lockfile_path())
         self.lock = new_lock
 
-    def add_package(self, package):
-        package.set_wsroot(self.path)
+    def set_repo_path(self, repo_path):
+        if repo_path is not None:
+            self.repo_paths = repo_path.split(" ")
+        else:
+            self.repo_paths = [ ]
 
-        if GitRepo.is_git_repo(package.path):
+    def add_package(self, package):
+        package.set_path(self.path)
+        package.find_source(self.repo_paths)
+
+        if GitRepo.is_git_repo(package.get_path()):
             raise NotImplementedError
         else:
             package.clone_and_checkout()
@@ -208,10 +224,10 @@ class WorkSpace:
             # TODO Update the revision
             raise NotImplementedError
         else:
-            log.info("Adding [{}] to manifest as [{}]".format(package.source, package.name))
+            log.info("Added '{}' to workspace at '{}'".format(package.source, package.revision))
             self.manifest.add_package(package)
 
-        print('my manifest_path = {}'.format(self.manifest_path()))
+        log.debug('my manifest_path = {}'.format(self.manifest_path()))
         self.manifest.write(self.manifest_path())
 
     def update_package(self, package):

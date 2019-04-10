@@ -5,7 +5,6 @@ from lib.package import Package
 from collections import OrderedDict
 import logging
 
-logging.basicConfig()
 log = logging.getLogger('wit')
 
 

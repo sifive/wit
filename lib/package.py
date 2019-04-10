@@ -32,9 +32,6 @@ class Package:
         source, rev = (s.split("::") + [None])[:2]
         if rev is None:
             rev = "HEAD"
-        if not lib.gitrepo.GitRepo.is_git_repo(source):
-            msg = "Remote git repo '{}' does not exist!".format(source)
-            raise argparse.ArgumentTypeError(msg)
 
         return lib.gitrepo.GitRepo(source, rev)
 
@@ -42,7 +39,12 @@ class Package:
     def from_manifest(wsroot, m):
         commit = m['commit']
         name = m['name']
-        source = m['source']
+
+        # Source is not required, because the repo may be found on
+        # $WIT_REPO_PATH
+        source = m.get('source', None)
+        path = wsroot / name
+
         # if not lib.gitrepo.GitRepo.is_git_repo(path):
         #    # TODO implement redownloading from remote
         #    msg = "path '{}' is not a git repo even though it's in the manifest!".format(path)

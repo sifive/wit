@@ -12,24 +12,33 @@
 
 import sys
 import argparse
+import os
 from lib.workspace import WorkSpace
 from lib.package import Package
 import logging
+from lib.formatter import WitFormatter
 from pathlib import Path
 
-logging.basicConfig(level=logging.INFO)
+_handler = logging.StreamHandler(sys.stdout)
+_handler.setFormatter(WitFormatter())
+logging.basicConfig(level=logging.INFO, handlers=[_handler])
 log = logging.getLogger('wit')
-
 
 def main() -> None:
     # Parse arguments. Create sub-commands for each of the modes of operation
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('--repomap', default=None)
+    parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'),
+            help='Specify alternative paths to look for packages')
+    parser.add_argument('--prepend-repo-path', default=None,
+            help='Prepend paths to the default repo search path.')
+
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 
     init_parser = subparsers.add_parser('init', help='create workspace')
+    init_parser.add_argument('--no-update', action='store_true',
+                             help='don\'t run update upon creating the workspace')
     init_parser.add_argument('-a', '--add-pkg', metavar='repo[::revision]', action='append',
                              type=Package.from_arg, help='add an initial package')
     init_parser.add_argument('workspace_name')
@@ -48,12 +57,15 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.verbose:
-        log.setLevel(logging.WARNING)
+    if args.prepend_repo_path and args.repo_path:
+        args.repo_path = " ".join([args.prepend_repo_path, args.repo_path])
+    elif args.prepend_repo_path:
+        args.repo_path = args.prepend_repo_path
 
+    if args.verbose:
+        log.setLevel(logging.INFO)
     elif args.debug:
         log.setLevel(logging.DEBUG)
-
     else:
         log.setLevel(logging.INFO)
 
@@ -66,6 +78,7 @@ def main() -> None:
         # workspace cannot be found.
         try:
             ws = WorkSpace.find(Path.cwd())
+            ws.set_repo_path(args.repo_path)
 
         except FileNotFoundError as e:
             log.error("Unable to find workspace root [{}]. Cannot continue.".format(e))
@@ -88,13 +101,18 @@ def main() -> None:
 
 
 def create(args):
-    log.info("Creating workspace [{}]".format(args.workspace_name))
-
     if args.add_pkg is None:
         packages = []
     else:
         packages = args.add_pkg
-    WorkSpace.create(args.workspace_name, packages)
+
+    ws = WorkSpace.create(args.workspace_name, packages)
+    ws.set_repo_path(args.repo_path)
+    for package in packages:
+        ws.add_package(package)
+
+    if not args.no_update:
+        ws.update()
 
 
 def add_pkg(ws, args):
@@ -117,7 +135,7 @@ def add_dep(ws, args):
 
 
 def status(ws, args):
-    log.info("Checking workspace status")
+    log.debug("Checking workspace status")
     if not ws.lock:
         log.info("{} is empty. Have you run `wit update`?".format(ws.LOCK))
         return
@@ -143,15 +161,14 @@ def status(ws, args):
         else:
             clean.append(package)
 
-    print("Clean packages:")
+    log.info("Clean packages:")
     for package in clean:
-        print("    {}".format(package.name))
-    print("Dirty repos:")
+        log.info("    {}".format(package.name))
+    log.info("Dirty repos:")
     for package, content in dirty:
         msg = ", ".join(content)
-        print("    {} ({})".format(package.name, msg))
+        log.info("    {} ({})".format(package.name, msg))
 
 
 def update(ws, args):
-    log.info("Updating workspace")
     ws.update()
