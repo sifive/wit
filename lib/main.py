@@ -51,7 +51,8 @@ def main() -> None:
     add_pkg_parser = subparsers.add_parser('add-pkg', help='add a package to the workspace')
     add_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=Package.from_arg)
 
-    update_pkg_parser = subparsers.add_parser('update-pkg', help='update the revision of a previously added package')
+    update_pkg_parser = subparsers.add_parser('update-pkg', help='update the revision of a '
+                                              'previously added package')
     update_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=Package.from_arg)
 
     add_dep_parser = subparsers.add_parser('add-dep', help='add a dependency to a package')

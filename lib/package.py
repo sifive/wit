@@ -42,7 +42,7 @@ class Package:
         # Source is not required, because the repo may be found on
         # $WIT_REPO_PATH
         source = m.get('source', None)
-        path = wsroot / name
+        #path = wsroot / name
 
         # if not lib.gitrepo.GitRepo.is_git_repo(path):
         #    # TODO implement redownloading from remote
@@ -62,6 +62,7 @@ class Package:
                 return lib.gitrepo.GitRepo(str(p), None, wsroot=(p / '..').resolve())
 
         return None
+
 
 if __name__ == '__main__':
     import doctest

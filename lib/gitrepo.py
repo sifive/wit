@@ -37,7 +37,6 @@ class GitRepo:
     # GitRepo (see Package.from_arg) during argument parsing, we don't yet know
     # the path
     def set_path(self, wsroot):
-        #assert self.path is None, "Trying to set path, but it has already been set!"
         self.path = wsroot / self.name
 
     def get_path(self):
@@ -120,7 +119,8 @@ class GitRepo:
     def get_dependencies(self, wsroot):
         proc = self._git_command("show", "{}:{}".format(self.revision, GitRepo.PKG_DEPENDENCY_FILE))
         if proc.returncode:
-            log.debug("No dependency file found in repo [{}:{}]".format(self.revision, self.get_path()))
+            log.debug("No dependency file found in repo [{}:{}]".format(self.revision,
+                      self.get_path()))
             return []
         json_content = json.loads(proc.stdout)
         return lib.manifest.Manifest.process_manifest(wsroot, json_content).packages

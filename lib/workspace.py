@@ -94,7 +94,6 @@ class WorkSpace:
 
         raise FileNotFoundError("Couldn't find manifest file")
 
-
     # FIXME Should we run this algorithm upon `wit status` to mention if
     # lockfile out of sync?
     def update(self):
