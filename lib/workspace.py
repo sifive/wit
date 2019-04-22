@@ -66,6 +66,11 @@ class WorkSpace:
     def lockfile_path(self):
         return WorkSpace._lockfile_path(self.path)
 
+    @classmethod
+    def is_workspace(cls, path):
+        manifest_path = Path(path) / cls.MANIFEST
+        return manifest_path.is_file()
+
     # find a workspace root by iteratively walking up the path
     # until a manifest file is found.
     @staticmethod
@@ -144,7 +149,7 @@ class WorkSpace:
 
             # 7. Examine the repository's children
             dependencies = repo.get_dependencies(self.path)
-            log.debug("Dependencies for [{}]: [{}]".format(repo.path, dependencies))
+            log.debug("Dependencies for [{}]: [{}]".format(repo.get_path(), dependencies))
 
             for dep_repo in dependencies:
                 dep_repo.find_source(self.repo_paths)
@@ -159,7 +164,7 @@ class WorkSpace:
                 # 8. Clone without checking out the dependency
                 # FIXME: This should clone to a temporary area. If this were
                 # fixed we could get rid of the source_map dictionary hack
-                if not GitRepo.is_git_repo(dep_repo.path):
+                if not GitRepo.is_git_repo(dep_repo.get_path()):
                     dep_repo.clone()
 
                 # 9. Find the committer date
@@ -192,7 +197,7 @@ class WorkSpace:
         for reponame in version_selector_map:
             commit = version_selector_map[reponame]['commit']
             repo = version_selector_map[reponame]['repo']
-            lock_repo = GitRepo(repo.source, commit, name=repo.name, path=repo.path)
+            lock_repo = GitRepo(repo.source, commit, name=repo.name, wsroot=self.path)
             lock_repo.checkout()
             lock_packages.append(lock_repo)
 
@@ -211,7 +216,7 @@ class WorkSpace:
         package.set_path(self.path)
         package.find_source(self.repo_paths)
 
-        if GitRepo.is_git_repo(package.path):
+        if GitRepo.is_git_repo(package.get_path()):
             raise NotImplementedError
         else:
             package.clone_and_checkout()
@@ -225,6 +230,9 @@ class WorkSpace:
 
         log.debug('my manifest_path = {}'.format(self.manifest_path()))
         self.manifest.write(self.manifest_path())
+
+    def update_package(self, package):
+        raise NotImplementedError
 
     def repo_status(self, source):
         raise NotImplementedError

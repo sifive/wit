@@ -7,6 +7,7 @@ make_repo 'foo'
 foo_commit=$(git -C foo rev-parse HEAD)
 foo_dir=$PWD/foo
 
+set -x
 # Now create an empty workspace
 wit init myws
 
@@ -16,6 +17,8 @@ check "wit add-pkg should succeed" [ $? -eq 0 ]
 
 foo_ws_commit=$(jq -r '.[] | select(.name=="foo") | .commit' wit-workspace.json)
 check "Added repo should have correct commit" [ "$foo_ws_commit" = "$foo_commit" ]
+
+set +x
 
 report
 finish

@@ -22,7 +22,7 @@ def coursier_bin(install_dir):
 
 
 def ivy_deps_file(package):
-    return str(package.path / "ivydependencies.json")
+    return str(package.get_path() / "ivydependencies.json")
 
 
 def download_bloop_install(install_dir):

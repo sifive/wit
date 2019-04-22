@@ -14,6 +14,8 @@ git -C bar add -A
 git -C bar commit -m "commit1"
 bar_commit=$(git -C bar rev-parse HEAD)
 
+set -x
+
 # Now create a workspace from bar
 wit init myws -a $PWD/bar
 cd myws
@@ -27,6 +29,8 @@ check "ws-lock.json should contain correct foo commit" [ "$foo_lock_commit" = "$
 
 bar_lock_commit=$(jq -r '.bar.commit' wit-lock.json)
 check "ws-lock.json should contain correct bar commit" [ "$bar_lock_commit" = "$bar_commit" ]
+
+set +x
 
 report
 finish

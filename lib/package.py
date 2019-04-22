@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 import lib.gitrepo
+import lib.workspace
+import os
+from pathlib import Path
 
 
 # Make this a factory for different VCS types
@@ -35,17 +38,30 @@ class Package:
     def from_manifest(wsroot, m):
         commit = m['commit']
         name = m['name']
+
         # Source is not required, because the repo may be found on
         # $WIT_REPO_PATH
         source = m.get('source', None)
-        path = wsroot / name
+        # path = wsroot / name
 
         # if not lib.gitrepo.GitRepo.is_git_repo(path):
         #    # TODO implement redownloading from remote
         #    msg = "path '{}' is not a git repo even though it's in the manifest!".format(path)
         #    raise Exception(msg)
 
-        return lib.gitrepo.GitRepo(source, commit, name=name, path=path)
+        return lib.gitrepo.GitRepo(source, commit, name=name, wsroot=wsroot)
+
+    @staticmethod
+    def from_cwd():
+        cwd = Path(os.getcwd()).resolve()
+
+        # walk up the path until the /parent/ directory contains a wit
+        # manifest file
+        for p in ([cwd] + list(cwd.parents)):
+            if lib.workspace.WorkSpace.is_workspace(p / '..'):
+                return lib.gitrepo.GitRepo(str(p), None, wsroot=(p / '..').resolve())
+
+        return None
 
 
 if __name__ == '__main__':

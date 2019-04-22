@@ -21,10 +21,10 @@ class GitRepo:
     It may not be in sync with data structures on the file system
     Note there can be multiple GitRepo objects for the same package
     """
-    WIT_DEPENDENCY_FILE = "wit-manifest.json"
+    PKG_DEPENDENCY_FILE = "wit-manifest.json"
 
-    def __init__(self, source, revision, name=None, path=None):
-        self.path = path
+    def __init__(self, source, revision, name=None, wsroot=None):
+        self.wsroot = wsroot
         self.source = source
         self.revision = revision
         if name is None:
@@ -37,8 +37,17 @@ class GitRepo:
     # GitRepo (see Package.from_arg) during argument parsing, we don't yet know
     # the path
     def set_path(self, wsroot):
-        assert self.path is None, "Trying to set path, but it has already been set!"
         self.path = wsroot / self.name
+
+    def get_path(self):
+        try:
+            return self.path
+
+        except AttributeError:
+            return self.wsroot / self.name
+
+    def set_wsroot(self, wsroot):
+        self.wsroot = wsroot
 
     # find the repo based on path variable
     def find_source(self, repo_paths):
@@ -49,14 +58,13 @@ class GitRepo:
                 return
 
     def clone(self):
-        assert self.path is not None, "Path must be set before cloning!"
-        assert not GitRepo.is_git_repo(self.path), \
+        assert not GitRepo.is_git_repo(self.get_path()), \
             "Trying to clone and checkout into existing git repo!"
         log.info('Cloning {}...'.format(self.name))
 
-        self.path.mkdir()
-
-        proc = self._git_command("clone", "--no-checkout", str(self.source), str(self.path))
+        path = self.get_path()
+        path.mkdir()
+        proc = self._git_command("clone", "--no-checkout", str(self.source), str(path))
         try:
             self._git_check(proc)
         except Exception as e:
@@ -109,16 +117,24 @@ class GitRepo:
     # FIXME should we pass wsroot or should it be a member of the GitRepo?
     # Should this be a separate mutation or part of normal construction?
     def get_dependencies(self, wsroot):
-        proc = self._git_command("show", "{}:{}".format(self.revision, GitRepo.WIT_DEPENDENCY_FILE))
+        proc = self._git_command("show", "{}:{}".format(self.revision, GitRepo.PKG_DEPENDENCY_FILE))
         if proc.returncode:
-            log.debug("No dependency file found in repo [{}:{}]".format(self.revision, self.path))
+            log.debug("No dependency file found in repo [{}:{}]".format(self.revision,
+                      self.get_path()))
             return []
         json_content = json.loads(proc.stdout)
         return lib.manifest.Manifest.process_manifest(wsroot, json_content).packages
 
+    def add_dependency(self, package):
+        path = self.manifest_path()
+        lib.manifest.Manifest.read(path, safe=True).add_package(package).write(path)
+
     def checkout(self):
         proc = self._git_command("checkout", self.revision)
         self._git_check(proc)
+
+    def manifest_path(self):
+        return self.get_path() / self.PKG_DEPENDENCY_FILE
 
     def manifest(self):
         return {
@@ -128,10 +144,10 @@ class GitRepo:
         }
 
     def _git_command(self, *args):
-        log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), self.path))
+        log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), self.get_path()))
         proc = subprocess.run(['git', *args], stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
-                              cwd=str(self.path), universal_newlines=True)
+                              cwd=str(self.get_path()), universal_newlines=True)
         return proc
 
     def _git_check(self, proc):

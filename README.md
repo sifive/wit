@@ -2,9 +2,9 @@
 Workspace Integration Tool
 
 ## What's wit?
-wit generates a development workspace consisting of one or more git repositories. Each git repository may optionally contain a wit_manifest.json file which defines other git repositories upon which it depends.
+wit generates a development workspace consisting of one or more packages (generally git repositories). Each package may optionally contain a wit-manifest.json file which defines other packages upon which it depends.
 
-wit resolves this hierarchy of dependencies and generates a flattened directory structure in which each git repository may exist only once.
+wit resolves this hierarchy of dependencies and generates a flattened directory structure in which each package may exist only once.
 
 ## How Do I Use wit?
 ### Creating A Workspace
