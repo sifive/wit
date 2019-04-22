@@ -19,6 +19,7 @@ import logging
 from lib import scalaplugin
 from lib.formatter import WitFormatter
 from pathlib import Path
+from typing import List  # noqa: F401
 
 _handler = logging.StreamHandler(sys.stdout)
 _handler.setFormatter(WitFormatter())
@@ -111,9 +112,9 @@ def main() -> None:
             fetch_scala(ws, args, agg=False)
 
 
-def create(args):
+def create(args) -> None:
     if args.add_pkg is None:
-        packages = []
+        packages = []  # type: List[Package]
     else:
         packages = args.add_pkg
 
@@ -129,17 +130,17 @@ def create(args):
             fetch_scala(ws, args, agg=True)
 
 
-def add_pkg(ws, args):
+def add_pkg(ws, args) -> None:
     log.info("Adding package to workspace")
     ws.add_package(args.repo)
 
 
-def update_pkg(ws, args):
+def update_pkg(ws, args) -> None:
     log.info("Updating package in workspace")
     ws.update_package(args.repo)
 
 
-def add_dep(ws, args):
+def add_dep(ws, args) -> None:
     log.info("Adding dependency to package")
     pkg = Package.from_cwd()
     if not pkg:
@@ -148,7 +149,7 @@ def add_dep(ws, args):
     pkg.add_dependency(args.pkg)
 
 
-def status(ws, args):
+def status(ws, args) -> None:
     log.debug("Checking workspace status")
     if not ws.lock:
         log.info("{} is empty. Have you run `wit update`?".format(ws.LOCK))
@@ -184,11 +185,11 @@ def status(ws, args):
         log.info("    {} ({})".format(package.name, msg))
 
 
-def update(ws, args):
+def update(ws, args) -> None:
     ws.update()
 
 
-def fetch_scala(ws, args, agg=True):
+def fetch_scala(ws, args, agg=True) -> None:
     """Fetches bloop, coursier, and ivy dependencies
 
     It only fetches if ivydependencies.json files are found in packages

@@ -7,6 +7,8 @@ import logging
 from lib.gitrepo import GitRepo
 from lib.manifest import Manifest
 from lib.lock import LockFile
+from lib.package import Package
+from typing import List
 
 log = logging.getLogger('wit')
 
@@ -27,7 +29,7 @@ class WorkSpace:
 
     # create a new workspace root given a name.
     @staticmethod
-    def create(name, packages):
+    def create(name: str, packages: List[Package]):
         path = Path.cwd() / name
         manifest_path = WorkSpace._manifest_path(path)
         if path.exists():
@@ -212,7 +214,7 @@ class WorkSpace:
         else:
             self.repo_paths = []
 
-    def add_package(self, package):
+    def add_package(self, package: GitRepo) -> None:
         package.set_path(self.path)
         package.find_source(self.repo_paths)
 

@@ -13,7 +13,7 @@ class Package:
     """
 
     @staticmethod
-    def from_arg(s):
+    def from_arg(s) -> 'lib.gitrepo.GitRepo':  # String fixes circular dependency
         """
         >>> Package.from_arg(".::HEAD")
         lib.gitrepo.GitRepo(source='.', revision='HEAD')
