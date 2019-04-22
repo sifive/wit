@@ -9,6 +9,7 @@ from lib.manifest import Manifest
 from lib.lock import LockFile
 from lib.package import Package
 from typing import List
+from lib.common import error
 
 log = logging.getLogger('wit')
 
@@ -218,17 +219,19 @@ class WorkSpace:
         package.set_path(self.path)
         package.find_source(self.repo_paths)
 
+        if self.manifest.contains_package(package):
+            error("Manifest already contains package {}".format(package.name))
+
         if GitRepo.is_git_repo(package.get_path()):
-            raise NotImplementedError
+            log.debug("Package {} has already been cloned!".format(package.name))
+            package.checkout()
+            # copy remote to source
+            package.source = package.get_remote()
         else:
             package.clone_and_checkout()
 
-        if self.manifest.contains_package(package):
-            # TODO Update the revision
-            raise NotImplementedError
-        else:
-            log.info("Added '{}' to workspace at '{}'".format(package.source, package.revision))
-            self.manifest.add_package(package)
+        log.info("Added '{}' to workspace at '{}'".format(package.source, package.revision))
+        self.manifest.add_package(package)
 
         log.debug('my manifest_path = {}'.format(self.manifest_path()))
         self.manifest.write(self.manifest_path())
