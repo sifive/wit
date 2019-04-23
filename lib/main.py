@@ -32,6 +32,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-C', dest='cwd', type=chdir, metavar='path', help='Run in given path')
     parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'),
                         help='Specify alternative paths to look for packages')
     parser.add_argument('--prepend-repo-path', default=None,
@@ -110,6 +111,17 @@ def main() -> None:
 
         elif args.command == 'fetch-scala':
             fetch_scala(ws, args, agg=False)
+
+
+def chdir(s) -> None:
+    def err(msg):
+        raise argparse.ArgumentTypeError(msg)
+    try:
+        os.chdir(s)
+    except FileNotFoundError:
+        err("'{}' path not found!".format(s))
+    except NotADirectoryError:
+        err("'{}' is not a directory!".format(s))
 
 
 def create(args) -> None:
