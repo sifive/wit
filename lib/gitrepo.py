@@ -74,11 +74,15 @@ class GitRepo:
     def clone_and_checkout(self):
         self.clone()
         self.checkout()
-        # If our revision was a branch or tag, get the actual commit
-        self.revision = self.get_latest_commit()
 
     def get_latest_commit(self):
         proc = self._git_command('rev-parse', 'HEAD')
+        self._git_check(proc)
+        return proc.stdout.rstrip()
+
+    def get_remote(self) -> str:
+        # TODO Do we need to worry about other remotes?
+        proc = self._git_command('remote', 'get-url', 'origin')
         self._git_check(proc)
         return proc.stdout.rstrip()
 
@@ -132,6 +136,8 @@ class GitRepo:
     def checkout(self):
         proc = self._git_command("checkout", self.revision)
         self._git_check(proc)
+        # If our revision was a branch or tag, get the actual commit
+        self.revision = self.get_latest_commit()
 
     def manifest_path(self):
         return self.get_path() / self.PKG_DEPENDENCY_FILE
