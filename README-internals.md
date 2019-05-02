@@ -23,7 +23,8 @@ These files are generated and maintained by `wit`. Wit uses json for its meta-da
     "name": "chisel3-wake",
     "source": "git@github.com:sifive/chisel3-wake.git"
   }
-]```
+]
+```
 
 `wit-manifest.json`: Packages specify their dependencies in the `wit-manifest.json` file. These packages are implicitly added to the workspace during `wit`'s resolution phase.
 ```
