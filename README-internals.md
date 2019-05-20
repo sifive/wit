@@ -4,9 +4,9 @@ This document describes terms and concepts used by `wit`.
 
 ## Terms
 
-**repository**: A standard git repository. Each git "commit" in the repository represents a package, as defined below.
+Much of `wit` terminology is derived directly from `git`, upon which `wit` relies.
 
-**package**: A package is a specific hash of a git repository that is incorporated into a `wit` workspace, either explicitly by being added to the workspace by the workspace owner, or implicitly by being included from aanother package.
+**package**: A git repository that is incorporated into a `wit` workspace, either explicitly by being added to the workspace by the workspace owner, or implicitly by being included from aanother package.
 
 **workspace**: A workspace is a work area that contains zero or more packages, along with meta-data about those packages.
 
