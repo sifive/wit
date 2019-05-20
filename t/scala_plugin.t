@@ -34,16 +34,19 @@ jar="json4s-native_2.12-3.6.1.jar"
 found=$(find . -name "$jar")
 check "We should find $jar" [ ! -z "$found" ]
 
-bloop_bin="scala/bloop"
-check "$bloop_bin should exist" [ -f "$bloop_bin" ]
-
-coursier_bin="scala/blp-coursier"
+coursier_bin="scala/coursier"
 check "$coursier_bin should exist" [ -f "$coursier_bin" ]
 
 # This one is implicit in the Scala Version
 scala_jar="scala-compiler-2.12.8.jar"
 found_scala=$(find . -name "$scala_jar")
 check "We should also find Scala" [ ! -z $found_scala ]
+
+# Because we fetch Scala Version together with the dependencies, we get Scala
+# 2.12.8 but not 2.12.6 (which is the one json4s directly depends on)
+bad_scala_jar="scala-library-2.12.6.jar"
+not_found_scala=$(find . -name "$bad_scala_jar")
+check "We should not find the wrong Scala" [ -z $not_found_scala ]
 
 report
 finish

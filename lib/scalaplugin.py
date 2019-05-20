@@ -5,51 +5,31 @@ from collections import OrderedDict
 import logging
 import subprocess
 import os
+import urllib.request
 
 log = logging.getLogger('wit')
 
 
-def scala_install_dir(ws):
-    return str(ws.path / "scala")
+def scala_install_dir(path):
+    return str(path / "scala")
 
 
-def ivy_cache_dir(ws):
-    return str(ws.path / "ivycache")
+def ivy_cache_dir(path):
+    return str(path / "ivycache")
 
 
 def coursier_bin(install_dir):
-    return "{}/blp-coursier".format(install_dir)
+    return "{}/coursier".format(install_dir)
 
 
 def ivy_deps_file(package):
-    return str(package.get_path() / "ivydependencies.json")
+    return str(package / "ivydependencies.json")
 
 
-def download_bloop_install(install_dir):
-    filename = "{}/install.py".format(install_dir)
-    if os.path.isfile(filename):
-        log.debug("Bloop install script already downloaded!")
-    else:
-        log.info("Fetching bloop install script...")
-        url = "https://github.com/scalacenter/bloop/releases/download/v1.2.5/install.py"
-        cmd = ["wget", url]
-        proc = subprocess.run(cmd, cwd=install_dir)
-        if proc.returncode != 0:
-            raise Exception("Error! Unable to download bloop install script from {}".format(url))
-    return filename
-
-
-def install_bloop(install_dir, ivy_cache_dir):
-
-    install_script = download_bloop_install(install_dir)
-
-    environ = os.environ.copy()  # Is this necessary?
-    environ["COURSIER_CACHE"] = str(ivy_cache_dir)
-
-    cmd = ["python", install_script, "-d", install_dir]
-    proc = subprocess.run(cmd, env=environ)
-    if proc.returncode != 0:
-        raise Exception("Error! Unable to install bloop!")
+def install_coursier(install_dir, ivy_cache_dir):
+    filename = coursier_bin(install_dir)
+    urllib.request.urlretrieve('https://git.io/coursier-cli', filename)
+    os.chmod(filename, 0o755)
 
 
 def split_scala_version(version):
@@ -131,28 +111,27 @@ def resolve_dependencies(projects):
     scalaVersion that matches the *major* version of the crossScalaVersion
     """
     scalaVersions = unique_list(filter(None, [proj.get('scalaVersion') for proj in projects]))
-    deps = []
+    dep_groups = []
     for proj in projects:
         version = proj.get('scalaVersion')
         pdeps = proj.get('dependencies') or []
-        if version is not None:
-            pdeps.append("org.scala-lang:scala-compiler:{}".format(version))
         crossVersions = proj.get('crossScalaVersions') or []
         # Note version can be none, this is okay
         allVersions = [version] + filter_versions(scalaVersions, crossVersions)
-        # There may be duplicate deps, dedup later
-        allDeps = [expand_scala_dep(v, d) for v in allVersions for d in pdeps]
-        deps.extend(allDeps)
-    uniqueDeps = unique_list(deps)
-    return uniqueDeps
+        for ver in allVersions:
+            deps = [expand_scala_dep(ver, dep) for dep in pdeps]
+            if ver is not None:
+                deps.append("org.scala-lang:scala-compiler:{}".format(ver))
+            dep_groups.append(deps)
+    return dep_groups
 
 
-def fetch_ivy_dep(coursier, cache, dep):
-    log.debug("Fetching {}...".format(dep))
-    cmd = [coursier, "fetch", "--cache", cache, dep]
+def fetch_ivy_deps(coursier, cache, deps):
+    log.debug("Fetching [{}]...".format(", ".join(deps)))
+    cmd = [coursier, "fetch", "--cache", cache] + deps
     proc = subprocess.run(cmd)
     if proc.returncode != 0:
-        raise Exception("Unable to fetch dependency {}".format(dep))
+        raise Exception("Unable to fetch dependencies [{}]".format(", ".join(deps)))
 
 
 def fetch_ivy_dependencies(dep_files, install_dir, ivy_cache_dir):
@@ -162,7 +141,7 @@ def fetch_ivy_dependencies(dep_files, install_dir, ivy_cache_dir):
     for fn in dep_files:
         projects.extend(read_ivy_file(fn))
 
-    deps = resolve_dependencies(projects)
+    dep_groups = resolve_dependencies(projects)
 
-    for dep in deps:
-        fetch_ivy_dep(coursier, ivy_cache_dir, dep)
+    for group in dep_groups:
+        fetch_ivy_deps(coursier, ivy_cache_dir, group)

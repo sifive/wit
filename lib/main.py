@@ -213,7 +213,7 @@ def fetch_scala(ws, args, agg=True) -> None:
     # Collect ivydependency files
     files = []
     for package in ws.lock.packages:
-        ivyfile = scalaplugin.ivy_deps_file(package)
+        ivyfile = scalaplugin.ivy_deps_file(package.get_path())
         if os.path.isfile(ivyfile):
             files.append(ivyfile)
         else:
@@ -229,9 +229,9 @@ def fetch_scala(ws, args, agg=True) -> None:
     else:
         log.info("Fetching Scala install and dependencies...")
 
-        install_dir = scalaplugin.scala_install_dir(ws)
+        install_dir = scalaplugin.scala_install_dir(ws.path)
 
-        ivy_cache_dir = scalaplugin.ivy_cache_dir(ws)
+        ivy_cache_dir = scalaplugin.ivy_cache_dir(ws.path)
         os.makedirs(ivy_cache_dir, exist_ok=True)
 
         # Check if we need to install Bloop
@@ -241,7 +241,7 @@ def fetch_scala(ws, args, agg=True) -> None:
         else:
             log.info("Installing Scala to {}...".format(install_dir))
             os.makedirs(install_dir, exist_ok=True)
-            scalaplugin.install_bloop(install_dir, ivy_cache_dir)
+            scalaplugin.install_coursier(install_dir, ivy_cache_dir)
 
         log.info("Fetching ivy dependencies...")
         scalaplugin.fetch_ivy_dependencies(files, install_dir, ivy_cache_dir)
