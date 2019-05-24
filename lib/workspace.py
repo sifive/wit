@@ -8,7 +8,7 @@ from lib.gitrepo import GitRepo
 from lib.manifest import Manifest
 from lib.lock import LockFile
 from lib.package import Package
-from typing import List
+from typing import List, Optional
 from lib.common import error
 
 log = logging.getLogger('wit')
@@ -235,6 +235,9 @@ class WorkSpace:
 
         log.debug('my manifest_path = {}'.format(self.manifest_path()))
         self.manifest.write(self.manifest_path())
+
+    def get_package(self, name: str) -> Optional[GitRepo]:
+        return self.lock.get_package(name)
 
     def update_package(self, package):
         raise NotImplementedError

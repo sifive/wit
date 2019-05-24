@@ -2,8 +2,10 @@
 
 import json
 from lib.package import Package
+from lib.gitrepo import GitRepo
 from collections import OrderedDict
 import logging
+from typing import Optional
 
 log = logging.getLogger('wit')
 
@@ -19,11 +21,14 @@ class LockFile:
     def __init__(self, packages=[]):
         self.packages = packages
 
-    def contains_package(self, package):
+    def get_package(self, name: str) -> Optional[GitRepo]:
         for p in self.packages:
-            if p.name == package.name:
-                return True
-        return False
+            if p.name == name:
+                return p
+        return None
+
+    def contains_package(self, name: str) -> bool:
+        return self.get_package(name) is not None
 
     def add_package(self, package):
         self.packages.append(package)

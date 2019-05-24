@@ -76,7 +76,10 @@ class GitRepo:
         self.checkout()
 
     def get_latest_commit(self):
-        proc = self._git_command('rev-parse', 'HEAD')
+        return self.get_commit('HEAD')
+
+    def get_commit(self, commit):
+        proc = self._git_command('rev-parse', commit)
         self._git_check(proc)
         return proc.stdout.rstrip()
 
@@ -130,8 +133,11 @@ class GitRepo:
         return lib.manifest.Manifest.process_manifest(wsroot, json_content).packages
 
     def add_dependency(self, package):
+        log.info("Adding dependency to '{}' on '{}' at '{}'".format(
+                  self.name, package.name, package.revision))
         path = self.manifest_path()
-        lib.manifest.Manifest.read(path, safe=True).add_package(package).write(path)
+        manifest = lib.manifest.Manifest.read_manifest(self.wsroot, path, safe=True)
+        manifest.add_package(package).write(path)
 
     def checkout(self):
         proc = self._git_command("checkout", self.revision)
