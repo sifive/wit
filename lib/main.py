@@ -153,7 +153,6 @@ def add_pkg(ws, args) -> None:
 
 
 def update_pkg(ws, args) -> None:
-    log.info("Updating package in workspace")
     ws.update_package(args.repo)
 
 

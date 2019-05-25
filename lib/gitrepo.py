@@ -7,11 +7,16 @@ from pprint import pformat
 import json
 import sys
 import lib.manifest
+from lib.common import WitUserError
 
 log = logging.getLogger('wit')
 
 
 class GitError(Exception):
+    pass
+
+
+class GitCommitNotFound(WitUserError):
     pass
 
 
@@ -75,13 +80,17 @@ class GitRepo:
         self.clone()
         self.checkout()
 
-    def get_latest_commit(self):
+    def get_latest_commit(self) -> str:
         return self.get_commit('HEAD')
 
-    def get_commit(self, commit):
+    def get_commit(self, commit) -> str:
         proc = self._git_command('rev-parse', commit)
         self._git_check(proc)
         return proc.stdout.rstrip()
+
+    def has_commit(self, commit) -> bool:
+        proc = self._git_command('rev-parse', commit)
+        return proc.returncode == 0
 
     def get_remote(self) -> str:
         # TODO Do we need to worry about other remotes?

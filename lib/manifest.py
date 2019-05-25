@@ -16,15 +16,31 @@ class Manifest:
     def __init__(self, packages):
         self.packages = packages
 
-    def contains_package(self, package):
+    def get_package(self, name: str):
         for p in self.packages:
-            if p.name == package.name:
-                return True
-        return False
+            if p.name == name:
+                return p
+        return None
+
+    def contains_package(self, name: str) -> bool:
+        return self.get_package(name) is not None
 
     def add_package(self, package):
         self.packages.append(package)
         return self
+
+    def update_package(self, package) -> None:
+        newpkgs = []
+        found = False
+        for p in self.packages:
+            if p.name == package.name:
+                newpkgs.append(package)
+                found = True
+            else:
+                newpkgs.append(p)
+        assert found, \
+            "Trying to update '{}' but it doesn't exist in manifest!".format(package.name)
+        self.packages = newpkgs
 
     def write(self, path):
         contents = [p.manifest() for p in self.packages]
