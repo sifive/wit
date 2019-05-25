@@ -13,7 +13,7 @@
 import sys
 import argparse
 import os
-from lib.workspace import WorkSpace
+from lib.workspace import WorkSpace, PackageNotInWorkspaceError
 from lib.package import Package
 import logging
 from lib import scalaplugin
@@ -62,6 +62,10 @@ def main() -> None:
     add_dep_parser = subparsers.add_parser('add-dep', help='add a dependency to a package')
     add_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=Package.from_arg)
 
+    update_dep_parser = subparsers.add_parser('update-dep', help='update revision of a dependency '
+                                              'in a package')
+    update_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=Package.from_arg)
+
     subparsers.add_parser('status', help='show status of workspace')
     subparsers.add_parser('update', help='update git repos')
 
@@ -100,11 +104,14 @@ def main() -> None:
             if args.command == 'add-pkg':
                 add_pkg(ws, args)
 
-            if args.command == 'update-pkg':
+            elif args.command == 'update-pkg':
                 update_pkg(ws, args)
 
-            if args.command == 'add-dep':
+            elif args.command == 'add-dep':
                 add_dep(ws, args)
+
+            elif args.command == 'update-dep':
+                update_dep(ws, args)
 
             elif args.command == 'status':
                 status(ws, args)
@@ -172,6 +179,18 @@ def add_dep(ws, args) -> None:
         # Determine revision from existing package
         dep.revision = found.get_commit(dep.revision)
     pkg.add_dependency(dep)
+
+
+def update_dep(ws, args) -> None:
+    pkg = Package.from_cwd(ws)
+    dep = ws.get_package(args.pkg.name)
+    if dep is None:
+        msg = "'{}' not found in workspace. Have you run 'wit update'?".format(args.pkg.name)
+        raise PackageNotInWorkspaceError(msg)
+    # Be sure to propagate the specified revision!
+    dep.fetch()
+    dep.revision = dep.get_commit(args.pkg.revision)
+    pkg.update_dependency(dep)
 
 
 def status(ws, args) -> None:

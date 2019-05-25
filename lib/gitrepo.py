@@ -103,6 +103,11 @@ class GitRepo:
         self._git_check(proc)
         return proc.stdout == ""
 
+    def fetch(self):
+        proc = self._git_command('fetch', '--all')
+        self._git_check(proc)
+        return proc.returncode == 0
+
     def modified(self):
         proc = self._git_command('status', '--porcelain')
         self._git_check(proc)
@@ -133,20 +138,47 @@ class GitRepo:
     # FIXME should we pass wsroot or should it be a member of the GitRepo?
     # Should this be a separate mutation or part of normal construction?
     def get_dependencies(self, wsroot):
-        proc = self._git_command("show", "{}:{}".format(self.revision, GitRepo.PKG_DEPENDENCY_FILE))
+        self.set_wsroot(wsroot)
+        return self.read_manifest_from_commit(self.revision).packages
+
+    def read_manifest(self) -> lib.manifest.Manifest:
+        mpath = self.manifest_path()
+        return lib.manifest.Manifest.read_manifest(self.wsroot, mpath, safe=True)
+
+    def write_manifest(self, manifest) -> None:
+        mpath = self.manifest_path()
+        manifest.write(mpath)
+
+    def read_manifest_from_commit(self, revision) -> lib.manifest.Manifest:
+        proc = self._git_command("show", "{}:{}".format(revision, GitRepo.PKG_DEPENDENCY_FILE))
         if proc.returncode:
-            log.debug("No dependency file found in repo [{}:{}]".format(self.revision,
+            log.debug("No dependency file found in repo [{}:{}]".format(revision,
                       self.get_path()))
-            return []
-        json_content = json.loads(proc.stdout)
-        return lib.manifest.Manifest.process_manifest(wsroot, json_content).packages
+        json_content = [] if proc.returncode else json.loads(proc.stdout)
+        return lib.manifest.Manifest.process_manifest(self.wsroot, json_content)
 
     def add_dependency(self, package):
         log.info("Adding dependency to '{}' on '{}' at '{}'".format(
                   self.name, package.name, package.revision))
-        path = self.manifest_path()
-        manifest = lib.manifest.Manifest.read_manifest(self.wsroot, path, safe=True)
-        manifest.add_package(package).write(path)
+        manifest = self.read_manifest()
+        manifest.add_package(package)
+        self.write_manifest(manifest)
+
+    # TODO should we check manifest against the committed version?
+    def update_dependency(self, package):
+        manifest = self.read_manifest()
+        old = manifest.get_package(package.name)
+        if old is None:
+            msg = "Package '{}' does not depend on '{}'!".format(self.name, package.name)
+            raise WitUserError(msg)
+        if old.revision == package.revision:
+            log.warn("Input update revision for '{}' in '{}' is unchanged!".format(
+                     package.name, self.name))
+        else:
+            log.info("Updating '{}' dependency on '{}' from '{}' to '{}'".format(
+                     self.name, package.name, old.revision, package.revision))
+            manifest.update_package(package)
+            manifest.write(self.manifest_path())
 
     def checkout(self):
         proc = self._git_command("checkout", self.revision)
