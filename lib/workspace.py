@@ -256,6 +256,7 @@ class WorkSpace:
                 msg = msg + " as it does not exist in the workspace!"
             raise PackageNotInWorkspaceError(msg)
 
+        old.fetch()
         # TODO should this be defined on GitRepo?
         # See if the commit exists
         rev = pkg.revision
