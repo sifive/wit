@@ -120,6 +120,7 @@ class WorkSpace:
         # 2. For every existing repo put a tuple (name, hash, commit time) into queue
         queue = []
         for repo in self.manifest.packages:
+            repo.fetch()
             commit = repo.revision
             commit_time = repo.commit_to_time(commit)
 
@@ -171,7 +172,9 @@ class WorkSpace:
                 # 8. Clone without checking out the dependency
                 # FIXME: This should clone to a temporary area. If this were
                 # fixed we could get rid of the source_map dictionary hack
-                if not GitRepo.is_git_repo(dep_repo.get_path()):
+                if GitRepo.is_git_repo(dep_repo.get_path()):
+                    dep_repo.fetch()
+                else:
                     dep_repo.clone()
 
                 # 9. Find the committer date
