@@ -4,17 +4,21 @@ import sys
 from pathlib import Path
 from pprint import pformat
 import logging
-from lib.gitrepo import GitRepo
+from lib.gitrepo import GitRepo, GitCommitNotFound
 from lib.manifest import Manifest
 from lib.lock import LockFile
 from lib.package import Package
 from typing import List, Optional
-from lib.common import error
+from lib.common import error, WitUserError
 
 log = logging.getLogger('wit')
 
 
 class NotAncestorError(Exception):
+    pass
+
+
+class PackageNotInWorkspaceError(WitUserError):
     pass
 
 
@@ -219,7 +223,7 @@ class WorkSpace:
         package.set_path(self.path)
         package.find_source(self.repo_paths)
 
-        if self.manifest.contains_package(package):
+        if self.manifest.contains_package(package.name):
             error("Manifest already contains package {}".format(package.name))
 
         if GitRepo.is_git_repo(package.get_path()):
@@ -239,8 +243,41 @@ class WorkSpace:
     def get_package(self, name: str) -> Optional[GitRepo]:
         return self.lock.get_package(name)
 
-    def update_package(self, package):
-        raise NotImplementedError
+    def contains_package(self, name: str) -> bool:
+        return self.get_package(name) is not None
+
+    def update_package(self, pkg: GitRepo) -> None:
+        old = self.manifest.get_package(pkg.name)
+        if old is None:
+            msg = "Cannot update package '{}'".format(pkg.name)
+            if self.lock.contains_package(pkg.name):
+                msg = msg + ", while it exists, it has not been added!"
+            else:
+                msg = msg + " as it does not exist in the workspace!"
+            raise PackageNotInWorkspaceError(msg)
+
+        # TODO should this be defined on GitRepo?
+        # See if the commit exists
+        rev = pkg.revision
+        if not old.has_commit(rev):
+            # Try origin
+            rev = "origin/{}".format(rev)
+            if not old.has_commit(rev):
+                msg = "Package '{}' contains neither '{}' nor '{}'".format(
+                        old.name, pkg.revision, rev)
+                raise GitCommitNotFound(msg)
+
+        rev = old.get_commit(rev)
+        if rev == old.revision:
+            log.warn("Updating '{}' to the same revision it already is!".format(old.name))
+        # Do update
+        old.revision = rev
+        old.checkout()
+        # Update and write manifest
+        self.manifest.update_package(old)
+        self.manifest.write(self.manifest_path())
+        log.info("Updated package '{}' to '{}', don't forget to run 'wit update'!"
+                 .format(old.name, old.revision))
 
     def repo_status(self, source):
         raise NotImplementedError
