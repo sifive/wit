@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 
 import lib.gitrepo
-import lib.workspace
 import os
 from pathlib import Path
+from lib.common import WitUserError
+
+
+class NotAPackageError(WitUserError):
+    pass
 
 
 # Make this a factory for different VCS types
@@ -52,16 +56,16 @@ class Package:
         return lib.gitrepo.GitRepo(source, commit, name=name, wsroot=wsroot)
 
     @staticmethod
-    def from_cwd():
+    def from_cwd(ws):
         cwd = Path(os.getcwd()).resolve()
 
-        # walk up the path until the /parent/ directory contains a wit
-        # manifest file
-        for p in ([cwd] + list(cwd.parents)):
-            if lib.workspace.WorkSpace.is_workspace(p / '..'):
-                return lib.gitrepo.GitRepo(str(p), None, wsroot=(p / '..').resolve())
-
-        return None
+        # Get the top-directory name relative to the workspace
+        name = cwd.relative_to(ws.path).parts[0]
+        package = ws.lock.get_package(name)
+        if package is None:
+            msg = "'{}' is not a package in workspace at '{}'".format(name, ws.path)
+            raise NotAPackageError(msg)
+        return package
 
 
 if __name__ == '__main__':

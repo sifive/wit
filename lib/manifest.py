@@ -31,19 +31,13 @@ class Manifest:
         manifest_json = json.dumps(contents, sort_keys=True, indent=4) + '\n'
         path.write_text(manifest_json)
 
-    @staticmethod
-    def read(path, safe=False):
-        if safe and not Path(path).exists():
-            return Manifest([])
-
-        content = json.loads(path.read_text())
-        return Manifest(content)
-
     # FIXME It's maybe a little weird that we need wsroot but that's because
     # this method is being used for both wit-workspace and wit-manifest in
     # packages
     @staticmethod
-    def read_manifest(wsroot, path):
+    def read_manifest(wsroot, path, safe=False):
+        if safe and not Path(path).exists():
+            return Manifest([])
         content = json.loads(path.read_text())
         return Manifest.process_manifest(wsroot, content)
 

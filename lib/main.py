@@ -20,6 +20,8 @@ from lib import scalaplugin
 from lib.formatter import WitFormatter
 from pathlib import Path
 from typing import List  # noqa: F401
+from lib.common import WitUserError, error
+from lib.gitrepo import GitRepo
 
 _handler = logging.StreamHandler(sys.stdout)
 _handler.setFormatter(WitFormatter())
@@ -94,23 +96,26 @@ def main() -> None:
             log.error("Unable to find workspace root [{}]. Cannot continue.".format(e))
             sys.exit(1)
 
-        if args.command == 'add-pkg':
-            add_pkg(ws, args)
+        try:
+            if args.command == 'add-pkg':
+                add_pkg(ws, args)
 
-        if args.command == 'update-pkg':
-            update_pkg(ws, args)
+            if args.command == 'update-pkg':
+                update_pkg(ws, args)
 
-        if args.command == 'add-dep':
-            add_dep(ws, args)
+            if args.command == 'add-dep':
+                add_dep(ws, args)
 
-        elif args.command == 'status':
-            status(ws, args)
+            elif args.command == 'status':
+                status(ws, args)
 
-        elif args.command == 'update':
-            update(ws, args)
+            elif args.command == 'update':
+                update(ws, args)
 
-        elif args.command == 'fetch-scala':
-            fetch_scala(ws, args, agg=False)
+            elif args.command == 'fetch-scala':
+                fetch_scala(ws, args, agg=False)
+        except WitUserError as e:
+            error(e)
 
 
 def chdir(s) -> None:
@@ -153,12 +158,21 @@ def update_pkg(ws, args) -> None:
 
 
 def add_dep(ws, args) -> None:
-    log.info("Adding dependency to package")
-    pkg = Package.from_cwd()
-    if not pkg:
-        raise FileNotFoundError("Could not find package root from cwd.")
-
-    pkg.add_dependency(args.pkg)
+    pkg = Package.from_cwd(ws)
+    dep = args.pkg
+    # Check package exists in workspace
+    found = ws.get_package(dep.name)
+    if found is None:
+        dep.set_wsroot(ws.path)
+        if GitRepo.is_git_repo(dep.get_path()):
+            log.debug("Repo '{}' already exists, skipping clone...".format(dep.name))
+        else:
+            dep.clone()
+        dep.checkout()
+    else:
+        # Determine revision from existing package
+        dep.revision = found.get_commit(dep.revision)
+    pkg.add_dependency(dep)
 
 
 def status(ws, args) -> None:
