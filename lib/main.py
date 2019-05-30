@@ -201,8 +201,11 @@ def status(ws, args) -> None:
 
     clean = []
     dirty = []
+    untracked = []
+    seen_paths = {}
     for package in ws.lock.packages:
-        # FIXME: cheating by diving into the object.
+        seen_paths[package.get_path()] = True
+
         lock_commit = package.revision
         latest_commit = package.get_latest_commit()
 
@@ -220,13 +223,23 @@ def status(ws, args) -> None:
         else:
             clean.append(package)
 
+    for path in ws.path.iterdir():
+        if path not in seen_paths and path.is_dir() and GitRepo.is_git_repo(path):
+            untracked.append(path)
+        seen_paths[path] = True
+
     log.info("Clean packages:")
     for package in clean:
         log.info("    {}".format(package.name))
-    log.info("Dirty repos:")
+    log.info("Dirty packages:")
     for package, content in dirty:
         msg = ", ".join(content)
         log.info("    {} ({})".format(package.name, msg))
+    if len(untracked) > 0:
+        log.info("Untracked packages:")
+        for path in untracked:
+            relpath = path.relative_to(ws.path)
+            log.info("    {}".format(relpath))
 
 
 def update(ws, args) -> None:
