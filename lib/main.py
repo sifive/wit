@@ -10,6 +10,7 @@
 # * Use a real logger
 # * Handle partial sha1s correctly
 
+import subprocess
 import sys
 import argparse
 import os
@@ -34,6 +35,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('--version', action='store_true')
     parser.add_argument('-C', dest='cwd', type=chdir, metavar='path', help='Run in given path')
     parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'),
                         help='Specify alternative paths to look for packages')
@@ -72,6 +74,10 @@ def main() -> None:
     subparsers.add_parser('fetch-scala', help='Fetch dependencies for Scala projects')
 
     args = parser.parse_args()
+
+    if args.version:
+        version()
+
 
     if args.prepend_repo_path and args.repo_path:
         args.repo_path = " ".join([args.prepend_repo_path, args.repo_path])
@@ -290,3 +296,20 @@ def fetch_scala(ws, args, agg=True) -> None:
 
         log.info("Fetching ivy dependencies...")
         scalaplugin.fetch_ivy_dependencies(files, install_dir, ivy_cache_dir)
+
+
+def version() -> None:
+    version_file = Path(__file__).resolve().parent.parent.joinpath('__version__')
+
+    try:
+        with version_file.open() as fh:
+            version = fh.readline().rstrip()
+
+    except FileNotFoundError:
+        # not an official release, use git to get an explicit version
+        proc = subprocess.run('git describe --tags --dirty', shell=True, stdout=subprocess.PIPE)
+        version = proc.stdout.decode('utf-8').rstrip()
+
+    print("wit {}".format(version))
+    sys.exit()
+
