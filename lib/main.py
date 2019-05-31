@@ -77,7 +77,7 @@ def main() -> None:
 
     if args.version:
         version()
-
+        sys.exit(0)
 
     if args.prepend_repo_path and args.repo_path:
         args.repo_path = " ".join([args.prepend_repo_path, args.repo_path])
@@ -311,5 +311,3 @@ def version() -> None:
         version = proc.stdout.decode('utf-8').rstrip()
 
     print("wit {}".format(version))
-    sys.exit()
-
