@@ -27,7 +27,6 @@ git -C bar checkout master
 touch bar/file2
 git -C bar add -A
 git -C bar commit -m "commit2"
-bar_commit2=$(git -C bar rev-parse HEAD)
 bar_dir=$PWD/bar
 
 prereq off
@@ -52,6 +51,9 @@ check "wit add-dep should succeed" [ $? -eq 0 ]
 
 foo_bar_commit=$(jq -r '.[] | select(.name=="bar") | .commit' foo/wit-manifest.json)
 check "foo should depend on the correct commit of bar" [ "$foo_bar_commit" = "$bar_commit" ]
+
+bar_manifest_source=$(jq -r '.[] | select(.name=="bar") | .source' foo/wit-manifest.json)
+check "Added bar dependency should have correct source" [ "$bar_manifest_source" = "$bar_dir" ]
 
 check "bar should have been cloned when it was added as a dependency" [ -d bar/.git ]
 
