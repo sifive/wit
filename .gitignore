@@ -3,3 +3,4 @@
 *.swp
 regression*
 .mypy_cache
+.rsyncignore
