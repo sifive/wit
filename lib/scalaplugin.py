@@ -26,9 +26,14 @@ def ivy_deps_file(package):
     return str(package / "ivydependencies.json")
 
 
-def install_coursier(install_dir, ivy_cache_dir):
+def install_coursier(install_dir):
+    version = "1.1.0-M14-6"
+    path = "io/get-coursier/coursier-cli_2.12/{}/coursier-cli_2.12-{}-standalone.jar".format(
+           version, version)
     filename = coursier_bin(install_dir)
-    urllib.request.urlretrieve('https://git.io/coursier-cli', filename)
+    url = "http://central.maven.org/maven2/{}".format(path)
+    print("Downloading from {}".format(url))
+    urllib.request.urlretrieve(url, filename)
     os.chmod(filename, 0o755)
 
 
