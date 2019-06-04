@@ -179,11 +179,13 @@ def add_dep(ws, args) -> None:
         if GitRepo.is_git_repo(dep.get_path()):
             log.debug("Repo '{}' already exists, skipping clone...".format(dep.name))
         else:
-            dep.clone()
-        dep.checkout()
+            dep.clone_and_checkout()
+        dep.source = dep.get_remote()
     else:
-        # Determine revision from existing package
+        # Determine revision and source from existing repo
         dep.revision = found.get_commit(dep.revision)
+        dep.source = found.get_remote()
+
     pkg.add_dependency(dep)
 
 
