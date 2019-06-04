@@ -10,6 +10,8 @@ from lib.lock import LockFile
 from lib.package import Package
 from typing import List
 from lib.common import error
+import importlib.util
+import inspect
 
 log = logging.getLogger('wit')
 
@@ -27,6 +29,7 @@ class WorkSpace:
         self.manifest = manifest
         self.lock = lock
         self.repo_paths = []
+        self.plugins = []
 
     # create a new workspace root given a name.
     @staticmethod
@@ -96,6 +99,23 @@ class WorkSpace:
                 return WorkSpace(wspath, manifest, lock=lock)
 
         raise FileNotFoundError("Couldn't find manifest file")
+
+    def load_plugins(self):
+        from lib.plugin import WitPlugin
+        for package in self.lock.packages:
+            path = package.get_path()
+            plugin_path = "{}/wit-plugin.py".format(path)
+            if Path(plugin_path).is_file():
+                log.debug("Found plugin file at [{}]".format(plugin_path))
+                # Load the file
+                spec = importlib.util.spec_from_file_location("wit-plugin", plugin_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                for name, value in inspect.getmembers(module):
+                    if inspect.isclass(value):
+                        if issubclass(value, WitPlugin) and name != 'WitPlugin':
+                            log.debug("Found plugin '{}' in '{}'".format(name, plugin_path))
+                            self.plugins.append(value())
 
     # FIXME Should we run this algorithm upon `wit status` to mention if
     # lockfile out of sync?
