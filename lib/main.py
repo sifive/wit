@@ -292,7 +292,7 @@ def fetch_scala(ws, args, agg=True) -> None:
         else:
             log.info("Installing Scala to {}...".format(install_dir))
             os.makedirs(install_dir, exist_ok=True)
-            scalaplugin.install_coursier(install_dir, ivy_cache_dir)
+            scalaplugin.install_coursier(install_dir)
 
         log.info("Fetching ivy dependencies...")
         scalaplugin.fetch_ivy_dependencies(files, install_dir, ivy_cache_dir)
