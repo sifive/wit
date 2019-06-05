@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import List  # noqa: F401
 from lib.common import WitUserError, error
 from lib.gitrepo import GitRepo
+import re
 
 _handler = logging.StreamHandler(sys.stdout)
 _handler.setFormatter(WitFormatter())
@@ -301,7 +302,8 @@ def fetch_scala(ws, args, agg=True) -> None:
 
 
 def version() -> None:
-    version_file = Path(__file__).resolve().parent.parent.joinpath('__version__')
+    path = Path(__file__).resolve().parent.parent
+    version_file = path.joinpath('__version__')
 
     try:
         with version_file.open() as fh:
@@ -309,7 +311,9 @@ def version() -> None:
 
     except FileNotFoundError:
         # not an official release, use git to get an explicit version
-        proc = subprocess.run('git describe --tags --dirty', shell=True, stdout=subprocess.PIPE)
+        proc = subprocess.run(['git', '-C', str(path), 'describe', '--tags', '--dirty'],
+                              stdout=subprocess.PIPE)
         version = proc.stdout.decode('utf-8').rstrip()
+        version = re.sub(r"^v", "", version)
 
     print("wit {}".format(version))

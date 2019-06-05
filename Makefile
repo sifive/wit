@@ -1,5 +1,5 @@
 install_root := $(PREFIX)
-version := $(shell git describe --tags --dirty)
+version := $(shell ./wit --version | sed 's/^wit //')
 install_dir := $(install_root)/$(version)
 
 install:
