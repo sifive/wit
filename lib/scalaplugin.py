@@ -6,6 +6,7 @@ import logging
 import subprocess
 import os
 import urllib.request
+from typing import List
 
 log = logging.getLogger('wit')
 
@@ -109,7 +110,7 @@ def filter_versions(allVers, myVers):
     return [ver for ver in myVers if get_major_version(ver) in majorVersions]
 
 
-def resolve_dependencies(projects):
+def resolve_dependencies(projects: List[dict]) -> List[tuple]:
     """
     Determines which dependencies should be fetched
     crossScalaVersions are used to fetch extra versions if any project has a
@@ -127,13 +128,14 @@ def resolve_dependencies(projects):
             deps = [expand_scala_dep(ver, dep) for dep in pdeps]
             if ver is not None:
                 deps.append("org.scala-lang:scala-compiler:{}".format(ver))
-            dep_groups.append(deps)
-    return dep_groups
+            dep_groups.append(tuple(deps))
+    unique_groups = unique_list(dep_groups)
+    return unique_groups
 
 
-def fetch_ivy_deps(coursier, cache, deps):
+def fetch_ivy_deps(coursier: str, cache: str, deps: tuple) -> None:
     log.debug("Fetching [{}]...".format(", ".join(deps)))
-    cmd = [coursier, "fetch", "--cache", cache] + deps
+    cmd = [coursier, "fetch", "--cache", cache] + list(deps)
     proc = subprocess.run(cmd)
     if proc.returncode != 0:
         raise Exception("Unable to fetch dependencies [{}]".format(", ".join(deps)))
