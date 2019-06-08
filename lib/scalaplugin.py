@@ -6,7 +6,11 @@ import logging
 import subprocess
 import os
 import urllib.request
-from typing import List
+from typing import List, Optional
+import tempfile
+import shutil
+from pathlib import Path
+import filecmp
 
 log = logging.getLogger('wit')
 
@@ -25,6 +29,12 @@ def coursier_bin(install_dir):
 
 def ivy_deps_file(package):
     return str(package / "ivydependencies.json")
+
+
+def pretty_cmd(cmd):
+    def wrap(s):
+        return '"{}"'.format(s) if ' ' in s else s
+    return ' '.join([wrap(s) for s in cmd])
 
 
 def install_coursier(install_dir):
@@ -133,12 +143,104 @@ def resolve_dependencies(projects: List[dict]) -> List[tuple]:
     return unique_groups
 
 
+def recursive_list_files(directory) -> List[str]:
+    """
+    Recursively list [only] files in a directory
+    """
+    return [os.path.join(d, f) for d, _, fs in os.walk(directory) for f in fs]
+
+
+def atomic_sync_copy(src, dst, tmproot) -> None:
+    """
+    Copies src directory to dst
+    Does a "sync" copy where it only copies if dst files don't exist or differ
+    from the src files
+    Will create parent directories if they do not exist
+    """
+    log.debug('Syncing {} to {}'.format(src, dst))
+    src_files = recursive_list_files(src)
+    dst_files = recursive_list_files(dst)
+    dst_lookup = {os.path.relpath(f, dst): f for f in dst_files}
+
+    for src_file in src_files:
+        relpath = os.path.relpath(src_file, src)
+        dst_file = "{}/{}".format(dst, relpath)
+        copy = False
+        if relpath in dst_lookup:
+            # File exists at destination, check if it has changed
+            if filecmp.cmp(src_file, dst_file, shallow=False):
+                log.debug('{} exists and contents match!'.format(dst_file))
+                copy = False
+            else:
+                log.debug("{} and {} differ".format(src_file, dst_file))
+                copy = True
+        else:
+            log.debug("{} does not exist!".format(dst_file))
+            copy = True
+
+        if copy:
+            log.debug("Copying {} to {}".format(src_file, dst_file))
+            parent = os.path.dirname(dst_file)
+            if not os.path.exists(parent):
+                log.debug("Destination directory {} does not exist! Creating it.".format(parent))
+                # exist_ok avoids race condition error
+                os.makedirs(parent, mode=0o755, exist_ok=False)
+            f = tempfile.NamedTemporaryFile(mode='w+b', dir=parent, delete=False)
+            shutil.copy(src_file, f.name)
+            os.rename(f.name, dst_file)
+
+
+def copy_ivy_deps(deps: List[dict], cache: str) -> None:
+    """
+    Copies dependencies from system ivy cache to local cache
+    Uses 'v1' as the marker for beginning of cache path
+    """
+    for dep in deps:
+        coord = dep["coord"]
+        cache_path = dep["file"]
+        if coord is not None and cache_path is not None:
+            name = coord.split(":")[1]
+            split_path = cache_path.split(name, 1)
+            # '/home/user/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/' ->
+            #   '/https/repo1.maven.org/maven2/org/scala-lang/'
+            cache_prefix = split_path[0].split("v1")[1]
+            # '/2.12.8/scala-reflect-2.12.8.jar' -> '2.12.8'
+            version = split_path[1].split('/')[1]
+            src = '{}{}'.format(cache_path.split(version, 1)[0], version)
+            dst = '{}{}/{}/{}'.format(cache, cache_prefix, name , version)
+            atomic_sync_copy(src, dst, ".")
+        else:
+            log.debug("Skipping {}, coord or file was None".format(dep))
+
+
 def fetch_ivy_deps(coursier: str, cache: str, deps: tuple) -> None:
-    log.debug("Fetching [{}]...".format(", ".join(deps)))
-    cmd = [coursier, "fetch", "--cache", cache] + list(deps)
-    proc = subprocess.run(cmd)
-    if proc.returncode != 0:
-        raise Exception("Unable to fetch dependencies [{}]".format(", ".join(deps)))
+    """
+    Uses coursier to fetch ivy dependencies
+    Will attempt to put things in COURSIER_CACHE by default and then copy them to cache
+    If that fails, will just download directly to the local cache
+    """
+    def do_fetch(local: bool) -> Optional[dict]:
+        with tempfile.NamedTemporaryFile('r') as info_file:
+            base_cmd = [coursier, "fetch", "-q", "-p", "-j", info_file.name]
+            cmd = base_cmd + ["--cache", cache] if local else base_cmd
+            full_cmd = cmd + list(deps)
+            log.debug("Coursier [{}]...".format(pretty_cmd(full_cmd)))
+            proc = subprocess.run(full_cmd, stdout=subprocess.PIPE, universal_newlines=True)
+            info = json.load(info_file)
+            if proc.returncode == 0:
+                return info
+            else:
+                return None
+
+    # Try cached
+    info = do_fetch(False)
+    if info is None:
+        log.debug("Cached fetch failed, trying local...")
+        res = do_fetch(True)
+        if res is None:
+            raise Exception("Unable to fetch dependencies [{}]".format(", ".join(deps)))
+    else:
+        copy_ivy_deps(info["dependencies"], cache)
 
 
 def fetch_ivy_dependencies(dep_files, install_dir, ivy_cache_dir):
