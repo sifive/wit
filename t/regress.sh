@@ -67,6 +67,14 @@ echo "Results:"
 echo "Passing: $pass"
 echo "Failing: $fail"
 
+if ! [ -x "$(command -v jq)" ]; then
+    echo "Some tests may have failed due to jq not being found"
+fi
+
+if ! [ -x "$(command -v java)" ]; then
+    echo "Some tests may have failed due to java not being found"
+fi
+
 if [ $fail -ne 0 ]
 then exit 1
 else exit 0
