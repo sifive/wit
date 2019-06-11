@@ -4,3 +4,7 @@
 regression*
 .mypy_cache
 .rsyncignore
+t/bar
+t/foo
+t/myws
+.vscode
