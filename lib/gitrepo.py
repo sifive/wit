@@ -196,6 +196,13 @@ class GitRepo:
             'commit': self.revision,
         }
 
+    def check_uncommitted_manifest(self):
+        proc = self._git_command("diff", str(self.manifest_path()))
+        if proc.stdout != "":
+            print("\033[31m", end="") # start red text
+            print("Warning:", self.name, "has uncommitted changes in its wit-manifest.json", end="")
+            print("\033[m") # end red text
+
     def _git_command(self, *args):
         log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), self.get_path()))
         proc = subprocess.run(['git', *args], stdout=subprocess.PIPE,

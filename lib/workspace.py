@@ -148,6 +148,8 @@ class WorkSpace:
 
                 # 5. If the repo has a selected version, go to step 3
                 continue
+            
+            repo.check_uncommitted_manifest()
 
             # 6. set the version selector for this repo to the tuple's hash
             # FIXME: Right now I'm also storing the repo in here. This is for
