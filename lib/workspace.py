@@ -121,9 +121,9 @@ class WorkSpace:
         queue = []
         for repo in self.manifest.packages:
             if GitRepo.is_git_repo(repo.get_path()):
-                repo.fetch()
+                repo.two_stage_fetch()
             else:
-                repo.clone()
+                repo.two_stage_clone()
             commit = repo.revision
             commit_time = repo.commit_to_time(commit)
 
@@ -176,9 +176,9 @@ class WorkSpace:
                 # FIXME: This should clone to a temporary area. If this were
                 # fixed we could get rid of the source_map dictionary hack
                 if GitRepo.is_git_repo(dep_repo.get_path()):
-                    dep_repo.fetch()
+                    dep_repo.two_stage_fetch()
                 else:
-                    dep_repo.clone()
+                    dep_repo.two_stage_clone()
 
                 # 9. Find the committer date
                 dep_commit_time = dep_repo.commit_to_time(dep_repo.revision)

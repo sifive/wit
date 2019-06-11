@@ -8,6 +8,7 @@ import json
 import sys
 import lib.manifest
 from lib.common import WitUserError
+import threading
 
 log = logging.getLogger('wit')
 
@@ -76,6 +77,22 @@ class GitRepo:
             log.error("Error cloning into workspace: {}".format(e))
             sys.exit(1)
 
+    def two_stage_clone(self):
+        assert not GitRepo.is_git_repo(self.get_path()), \
+            "Trying to shallow clone and checkout into existing git repo!"
+        log.info('Shallow cloning {}...'.format(self.name))
+
+        path = self.get_path()
+        path.mkdir()
+        proc = self._git_command("clone", "--no-checkout", "--depth=1", str(self.source), str(path))
+        try:
+            self._git_check(proc)
+        except Exception as e:
+            log.error("Error cloning into workspace: {}".format(e))
+            sys.exit(1)
+        
+        self._git_command_background("fetch", "--unshallow", str(self.source), str(path))
+
     def clone_and_checkout(self):
         self.clone()
         self.checkout()
@@ -106,6 +123,16 @@ class GitRepo:
     def fetch(self):
         proc = self._git_command('fetch', '--all')
         self._git_check(proc)
+        return proc.returncode == 0
+
+
+    def two_stage_fetch(self):
+        # NOTE: shallow fetching doesn't work if we use --all
+        proc = self._git_command('fetch', '--depth=1')
+        self._git_check(proc)
+
+        self._git_command_background("fetch", "--unshallow")
+
         return proc.returncode == 0
 
     def modified(self):
@@ -202,6 +229,12 @@ class GitRepo:
                               stderr=subprocess.PIPE,
                               cwd=str(self.get_path()), universal_newlines=True)
         return proc
+
+    # NOTE: this does not return the process status
+    # TODO: we should probably have some status indicator for these background commands
+    def _git_command_background(self, *args):
+        t = threading.Thread(target=self._git_command, args=args)
+        t.start()
 
     def _git_check(self, proc):
         if proc.returncode:
