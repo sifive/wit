@@ -26,3 +26,6 @@ Once you have added one or more repositories to your workspace you can recursive
 
     wit update
  
+ ## License
+ 
+See [LICENSE](./LICENSE).
