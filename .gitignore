@@ -4,7 +4,9 @@
 regression*
 .mypy_cache
 .rsyncignore
-t/bar
-t/foo
-t/myws
+t/bar*
+t/foo*
+t/myws*
+t/main_repo*
+t/newdir*
 .vscode
