@@ -180,7 +180,6 @@ class WorkSpace:
                               "  {}\n".format(repo.name, repo.source,
                                               their_source))
                     sys.exit(1)
-                    return
 
                 # wait till they are done cloning
                 # FIXME: we could do something cleaner
@@ -205,16 +204,17 @@ class WorkSpace:
                         raise NotAncestorError
 
                 if not we_are_newer:
+                    self._downloaded_packages[repo.name]['ready_lock'].release()
+                    self._update_thread_lock.release()
                     continue  # see Step 5
 
-            ready_lock = threading.Lock()
-            ready_lock.acquire()
             self._downloaded_packages[repo.name] = {
                 'commit': our_commit,
                 'source': repo.source,
                 'timestamp_of_requester': our_timestamp,
-                'ready_lock': ready_lock,
+                'ready_lock': threading.Lock(),
             }
+            self._downloaded_packages[repo.name]['ready_lock'].acquire()
             self._update_thread_lock.release()
 
             # scenario 1: we are the first to request this package, we should download it
