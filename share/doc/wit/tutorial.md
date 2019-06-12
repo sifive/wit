@@ -51,7 +51,7 @@ This will add `foo` to the `wit-workspace.json` and clone `foo` into the workspa
 Note that while we're using local paths to repositories as the remote in this tutorial,
 it works just the same for git repositories hosted with your favorite hosting service.
 
-Not, it is equivalent to clone a repository into the workspace and then add it by directory.
+Note that the above is equivalent to cloning a repository into the workspace and then adding it by directory:
 
 ```bash
 # You can this *instead* of the above, but don't run both
@@ -108,13 +108,13 @@ that you're working on. This is something we will fix in a future version of wit
 
 ## Updating a package
 
-Let us assume there have been upstream changes to `foo` and we would like to see
+Let's assume there have been upstream changes to `foo` and we would like to see
 those changes reflected in our workspace.
 
 First, let us make some "upstream changes".
 
 ```bash
-cat "content." > $FOO_PATH/file2.txt
+echo "content." > $FOO_PATH/file2.txt
 git -C $FOO_PATH add file2.txt
 git -C $FOO_PATH commit -m "A second commit"
 git -C $FOO_PATH log
