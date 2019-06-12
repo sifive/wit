@@ -2,14 +2,14 @@
 
 import subprocess
 from pathlib import Path
-import logging
 from pprint import pformat
 import json
 import sys
 import lib.manifest
 from lib.common import WitUserError
+from lib.witlogger import getLogger
 
-log = logging.getLogger('wit')
+log = getLogger()
 
 
 class GitError(Exception):

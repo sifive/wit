@@ -3,15 +3,15 @@
 import sys
 from pathlib import Path
 from pprint import pformat
-import logging
 from lib.gitrepo import GitRepo, GitCommitNotFound
 from lib.manifest import Manifest
 from lib.lock import LockFile
 from lib.package import Package
 from typing import List, Optional
 from lib.common import error, WitUserError
+from lib.witlogger import getLogger
 
-log = logging.getLogger('wit')
+log = getLogger()
 
 
 class NotAncestorError(Exception):

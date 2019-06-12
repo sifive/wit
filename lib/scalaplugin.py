@@ -2,13 +2,13 @@
 
 import json
 from collections import OrderedDict
-import logging
 import subprocess
 import os
 import urllib.request
+from lib.witlogger import getLogger
 from typing import List
 
-log = logging.getLogger('wit')
+log = getLogger()
 
 
 def scala_install_dir(path):

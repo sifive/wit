@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import logging
 import sys
+from lib.witlogger import getLogger
 
-log = logging.getLogger('wit')
+log = getLogger()
 
 
 def error(*args, **kwargs):

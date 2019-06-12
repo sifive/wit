@@ -4,10 +4,10 @@ import json
 from lib.package import Package
 from lib.gitrepo import GitRepo
 from collections import OrderedDict
-import logging
 from typing import Optional
+from lib.witlogger import getLogger
 
-log = logging.getLogger('wit')
+log = getLogger()
 
 
 # TODO

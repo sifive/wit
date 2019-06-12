@@ -14,29 +14,26 @@ import subprocess
 import sys
 import argparse
 import os
+from lib.witlogger import getLogger
 from lib.workspace import WorkSpace, PackageNotInWorkspaceError
 from lib.package import Package
 import logging
 from lib import scalaplugin
-from lib.formatter import WitFormatter
 from pathlib import Path
-from typing import List  # noqa: F401
+from typing import cast, List  # noqa: F401
 from lib.common import WitUserError, error
 from lib.gitrepo import GitRepo
 import re
 
-_handler = logging.StreamHandler(sys.stdout)
-_handler.setFormatter(WitFormatter())
-logging.basicConfig(level=logging.INFO, handlers=[_handler])
-log = logging.getLogger('wit')
+log = getLogger()
 
 
 def main() -> None:
     # Parse arguments. Create sub-commands for each of the modes of operation
     parser = argparse.ArgumentParser()
-    parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('--version', action='store_true')
+    parser.add_argument('-v', '--verbose', action='count', default=0,
+                        help='Specify level of verbosity')
+    parser.add_argument('--version', action='store_true', help='Print wit version')
     parser.add_argument('-C', dest='cwd', type=chdir, metavar='path', help='Run in given path')
     parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'),
                         help='Specify alternative paths to look for packages')
@@ -75,22 +72,26 @@ def main() -> None:
     subparsers.add_parser('fetch-scala', help='Fetch dependencies for Scala projects')
 
     args = parser.parse_args()
+    if args.verbose > 3:
+        log.setLevel('TRACE')
+    elif args.verbose > 2:
+        log.setLevel(logging.DEBUG)
+    elif args.verbose > 1:
+        # Leave this here in case we decide to implement a 'verbose' level
+        log.setLevel(logging.INFO)
+    else:
+        log.setLevel(logging.INFO)
 
-    if args.version:
-        version()
-        sys.exit(0)
+    log.debug("Log level: {}".format(log.getEffectiveLevel()))
 
     if args.prepend_repo_path and args.repo_path:
         args.repo_path = " ".join([args.prepend_repo_path, args.repo_path])
     elif args.prepend_repo_path:
         args.repo_path = args.prepend_repo_path
 
-    if args.verbose:
-        log.setLevel(logging.INFO)
-    elif args.debug:
-        log.setLevel(logging.DEBUG)
-    else:
-        log.setLevel(logging.INFO)
+    if args.version:
+        version()
+        sys.exit(0)
 
     # FIXME: This big switch statement... no good.
     if args.command == 'init':
@@ -303,6 +304,7 @@ def fetch_scala(ws, args, agg=True) -> None:
 
 def version() -> None:
     path = Path(__file__).resolve().parent.parent
+    log.trace("Script path is {}".format(path))
     version_file = path.joinpath('__version__')
 
     try:
