@@ -2,17 +2,17 @@
 Workspace Integration Tool
 
 ## What is this?
-Wit is a tool for managing workspaces. It is intended as a supplement (not a replacement) for Git-based workflows.
+Wit is a tool for managing workspaces. It is intended as a supplement to (not a replacement for) Git-based workflows.
 The goal of wit is to enable development in a multiple user and repository environment.
 
-A wit workspace is composed of one more more packages. A package is a git repository.
+A wit workspace is composed of one or more packages. A package is a git repository.
 Each package may optionally contain a wit-manifest.json file which defines other packages upon which it depends.
 Wit resolves this hierarchy of dependencies and generates a flattened directory structure in which each package
 may exist only once.
 
 ## Getting started
 
-The best way to learn wit is to checkout the [tutorial](share/doc/wit/tutorial.md).
+The best way to learn wit is to check out the [tutorial](share/doc/wit/tutorial.md).
 
 ### Installation
 
@@ -25,13 +25,13 @@ PATH=$PATH:$PWD/wit
 which wit
 ```
 
-It also includes a `Makefile ` for installing specific versions. The installation flow requires `make`, `rsync`, and `sed`.
+It also includes a `Makefile` for installing specific versions. The installation flow requires `make`, `rsync`, and `sed`.
 
 ```bash
 make install PREFIX=/path/to/installation
 ```
 
-The Makefile will create a directory with the version (it even works for commits between tags),
+The Makefile will create a directory with the version (it even works for commits between tags)
 and copy the contents of contents of the local clone excluding the tests and metadata.
 
 
@@ -65,7 +65,7 @@ You can update the revision of a package in the workspace using the `update-pkg`
 
     wit update-pkg <package>[::revision]
 
-If you update to `<package>::<branch>`, it will checkout the the local version of that branch.
+If you update to `<package>::<branch>`, it will checkout the local version of that branch.
 You can always checkout remote branches by specifying the remote as well
 
     wit update-pkg <package>::<remote>/<branch>
