@@ -182,9 +182,16 @@ class GitRepo:
 
     def checkout(self):
         proc = self._git_command("checkout", self.revision)
-        self._git_check(proc)
         # If our revision was a branch or tag, get the actual commit
         self.revision = self.get_latest_commit()
+
+        try:
+            self._git_check(proc)
+        except Exception as e:
+            # TODO: make message more specific based on what kind of error we are getting
+            log.error("Error checking out repo '{}' to commit '{}'.\n{}".format(self.name,
+                                                                                self.revision, e))
+            sys.exit(1)
 
     def manifest_path(self):
         return self.get_path() / self.PKG_DEPENDENCY_FILE
