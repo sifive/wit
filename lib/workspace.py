@@ -10,6 +10,9 @@ from lib.lock import LockFile
 from lib.package import Package
 from typing import List, Optional
 from lib.common import error, WitUserError
+from lib.propagating_thread import PropagatingThread
+import datetime
+import threading
 
 log = logging.getLogger('wit')
 
@@ -31,6 +34,8 @@ class WorkSpace:
         self.manifest = manifest
         self.lock = lock
         self.repo_paths = []
+
+        self._update_thread_lock = threading.Lock()
 
     # create a new workspace root given a name.
     @staticmethod
@@ -101,116 +106,48 @@ class WorkSpace:
 
         raise FileNotFoundError("Couldn't find manifest file")
 
-    # FIXME Should we run this algorithm upon `wit status` to mention if
-    # lockfile out of sync?
+    # FIXME: Should we run this algorithm upon `wit status` to mention if lockfile out of sync?
+    # FIXME: We should be able to do this in a tmp directory, without touching the workspace
     def update(self):
         log.info("Updating workspace...")
 
-        # FIXME: This is a hack to ensure that we don't have multiple repos
-        # with the same name but different source paths. Ideally this could
-        # use the version_selector_map but due to a shortcoming in wit we
-        # do not update the version selector map in time.
-        source_map = {}
+        # folder_name -> commit, requester timestamp, ready lock
+        # ready_lock should be released when the repo is finished cloning
+        self._downloaded_packages = {}  # folder_name -> {commit, dependant}
+        self._done_updating = threading.Event()
 
-        # This algorithm courtesy of Wes
-        # https://sifive.atlassian.net/browse/FRAM-1
-        # 1. Initialize an empty version selector map
-        version_selector_map = {}
-
-        # 2. For every existing repo put a tuple (name, hash, commit time) into queue
-        queue = []
+        now = datetime.datetime.now()
         for repo in self.manifest.packages:
+            repo.find_source(self.repo_paths)
             if GitRepo.is_git_repo(repo.get_path()):
                 repo.fetch()
             else:
                 repo.clone()
-            commit = repo.revision
-            commit_time = repo.commit_to_time(commit)
-
-            queue.append((commit_time, commit, repo.name, repo))
-            source_map[repo.name] = repo.source
-
-        # sort by the first element of the tuple (commit time in epoch seconds)
-        queue.sort(key=lambda tup: tup[0])
-        log.debug(queue)
-
-        while queue:
-            # 3. Pop the tuple with the newest committer date. This removes from
-            # the end of the queue, which is the latest commit date.
-            commit_time, commit, reponame, repo = queue.pop()
-            if reponame in version_selector_map:
-                selected_commit = version_selector_map[reponame]['commit']
-
-                # 4. If the repo has a selected version, fail if that version
-                # does not include this tuple's hash
-                if not repo.is_ancestor(commit, selected_commit):
-                    raise NotAncestorError
-
-                # 5. If the repo has a selected version, go to step 3
-                continue
-
-            # 6. set the version selector for this repo to the tuple's hash
-            # FIXME: Right now I'm also storing the repo in here. This is for
-            # convenience but is poor data hygiene. Need to think of a better
-            # solution here.
-            version_selector_map[reponame] = {
-                'commit': commit,
-                'repo': repo
+            self._downloaded_packages[repo.name] = {
+                'commit': repo.revision,
+                'source': repo.source,
+                'timestamp_of_requester': now,
+                'ready_lock': threading.Lock(),
             }
 
-            # 7. Examine the repository's children
-            dependencies = repo.get_dependencies(self.path)
-            log.debug("Dependencies for [{}]: [{}]".format(repo.get_path(), dependencies))
+        threads = []
+        for repo in self.manifest.packages:
+            t = PropagatingThread(target=self.handle_repo_parallel, args=(repo,))
+            t.start()
+            threads.append(t)
+        for t in threads:
+            t.join()
 
-            for dep_repo in dependencies:
-                dep_repo.find_source(self.repo_paths)
-                if dep_repo.name in source_map:
-                    if dep_repo.source != source_map[dep_repo.name]:
-                        log.error("Repo [{}] has multiple conflicting paths:\n"
-                                  "  {}\n"
-                                  "  {}\n".format(dep_repo.name, dep_repo.source,
-                                                  source_map[dep_repo.name]))
-                        sys.exit(1)
+        for repo_name in self._downloaded_packages:
+            commit = self._downloaded_packages[repo_name]['commit']
+            log.info("Checked out '{}' at '{}'".format(repo_name, commit))
 
-                # 8. Clone without checking out the dependency
-                # FIXME: This should clone to a temporary area. If this were
-                # fixed we could get rid of the source_map dictionary hack
-                if GitRepo.is_git_repo(dep_repo.get_path()):
-                    dep_repo.fetch()
-                else:
-                    dep_repo.clone()
-
-                # 9. Find the committer date
-                dep_commit_time = dep_repo.commit_to_time(dep_repo.revision)
-
-                # 10. Fail if the dependent commit date is newer than the parent date
-                if dep_commit_time > commit_time:
-                    # dependent is newer than dependee. Panic.
-                    msg = ("Repo [{}] has a dependent that is newer than the source. "
-                           "This should not happen.\n".format(dep_repo.name))
-                    log.error(msg)
-                    sys.exit(1)
-
-                # 11. Push a tuple onto the queue
-                queue.append((dep_commit_time, dep_repo.revision, dep_repo.name, dep_repo))
-                source_map[dep_repo.name] = dep_repo.source
-
-            # Keep the queue ordered
-            queue.sort(key=lambda tup: tup[0])
-
-            # 12. Go to step 3 (finish loop)
-
-        # 13. Print out summary
-        for reponame in version_selector_map:
-            commit = version_selector_map[reponame]['commit']
-            log.info("Checked out '{}' at '{}'".format(reponame, commit))
-
-        # 14. Check out repos and add to lock
+        # Check out repos and add to lock
         lock_packages = []
-        for reponame in version_selector_map:
-            commit = version_selector_map[reponame]['commit']
-            repo = version_selector_map[reponame]['repo']
-            lock_repo = GitRepo(repo.source, commit, name=repo.name, wsroot=self.path)
+        for repo_name in self._downloaded_packages:
+            commit = self._downloaded_packages[repo_name]['commit']
+            source = self._downloaded_packages[repo_name]['source']
+            lock_repo = GitRepo(source, commit, name=repo_name, wsroot=self.path)
             lock_repo.checkout()
             lock_packages.append(lock_repo)
 
@@ -218,6 +155,92 @@ class WorkSpace:
         new_lock = LockFile(lock_packages)
         new_lock.write(self.lockfile_path())
         self.lock = new_lock
+
+    # this assumes that the provided parent_repo has already been safely cloned
+    def handle_repo_parallel(self, parent_repo):
+        threads = []
+
+        deps = parent_repo.get_dependencies(self.path)
+        log.debug("Dependencies for [{}]: [{}]".format(parent_repo.get_path(), deps))
+        for repo in deps:
+            repo.find_source(self.repo_paths)  # handle the --repo-path flag
+
+            our_commit = repo.revision
+            our_timestamp = parent_repo.get_timestamp()
+
+            # check if this repo has already been requested
+            self._update_thread_lock.acquire()
+            already_requested = repo.name in self._downloaded_packages
+
+            if already_requested:
+                their_source = self._downloaded_packages[repo.name]['source']
+                if their_source != repo.source:
+                    log.error("Repo [{}] has multiple conflicting paths:\n"
+                              "  {}\n"
+                              "  {}\n".format(repo.name, repo.source,
+                                              their_source))
+                    sys.exit(1)
+                    return
+
+                # wait till they are done cloning
+                # FIXME: we could do something cleaner
+                self._downloaded_packages[repo.name]['ready_lock'].acquire()
+
+                their_data = self._downloaded_packages[repo.name]
+                their_commit = their_data['commit']
+                their_timestamp = their_data['timestamp_of_requester']
+                we_are_newer = our_timestamp > their_timestamp
+
+                # NOTE: we could do something clever to reduce duplicate code but being clever
+                # could hurt readability
+                if we_are_newer:  # we are newer
+                    if not repo.is_ancestor(their_commit, our_commit):
+                        # if we are here, that means a older parent requested a child newer than
+                        # this parent's child
+                        raise NotAncestorError
+                else:  # we are older
+                    if not repo.is_ancestor(our_commit, their_commit):
+                        # if we are here, that means a newer parent requested a child older than
+                        # this parent's child
+                        raise NotAncestorError
+
+                if not we_are_newer:
+                    continue  # see Step 5
+
+            ready_lock = threading.Lock()
+            ready_lock.acquire()
+            self._downloaded_packages[repo.name] = {
+                'commit': our_commit,
+                'source': repo.source,
+                'timestamp_of_requester': our_timestamp,
+                'ready_lock': ready_lock,
+            }
+            self._update_thread_lock.release()
+
+            # scenario 1: we are the first to request this package, we should download it
+            # scenario 2: we are requesting a newer version, so we need to make sure the newest
+            #             version is downloaded
+            if GitRepo.is_git_repo(repo.get_path()):
+                repo.fetch()
+            else:
+                repo.clone()
+
+            # make sure the requesting commit is newer than the requested commit
+            if our_timestamp < repo.get_timestamp():
+                # dependent is newer than dependee. Panic.
+                msg = ("Repo [{}] has a dependent that is newer than the source. "
+                       "This should not happen.\n".format(repo.name))
+                log.error(msg)
+                sys.exit(1)
+
+            self._downloaded_packages[repo.name]['ready_lock'].release()
+
+            # now, we need to spawn new threads to further explore dependencies
+            t = PropagatingThread(target=self.handle_repo_parallel, args=(repo,))
+            t.start()
+            threads.append(t)
+        for t in threads:
+            t.join()
 
     def set_repo_path(self, repo_path):
         if repo_path is not None:
