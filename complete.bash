@@ -5,7 +5,7 @@ _wit()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-    global_flags="-h --help -v --verbose -d --debug --version -C --repo-path --prepend-repo-path"
+    global_flags="-h --help -v -vv -vvv -vvvv --verbose --version -C --repo-path --prepend-repo-path"
 
     if [[ ${prev} == wit ]] ; then
         if [[ ${cur} == -* ]] ; then
