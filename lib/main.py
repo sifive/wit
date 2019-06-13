@@ -24,6 +24,8 @@ from typing import cast, List  # noqa: F401
 from lib.common import WitUserError, error
 from lib.gitrepo import GitRepo
 import re
+from glob import glob
+import pathlib
 
 log = getLogger()
 
@@ -70,6 +72,8 @@ def main() -> None:
     subparsers.add_parser('update', help='update git repos')
 
     subparsers.add_parser('fetch-scala', help='Fetch dependencies for Scala projects')
+
+    subparsers.add_parser('clean', help='delete non-package subdirectories of workspace')
 
     args = parser.parse_args()
     if args.verbose > 3:
@@ -129,6 +133,9 @@ def main() -> None:
 
             elif args.command == 'fetch-scala':
                 fetch_scala(ws, args, agg=False)
+
+            elif args.command == 'clean':
+                clean(ws, args)
         except WitUserError as e:
             error(e)
 
@@ -319,3 +326,14 @@ def version() -> None:
         version = re.sub(r"^v", "", version)
 
     print("wit {}".format(version))
+
+
+def clean(ws, args) -> None:
+    subdirs = glob(str(ws.path)+'/*/')
+    subdirs = [pathlib.PosixPath(f) for f in subdirs]
+
+    pkg_folders = [f.parent for f in ws.path.glob('*/wit-manifest.json')]
+
+    non_pkg_folders = [f for f in subdirs if f not in pkg_folders]
+    for folder in non_pkg_folders:
+        folder.rmdir()
