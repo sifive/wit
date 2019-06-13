@@ -329,8 +329,8 @@ def version() -> None:
 
 
 def clean(ws, args) -> None:
-    subdirs = glob(str(ws.path)+'/*/')
-    subdirs = [pathlib.PosixPath(f) for f in subdirs]
+    subdirs_str = glob(str(ws.path)+'/*/')
+    subdirs = [pathlib.PosixPath(f) for f in subdirs_str]
 
     pkg_folders = [f.parent for f in ws.path.glob('*/wit-manifest.json')]
 
