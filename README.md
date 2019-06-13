@@ -1,8 +1,9 @@
-# Wit
-Workspace Integration Tool
-
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/sifive/wit.svg?label=release)](https://github.com/sifive/wit/releases/latest)
 [![Build Status](https://travis-ci.com/sifive/wit.svg?branch=master)](https://travis-ci.com/sifive/wit)
+[![Github](https://img.shields.io/github/license/sifive/wit.svg?color=blue&style=flat-square)](LICENSE)
+
+# Wit
+Workspace Integration Tool
 
 ## What is this?
 Wit is a tool for managing workspaces. It is intended as a supplement to (not a replacement for) Git-based workflows.
