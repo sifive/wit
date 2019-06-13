@@ -99,7 +99,7 @@ class WorkSpace:
 
                 return WorkSpace(wspath, manifest, lock=lock)
 
-        raise FileNotFoundError("Couldn't find manifest file")
+        raise FileNotFoundError("Couldn't find workspace file")
 
     # FIXME Should we run this algorithm upon `wit status` to mention if
     # lockfile out of sync?
