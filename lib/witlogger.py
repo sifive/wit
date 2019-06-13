@@ -4,7 +4,9 @@ import logging
 import sys
 from typing import cast
 
+VERBOSE = 15
 TRACE = 5
+SPAM = 3
 
 
 def getLogger():
@@ -12,7 +14,7 @@ def getLogger():
     Get the Wit logger
     """
     # We have to cast to make mypy happy
-    return cast(MyLogger, logging.getLogger('wit'))
+    return cast(WitLogger, logging.getLogger('wit'))
 
 
 class WitFormatter(logging.Formatter):
@@ -37,7 +39,7 @@ class WitFormatter(logging.Formatter):
         return result
 
 
-class MyLogger(logging.Logger):
+class WitLogger(logging.Logger):
     # See: https://stackoverflow.com/a/22586200/1785651
 
     def __init__(self, name, level=logging.NOTSET):
@@ -47,11 +49,24 @@ class MyLogger(logging.Logger):
         _handler.setFormatter(WitFormatter())
         logging.basicConfig(level=logging.INFO, handlers=[_handler])
 
+        logging.addLevelName(VERBOSE, 'VERBOSE')
         logging.addLevelName(TRACE, 'TRACE')
+        logging.addLevelName(SPAM, 'SPAM')
+
+    def getLevelName(self):
+        return logging.getLevelName(getLogger().getEffectiveLevel())
+
+    def verbose(self, msg, *args, **kwargs):
+        if self.isEnabledFor(VERBOSE):
+            self._log(VERBOSE, msg, args, **kwargs)
 
     def trace(self, msg, *args, **kwargs):
         if self.isEnabledFor(TRACE):
             self._log(TRACE, msg, args, **kwargs)
 
+    def spam(self, msg, *args, **kwargs):
+        if self.isEnabledFor(SPAM):
+            self._log(SPAM, msg, args, **kwargs)
 
-logging.setLoggerClass(MyLogger)
+
+logging.setLoggerClass(WitLogger)

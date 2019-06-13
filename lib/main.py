@@ -17,7 +17,6 @@ import os
 from lib.witlogger import getLogger
 from lib.workspace import WorkSpace, PackageNotInWorkspaceError
 from lib.package import Package
-import logging
 from lib import scalaplugin
 from pathlib import Path
 from typing import cast, List  # noqa: F401
@@ -30,9 +29,14 @@ log = getLogger()
 
 def main() -> None:
     # Parse arguments. Create sub-commands for each of the modes of operation
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-v', '--verbose', action='count', default=0,
-                        help='Specify level of verbosity')
+                        help='''Specify level of verbosity
+-v:    verbose
+-vv:   debug
+-vvv:  trace
+-vvvv: spam
+''')
     parser.add_argument('--version', action='store_true', help='Print wit version')
     parser.add_argument('-C', dest='cwd', type=chdir, metavar='path', help='Run in given path')
     parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'),
@@ -72,17 +76,18 @@ def main() -> None:
     subparsers.add_parser('fetch-scala', help='Fetch dependencies for Scala projects')
 
     args = parser.parse_args()
-    if args.verbose > 3:
+    if args.verbose == 4:
+        log.setLevel('SPAM')
+    elif args.verbose == 3:
         log.setLevel('TRACE')
-    elif args.verbose > 2:
-        log.setLevel(logging.DEBUG)
-    elif args.verbose > 1:
-        # Leave this here in case we decide to implement a 'verbose' level
-        log.setLevel(logging.INFO)
+    elif args.verbose == 2:
+        log.setLevel('DEBUG')
+    elif args.verbose == 1:
+        log.setLevel('VERBOSE')
     else:
-        log.setLevel(logging.INFO)
+        log.setLevel('INFO')
 
-    log.debug("Log level: {}".format(log.getEffectiveLevel()))
+    log.debug("Log level: {}".format(log.getLevelName()))
 
     if args.prepend_repo_path and args.repo_path:
         args.repo_path = " ".join([args.prepend_repo_path, args.repo_path])
@@ -310,12 +315,15 @@ def version() -> None:
     try:
         with version_file.open() as fh:
             version = fh.readline().rstrip()
+            log.spam("Version as read from [{}]: [{}]".format(version_file, version))
 
     except FileNotFoundError:
         # not an official release, use git to get an explicit version
+        log.spam("Running [git -C {} describe --tags --dirty]".format(str(path)))
         proc = subprocess.run(['git', '-C', str(path), 'describe', '--tags', '--dirty'],
                               stdout=subprocess.PIPE)
         version = proc.stdout.decode('utf-8').rstrip()
+        log.spam("Output: [{}]".format(version))
         version = re.sub(r"^v", "", version)
 
     print("wit {}".format(version))
