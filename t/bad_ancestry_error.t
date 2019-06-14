@@ -50,8 +50,12 @@ prereq "off"
 
 # Now create a workspace from main_repo
 wit init myws -a $PWD/foo -a $PWD/bar
-
 check "wit init should succeed" [ $? -eq 0 ]
+
+cd myws
+
+lock_xyz_commit=$(git -C xyz rev-parse HEAD)
+check "wit should checkout the correct commit of xyz" [ "$lock_xyz_commit" = "$xyz_commit_2" ]
 
 report
 finish
