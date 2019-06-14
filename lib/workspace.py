@@ -143,7 +143,8 @@ class WorkSpace:
 
                 # 4. If the repo has a selected version, fail if that version
                 # does not include this tuple's hash
-                if not repo.is_ancestor(commit, selected_commit):
+                if not (repo.is_ancestor(commit, selected_commit)
+                        or repo.is_ancestor(selected_commit, commit)):
                     raise NotAncestorError
 
                 # 5. If the repo has a selected version, go to step 3
