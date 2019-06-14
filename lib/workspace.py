@@ -169,72 +169,67 @@ class WorkSpace:
             our_timestamp = parent_repo.get_timestamp()
 
             # check if this repo has already been requested
-            self._update_thread_lock.acquire()
-            already_requested = repo.name in self._downloaded_packages
+            with self._update_thread_lock:
+                already_requested = repo.name in self._downloaded_packages
 
-            if already_requested:
-                their_source = self._downloaded_packages[repo.name]['source']
-                if their_source != repo.source:
-                    log.error("Repo [{}] has multiple conflicting paths:\n"
-                              "  {}\n"
-                              "  {}\n".format(repo.name, repo.source,
-                                              their_source))
+                if already_requested:
+                    their_source = self._downloaded_packages[repo.name]['source']
+                    if their_source != repo.source:
+                        log.error("Repo [{}] has multiple conflicting paths:\n"
+                                  "  {}\n"
+                                  "  {}\n".format(repo.name, repo.source,
+                                                  their_source))
+                        sys.exit(1)
+
+                    # wait till they are done cloning
+                    # FIXME: we could do something cleaner
+                    self._downloaded_packages[repo.name]['ready_lock'].acquire()
+
+                    their_data = self._downloaded_packages[repo.name]
+                    their_commit = their_data['commit']
+                    their_timestamp = their_data['timestamp_of_requester']
+                    we_are_newer = our_timestamp > their_timestamp
+
+                    # NOTE: we could do something clever to reduce duplicate code but being clever
+                    # could hurt readability
+                    if we_are_newer:  # we are newer
+                        if not repo.is_ancestor(their_commit, our_commit):
+                            # if we are here, that means a older parent requested a child newer than
+                            # this parent's child
+                            raise NotAncestorError
+                    else:  # we are older
+                        if not repo.is_ancestor(our_commit, their_commit):
+                            # if we are here, that means a newer parent requested a child older than
+                            # this parent's child
+                            raise NotAncestorError
+
+                    if not we_are_newer:
+                        self._downloaded_packages[repo.name]['ready_lock'].release()
+                        continue  # see Step 5
+
+                # note that we never release from that if branch. That's intentional!
+                self._downloaded_packages[repo.name] = {
+                    'commit': our_commit,
+                    'source': repo.source,
+                    'timestamp_of_requester': our_timestamp,
+                    'ready_lock': threading.Lock(),
+                }
+            with self._downloaded_packages[repo.name]['ready_lock']:
+                # scenario 1: we are the first to request this package, we should download it
+                # scenario 2: we are requesting a newer version, so we need to make sure the newest
+                #             version is downloaded
+                if GitRepo.is_git_repo(repo.get_path()):
+                    repo.fetch()
+                else:
+                    repo.clone()
+
+                # make sure the requesting commit is newer than the requested commit
+                if our_timestamp < repo.get_timestamp():
+                    # dependent is newer than dependee. Panic.
+                    msg = ("Repo [{}] has a dependent that is newer than the source. "
+                           "This should not happen.\n".format(repo.name))
+                    log.error(msg)
                     sys.exit(1)
-
-                # wait till they are done cloning
-                # FIXME: we could do something cleaner
-                self._downloaded_packages[repo.name]['ready_lock'].acquire()
-
-                their_data = self._downloaded_packages[repo.name]
-                their_commit = their_data['commit']
-                their_timestamp = their_data['timestamp_of_requester']
-                we_are_newer = our_timestamp > their_timestamp
-
-                # NOTE: we could do something clever to reduce duplicate code but being clever
-                # could hurt readability
-                if we_are_newer:  # we are newer
-                    if not repo.is_ancestor(their_commit, our_commit):
-                        # if we are here, that means a older parent requested a child newer than
-                        # this parent's child
-                        raise NotAncestorError
-                else:  # we are older
-                    if not repo.is_ancestor(our_commit, their_commit):
-                        # if we are here, that means a newer parent requested a child older than
-                        # this parent's child
-                        raise NotAncestorError
-
-                if not we_are_newer:
-                    self._downloaded_packages[repo.name]['ready_lock'].release()
-                    self._update_thread_lock.release()
-                    continue  # see Step 5
-
-            self._downloaded_packages[repo.name] = {
-                'commit': our_commit,
-                'source': repo.source,
-                'timestamp_of_requester': our_timestamp,
-                'ready_lock': threading.Lock(),
-            }
-            self._downloaded_packages[repo.name]['ready_lock'].acquire()
-            self._update_thread_lock.release()
-
-            # scenario 1: we are the first to request this package, we should download it
-            # scenario 2: we are requesting a newer version, so we need to make sure the newest
-            #             version is downloaded
-            if GitRepo.is_git_repo(repo.get_path()):
-                repo.fetch()
-            else:
-                repo.clone()
-
-            # make sure the requesting commit is newer than the requested commit
-            if our_timestamp < repo.get_timestamp():
-                # dependent is newer than dependee. Panic.
-                msg = ("Repo [{}] has a dependent that is newer than the source. "
-                       "This should not happen.\n".format(repo.name))
-                log.error(msg)
-                sys.exit(1)
-
-            self._downloaded_packages[repo.name]['ready_lock'].release()
-
             # now, we need to spawn new threads to further explore dependencies
             t = PropagatingThread(target=self.handle_repo_parallel, args=(repo,))
             t.start()
