@@ -36,7 +36,7 @@ git -C foo add -A
 git -C foo commit -m "add xyz:2"
 foo_commit=$(git -C foo rev-parse HEAD)
 
-# Set up repo foo
+# Set up repo bar
 make_repo 'bar'
 cat << EOF | jq . > bar/wit-manifest.json
 [
