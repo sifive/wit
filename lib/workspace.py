@@ -137,7 +137,7 @@ class WorkSpace:
         while queue:
             # 3. Pop the tuple with the newest committer date. This removes from
             # the end of the queue, which is the latest commit date.
-            commit_time, commit, reponame, repo = queue.pop()
+            commit_time, commit, reponame, repo = queue.pop(0)
             if reponame in version_selector_map:
                 selected_commit = version_selector_map[reponame]['commit']
 
