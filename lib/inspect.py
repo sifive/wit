@@ -48,12 +48,17 @@ def _clean_tree(tree, lockfile_package_dict):
 
 
 def _print_pkg_tree(data):
-    return _recur_print_pkg_tree(0, data, list(data.keys()), 0, [])
+    return _recur_print_pkg_tree(0, data, list(data.keys()), 0, [], [])
 
 
-def _recur_print_pkg_tree(depth, data, keys, idx, done_cols):
-    done_cols_copy = done_cols[:]
+def _recur_print_pkg_tree(depth, data, keys, idx, done_cols, already_explored):
     key = keys[idx]
+    already_explored_copy = already_explored[:]
+    this_already_explored = key in already_explored
+    if not this_already_explored:
+        already_explored_copy.append(keys[idx])
+
+    done_cols_copy = done_cols[:]
     end = idx == len(keys)-1
     if depth > 0:
         for i in range(1, depth):
@@ -67,12 +72,20 @@ def _recur_print_pkg_tree(depth, data, keys, idx, done_cols):
         else:
             print("├─ ", end="")
 
-    print(_format_pkg_key(key))
+    print(_format_pkg_key(key), end="")
+    if this_already_explored:
+        print(" (see above)")
+    else:
+        print()
 
-    if data[key]:
-        _recur_print_pkg_tree(depth+1, data[key], list(data[key].keys()), 0, done_cols_copy)
+    if data[key] and not this_already_explored:
+        already_explored_copy = _recur_print_pkg_tree(depth+1, data[key], list(data[key].keys()),
+                                                      0, done_cols_copy, already_explored_copy)
     if not end:
-        _recur_print_pkg_tree(depth, data, keys, idx+1, done_cols_copy)
+        already_explored_copy = _recur_print_pkg_tree(depth, data, keys, idx+1,
+                                                      done_cols_copy, already_explored_copy)
+
+    return already_explored_copy
 
 
 def _format_pkg_key(s):
