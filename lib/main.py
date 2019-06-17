@@ -73,7 +73,10 @@ def main() -> None:
 
     subparsers.add_parser('fetch-scala', help='Fetch dependencies for Scala projects')
 
-    subparsers.add_parser('clean', help='delete non-package subdirectories of workspace')
+    clean_parser = subparsers.add_parser('clean', help=('delete non-package subdirectories '
+                                                        'in your workspace'))
+    clean_parser.add_argument('--dry-run', dest='dry_run', action="store_true",
+                              help='do a dry run, showing what would have been deleted')
 
     args = parser.parse_args()
     if args.verbose > 3:
@@ -335,5 +338,15 @@ def clean(ws, args) -> None:
     pkg_folders = [pkg.get_path() for pkg in ws.lock.packages]
 
     non_pkg_folders = [f for f in subdirs if f not in pkg_folders]
+    if not non_pkg_folders:
+        log.info("No non-package directories found.")
+        return
+
+    if args.dry_run:
+        log.info("Skipping execution because of --dry-run. Would have run:")
+
     for folder in non_pkg_folders:
-        folder.rmdir()
+        if args.dry_run:
+            log.info("rm -rf {}".format(folder))
+        else:
+            folder.rmdir()
