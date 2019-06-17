@@ -76,6 +76,7 @@ def main() -> None:
 
     inspect_parser = subparsers.add_parser('inspect', help='inspect lockfile')
     inspect_parser.add_argument('--tree', action="store_true")
+    inspect_parser.add_argument('--dot', action="store_true")
 
     subparsers.add_parser('fetch-scala', help='Fetch dependencies for Scala projects')
 
@@ -140,7 +141,7 @@ def main() -> None:
                 fetch_scala(ws, args, agg=False)
 
             elif args.command == 'inspect':
-                if args.tree:
+                if args.dot or args.tree:
                     inspect_tree(ws, args)
                 else:
                     log.error("wit inspect must be run with the --tree flag")

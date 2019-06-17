@@ -1,8 +1,16 @@
 import os
+import sys
+import re
 from lib.manifest import Manifest
+from lib.witlogger import getLogger
+
+log = getLogger()
 
 
 def inspect_tree(ws, args):
+    if not ws.lock:
+        log.error('Cannot inspect non-existent wit-lock.json')
+        sys.exit(1)
     tree = {}
     root_packages = ws.manifest.packages
     for package in root_packages:
@@ -11,7 +19,11 @@ def inspect_tree(ws, args):
 
     processed_lockfile_packages = {pkg.name: pkg.revision for pkg in ws.lock.packages}
     new_tree = _clean_tree(tree, processed_lockfile_packages)
-    _print_pkg_tree(new_tree)
+
+    if args.dot:
+        _print_dot_tree(new_tree)
+    else:
+        _print_pkg_tree(new_tree)
 
 
 def _get_package_tree(root_pkg):
@@ -100,3 +112,44 @@ def _format_pkg_key(s):
     else:
         out += "{}".format(rev[:8])
     return out
+
+
+def _print_dot_tree(tree):
+    print('digraph dependencies {')
+    print('root [label="[root]"]')
+    _print_dot_tree_body(tree, "root", [], [])
+    print('}')
+
+
+def _print_dot_tree_body(tree, parent_key, keys_defined, keys_seen):
+    if parent_key in keys_seen:
+        return keys_defined, keys_seen
+    keys_seen_copy = keys_seen[:]
+    keys_seen_copy.append(parent_key)
+
+    parent_dot_key = _transform_to_dot_key(parent_key)
+
+    if "->" in parent_key:
+        superceded = parent_key.split("@")[0]+"@"+parent_key.split("->")[1]
+        superceded_dot_key = _transform_to_dot_key(superceded)
+        print("{} -> {} [style=dotted]".format(parent_dot_key, superceded_dot_key))
+        return keys_defined, keys_seen_copy
+
+    if not tree:
+        return keys_defined, keys_seen_copy
+
+    keys_defined_copy = keys_defined[:]
+    for key in tree:
+        child_dot_key = _transform_to_dot_key(key)
+        if key not in keys_defined_copy:
+            print('{} [label="{}"]'.format(child_dot_key, _format_pkg_key(key)))
+            keys_defined_copy.append(key)
+        print("{} -> {}".format(parent_dot_key, child_dot_key))
+        keys_defined_copy, keys_seen_copy = _print_dot_tree_body(tree[key], key, keys_defined_copy, keys_seen_copy)
+    return keys_defined_copy, keys_seen_copy
+
+
+def _transform_to_dot_key(ident):
+    if ident == "root":
+        return "root"
+    return re.sub(r"([^\w\d])", "_", ident)
