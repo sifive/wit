@@ -142,7 +142,9 @@ def _print_dot_tree_body(tree, parent_key, keys_defined, keys_seen):
     for key in tree:
         child_dot_key = _transform_to_dot_key(key)
         if key not in keys_defined_copy:
-            print('{} [label="{}"]'.format(child_dot_key, _format_pkg_key(key)))
+            fancy_key = _format_pkg_key(key)
+            fancy_key = fancy_key.split("->")[0]
+            print('{} [label="{}"]'.format(child_dot_key, fancy_key))
             keys_defined_copy.append(key)
         print("{} -> {}".format(parent_dot_key, child_dot_key))
         keys_defined_copy, keys_seen_copy = _print_dot_tree_body(tree[key], key, keys_defined_copy, keys_seen_copy)
