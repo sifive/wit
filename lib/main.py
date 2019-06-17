@@ -332,7 +332,7 @@ def clean(ws, args) -> None:
     subdirs_str = glob(str(ws.path)+'/*/')
     subdirs = [pathlib.PosixPath(f) for f in subdirs_str]
 
-    pkg_folders = [f.parent for f in ws.path.glob('*/wit-manifest.json')]
+    pkg_folders = [pkg.get_path() for pkg in ws.lock.packages]
 
     non_pkg_folders = [f for f in subdirs if f not in pkg_folders]
     for folder in non_pkg_folders:
