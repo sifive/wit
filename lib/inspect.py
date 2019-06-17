@@ -87,6 +87,12 @@ def _recur_print_pkg_tree(depth, data, keys, idx, done_cols, already_explored):
     print(_format_pkg_key(key), end="")
     if this_already_explored:
         print(" (see above)")
+    elif "->" in key:
+        superceded_key = key.split("@")[0]+"@"+key.split("->")[1]
+        if superceded_key in already_explored:
+            print(" (see above)")
+        else:
+            print(" (see below)")
     else:
         print()
 
