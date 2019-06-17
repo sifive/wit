@@ -88,7 +88,7 @@ def _recur_print_pkg_tree(depth, data, keys, idx, done_cols, already_explored):
     if this_already_explored:
         print(" (see above)")
     elif "->" in key:
-        superceded_key = key.split("@")[0]+"@"+key.split("->")[1]
+        superceded_key = key.split("@")[0]+"::"+key.split("->")[1]
         if superceded_key in already_explored:
             print(" (see above)")
         else:
@@ -109,7 +109,7 @@ def _recur_print_pkg_tree(depth, data, keys, idx, done_cols, already_explored):
 def _format_pkg_key(s):
     name = s.split("@")[0]
     rev = s.split("@")[1]
-    out = "{}@".format(name)
+    out = "{}::".format(name)
     if "->" in s:
         parts = rev.split("->")
         rev_old = parts[0][:8]
@@ -153,7 +153,8 @@ def _print_dot_tree_body(tree, parent_key, keys_defined, keys_seen):
             print('{} [label="{}"]'.format(child_dot_key, fancy_key))
             keys_defined_copy.append(key)
         print("{} -> {}".format(parent_dot_key, child_dot_key))
-        keys_defined_copy, keys_seen_copy = _print_dot_tree_body(tree[key], key, keys_defined_copy, keys_seen_copy)
+        keys_defined_copy, keys_seen_copy = _print_dot_tree_body(tree[key], key, keys_defined_copy,
+                                                                 keys_seen_copy)
     return keys_defined_copy, keys_seen_copy
 
 
