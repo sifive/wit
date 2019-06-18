@@ -7,7 +7,13 @@ from lib.witlogger import getLogger
 log = getLogger()
 
 
+# FIXME use custom logger to write to files
 def inspect_tree(ws, args):
+    out = sys.stdout
+    if args.out_file:
+        out = args.out_file
+        log.info("[printing to {}]".format(args.out_file.name))
+
     if not ws.lock:
         log.error('Cannot inspect non-existent wit-lock.json')
         sys.exit(1)
@@ -21,9 +27,9 @@ def inspect_tree(ws, args):
     new_tree = _clean_tree(tree, processed_lockfile_packages)
 
     if args.dot:
-        _print_dot_tree(new_tree)
+        _print_dot_tree(out, new_tree)
     else:
-        _print_pkg_tree(new_tree)
+        _print_pkg_tree(out, new_tree)
 
 
 def _get_package_tree(root_pkg):
@@ -59,11 +65,11 @@ def _clean_tree(tree, lockfile_package_dict):
     return cleaned_tree
 
 
-def _print_pkg_tree(data):
-    return _recur_print_pkg_tree(0, data, list(data.keys()), 0, [], [])
+def _print_pkg_tree(out, data):
+    return _recur_print_pkg_tree(out, 0, data, list(data.keys()), 0, [], [])
 
 
-def _recur_print_pkg_tree(depth, data, keys, idx, done_cols, already_explored):
+def _recur_print_pkg_tree(out, depth, data, keys, idx, done_cols, already_explored):
     key = keys[idx]
     already_explored_copy = already_explored[:]
     this_already_explored = key in already_explored
@@ -75,32 +81,33 @@ def _recur_print_pkg_tree(depth, data, keys, idx, done_cols, already_explored):
     if depth > 0:
         for i in range(1, depth):
             if i in done_cols:
-                print("   ", end="")
+                print("   ", end="", file=out)
             else:
-                print("│  ", end="")
+                print("│  ", end="", file=out)
         if end:
-            print("└─ ", end="")
+            print("└─ ", end="", file=out)
             done_cols_copy.append(depth)
         else:
-            print("├─ ", end="")
+            print("├─ ", end="", file=out)
 
-    print(_format_pkg_key(key), end="")
+    print(_format_pkg_key(key), end="", file=out)
     if this_already_explored:
-        print(" (see above)")
+        print(" (see above)", file=out)
     elif "->" in key:
         superceded_key = key.split("@")[0]+"::"+key.split("->")[1]
         if superceded_key in already_explored:
-            print(" (see above)")
+            print(" (see above)", file=out)
         else:
-            print(" (see below)")
+            print(" (see below)", file=out)
     else:
         print()
 
     if data[key] and not this_already_explored:
-        already_explored_copy = _recur_print_pkg_tree(depth+1, data[key], list(data[key].keys()),
+        already_explored_copy = _recur_print_pkg_tree(out, depth+1, data[key],
+                                                      list(data[key].keys()),
                                                       0, done_cols_copy, already_explored_copy)
     if not end:
-        already_explored_copy = _recur_print_pkg_tree(depth, data, keys, idx+1,
+        already_explored_copy = _recur_print_pkg_tree(out, depth, data, keys, idx+1,
                                                       done_cols_copy, already_explored_copy)
 
     return already_explored_copy
@@ -120,14 +127,14 @@ def _format_pkg_key(s):
     return out
 
 
-def _print_dot_tree(tree):
-    print('digraph dependencies {')
-    print('root [label="[root]"]')
-    _print_dot_tree_body(tree, "root", [], [])
-    print('}')
+def _print_dot_tree(out, tree):
+    print('digraph dependencies {', file=out)
+    print('root [label="[root]"]', file=out)
+    _print_dot_tree_body(out, tree, "root", [], [])
+    print('}', file=out)
 
 
-def _print_dot_tree_body(tree, parent_key, keys_defined, keys_seen):
+def _print_dot_tree_body(out, tree, parent_key, keys_defined, keys_seen):
     if parent_key in keys_seen:
         return keys_defined, keys_seen
     keys_seen_copy = keys_seen[:]
@@ -138,7 +145,7 @@ def _print_dot_tree_body(tree, parent_key, keys_defined, keys_seen):
     if "->" in parent_key:
         superceded = parent_key.split("@")[0]+"@"+parent_key.split("->")[1]
         superceded_dot_key = _transform_to_dot_key(superceded)
-        print("{} -> {} [style=dotted]".format(parent_dot_key, superceded_dot_key))
+        print("{} -> {} [style=dotted]".format(parent_dot_key, superceded_dot_key), file=out)
         return keys_defined, keys_seen_copy
 
     if not tree:
@@ -150,11 +157,11 @@ def _print_dot_tree_body(tree, parent_key, keys_defined, keys_seen):
         if key not in keys_defined_copy:
             fancy_key = _format_pkg_key(key)
             fancy_key = fancy_key.split("->")[0]
-            print('{} [label="{}"]'.format(child_dot_key, fancy_key))
+            print('{} [label="{}"]'.format(child_dot_key, fancy_key), file=out)
             keys_defined_copy.append(key)
-        print("{} -> {}".format(parent_dot_key, child_dot_key))
-        keys_defined_copy, keys_seen_copy = _print_dot_tree_body(tree[key], key, keys_defined_copy,
-                                                                 keys_seen_copy)
+        print("{} -> {}".format(parent_dot_key, child_dot_key), file=out)
+        keys_defined_copy, keys_seen_copy = _print_dot_tree_body(out, tree[key], key,
+                                                                 keys_defined_copy, keys_seen_copy)
     return keys_defined_copy, keys_seen_copy
 
 

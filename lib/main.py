@@ -14,6 +14,7 @@ import subprocess
 import sys
 import argparse
 import os
+import tempfile
 from lib.witlogger import getLogger
 from lib.workspace import WorkSpace, PackageNotInWorkspaceError
 from lib.package import Package
@@ -74,9 +75,17 @@ def main() -> None:
     subparsers.add_parser('status', help='show status of workspace')
     subparsers.add_parser('update', help='update git repos')
 
+    def add_inspect_args(sub):
+        sub.add_argument('--tree', action="store_true")
+        sub.add_argument('--dot', action="store_true")
+        sub.add_argument('-o', dest="out_file", type=argparse.FileType('w'))
+
     inspect_parser = subparsers.add_parser('inspect', help='inspect lockfile')
-    inspect_parser.add_argument('--tree', action="store_true")
-    inspect_parser.add_argument('--dot', action="store_true")
+    add_inspect_args(inspect_parser)
+
+    resolve_parser = subparsers.add_parser('resolve', help=('`wit update` in tmp directory '
+                                                            'then `wit inspect` the result'))
+    add_inspect_args(resolve_parser)
 
     subparsers.add_parser('fetch-scala', help='Fetch dependencies for Scala projects')
 
@@ -146,6 +155,9 @@ def main() -> None:
                 else:
                     log.error("wit inspect must be run with the --tree flag")
                     sys.exit(1)
+
+            elif args.command == 'resolve':
+                resolve(ws, args)
         except WitUserError as e:
             error(e)
 
@@ -271,6 +283,15 @@ def status(ws, args) -> None:
 
 def update(ws, args) -> None:
     ws.update()
+
+
+def resolve(ws, args) -> None:
+    with tempfile.TemporaryDirectory() as tempdir:
+        print("Operating in {}".format(tempdir))
+        ws.path = Path(tempdir)
+        ws.update()
+        if args.dot or args.tree:
+            inspect_tree(ws, args)
 
 
 def fetch_scala(ws, args, agg=True) -> None:

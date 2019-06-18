@@ -120,6 +120,7 @@ class WorkSpace:
         # 2. For every existing repo put a tuple (name, hash, commit time) into queue
         queue = []
         for repo in self.manifest.packages:
+            repo.set_wsroot(self.path)
             if GitRepo.is_git_repo(repo.get_path()):
                 repo.fetch()
             else:
