@@ -17,6 +17,7 @@ import os
 from lib.witlogger import getLogger
 from lib.workspace import WorkSpace, PackageNotInWorkspaceError
 from lib.package import Package
+from lib.inspect import inspect_tree
 from lib import scalaplugin
 from pathlib import Path
 from typing import cast, List  # noqa: F401
@@ -72,6 +73,11 @@ def main() -> None:
 
     subparsers.add_parser('status', help='show status of workspace')
     subparsers.add_parser('update', help='update git repos')
+
+    inspect_parser = subparsers.add_parser('inspect', help='inspect lockfile')
+    inspect_group = inspect_parser.add_mutually_exclusive_group()
+    inspect_group.add_argument('--tree', action="store_true")
+    inspect_group.add_argument('--dot', action="store_true")
 
     subparsers.add_parser('fetch-scala', help='Fetch dependencies for Scala projects')
 
@@ -134,6 +140,14 @@ def main() -> None:
 
             elif args.command == 'fetch-scala':
                 fetch_scala(ws, args, agg=False)
+
+            elif args.command == 'inspect':
+                if args.dot or args.tree:
+                    inspect_tree(ws, args)
+                else:
+                    log.error('`wit inspect` must be run with a flag')
+                    print(parser.parse_args('inspect -h'.split()))
+                    sys.exit(1)
         except WitUserError as e:
             error(e)
 
