@@ -14,8 +14,72 @@ from lib.witlogger import getLogger
 log = getLogger()
 
 
+# TODO: hide the stacktrace when not debugging
 class NotAncestorError(Exception):
-    pass
+    def __init__(self, parent_a, child_a, parent_b, child_b):
+        self.parent_a = parent_a
+        self.child_a = child_a
+        self.parent_b = parent_b
+        self.child_b = child_b
+
+    def __str__(self):
+        assert self.child_a.name == self.child_b.name
+        child_name = self.child_a.name
+
+        if self.parent_a is None:
+            parent_a_tag = "[root]"
+            parent_a_name = "[root]"
+        else:
+            parent_a_tag = "{}::{}".format(self.parent_a.name, self.parent_a.short_revision())
+            parent_a_name = self.parent_a.name
+
+        if self.parent_b is None:
+            parent_b_tag = "[root]"
+            parent_b_name = "[root]"
+        else:
+            parent_b_tag = "{}::{}".format(self.parent_b.name, self.parent_b.short_revision())
+            parent_b_name = self.parent_b.name
+
+        if self.child_a.get_timestamp() > self.child_b.get_timestamp():
+            newer_child = self.child_a
+            newer_parent_tag = parent_a_tag
+            older_child = self.child_b
+            older_parent_tag = parent_b_tag
+        else:
+            newer_child = self.child_b
+            newer_parent_tag = parent_b_tag
+            older_child = self.child_a
+            older_parent_tag = parent_a_tag
+
+        # TODO: add color
+        return ("\n\nAncestry issue:\n"
+                "'{parent_a_name}' and '{parent_b_name}' both depend on '{child_name}':\n"
+                "    {parent_a_tag} depends on "
+                "{child_name}::{child_a_hash}\n"
+                "    {parent_b_tag} depends on "
+                "{child_name}::{child_b_hash}\n\n"
+                "Although {child_name}::{newer_child_hash} is newer than "
+                "{child_name}::{older_child_hash},\n{child_name}::{newer_child_hash} is not "
+                "a descendent of {child_name}::{older_child_hash}.\n\n"
+                "Therefore, there is no guarantee that "
+                "the dependee needed by {older_parent_tag} will be satisfied "
+                "by the dependee needed by {newer_parent_tag}."
+                "".format(
+                    parent_a_name=parent_a_name,
+                    parent_b_name=parent_b_name,
+                    parent_a_tag=parent_a_tag,
+                    parent_b_tag=parent_b_tag,
+
+                    child_name=child_name,
+                    child_a_hash=self.child_a.short_revision(),
+                    child_b_hash=self.child_b.short_revision(),
+
+                    newer_child_hash=newer_child.short_revision(),
+                    older_child_hash=older_child.short_revision(),
+
+                    newer_parent_tag=newer_parent_tag,
+                    older_parent_tag=older_parent_tag,
+                ))
 
 
 class PackageNotInWorkspaceError(WitUserError):
@@ -117,6 +181,8 @@ class WorkSpace:
         # 1. Initialize an empty version selector map
         version_selector_map = {}
 
+        root_repo = None
+
         # 2. For every existing repo put a tuple (name, hash, commit time) into queue
         queue = []
         for repo in self.manifest.packages:
@@ -127,7 +193,7 @@ class WorkSpace:
             commit = repo.revision
             commit_time = repo.commit_to_time(commit)
 
-            queue.append((commit_time, commit, repo.name, repo))
+            queue.append((commit_time, commit, repo.name, repo, root_repo))
             source_map[repo.name] = repo.source
 
         # sort by the first element of the tuple (commit time in epoch seconds)
@@ -137,14 +203,19 @@ class WorkSpace:
         while queue:
             # 3. Pop the tuple with the newest committer date. This removes from
             # the end of the queue, which is the latest commit date.
-            commit_time, commit, reponame, repo = queue.pop()
+            commit_time, commit, reponame, repo, dependent = queue.pop()
             if reponame in version_selector_map:
                 selected_commit = version_selector_map[reponame]['commit']
 
                 # 4. If the repo has a selected version, fail if that version
                 # does not include this tuple's hash
                 if not repo.is_ancestor(commit, selected_commit):
-                    raise NotAncestorError
+                    raise NotAncestorError(
+                        parent_a=dependent,
+                        child_a=repo,
+                        parent_b=version_selector_map[reponame]['dependent'],
+                        child_b=version_selector_map[reponame]['repo'],
+                    )
 
                 # 5. If the repo has a selected version, go to step 3
                 continue
@@ -155,7 +226,8 @@ class WorkSpace:
             # solution here.
             version_selector_map[reponame] = {
                 'commit': commit,
-                'repo': repo
+                'repo': repo,
+                'dependent': dependent,
             }
 
             # 7. Examine the repository's children
@@ -192,7 +264,7 @@ class WorkSpace:
                     sys.exit(1)
 
                 # 11. Push a tuple onto the queue
-                queue.append((dep_commit_time, dep_repo.revision, dep_repo.name, dep_repo))
+                queue.append((dep_commit_time, dep_repo.revision, dep_repo.name, dep_repo, repo))
                 source_map[dep_repo.name] = dep_repo.source
 
             # Keep the queue ordered

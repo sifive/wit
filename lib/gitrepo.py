@@ -5,6 +5,7 @@ from pathlib import Path
 from pprint import pformat
 import json
 import sys
+import datetime
 import lib.manifest
 from lib.common import WitUserError
 from lib.witlogger import getLogger
@@ -36,6 +37,9 @@ class GitRepo:
             self.name = GitRepo.path_to_name(source)
         else:
             self.name = name
+
+    def short_revision(self):
+        return self.revision[:8]
 
     # FIXME
     # Ideally we would always set the path on construction, but constructing
@@ -129,6 +133,11 @@ class GitRepo:
         proc = self._git_command('log', '-n1', '--format=%ct', hash)
         self._git_check(proc)
         return proc.stdout.rstrip()
+
+    # returns the timestamp of self.revision
+    def get_timestamp(self):
+        unix_time = float(self.commit_to_time(self.revision))
+        return datetime.datetime.fromtimestamp(unix_time)
 
     def is_ancestor(self, ancestor, current=None):
         proc = self._git_command("merge-base", "--is-ancestor", ancestor,
