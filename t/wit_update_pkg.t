@@ -31,9 +31,6 @@ check "Branch 'branch' in foo should not yet exist" [ $? -ne 0 ]
 wit update-pkg foo::branch
 check "Updating foo to a remote branch should work!" [ $? -eq 0 ]
 
-commit=$(git -C foo rev-parse HEAD)
-check "foo should have checked out the right commit" [ "$commit" = "$foo_commit_branch" ]
-
 foo_manifest_commit=$(jq -r '.[] | select(.name=="foo") | .commit' wit-workspace.json)
 check "The manifest should contain the correct commit" [ "$foo_manifest_commit" = "$foo_commit_branch" ]
 
@@ -42,6 +39,9 @@ check "Before running 'wit update', the lock should contain the old commit" [ "$
 
 wit update
 check "wit update should succeed" [ $? -eq 0 ]
+
+commit=$(git -C foo rev-parse HEAD)
+check "foo should have checked out the right commit" [ "$commit" = "$foo_commit_branch" ]
 
 foo_lock_commit2=$(jq -r '.foo | .commit' wit-lock.json)
 check "After 'wit update', the lock should contain the correct commit" [ "$foo_lock_commit2" = "$foo_commit_branch" ]

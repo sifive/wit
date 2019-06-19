@@ -15,8 +15,9 @@ import sys
 import argparse
 import os
 from lib.witlogger import getLogger
+from lib.gitrepo import get_package_from_cwd
 from lib.workspace import WorkSpace, PackageNotInWorkspaceError
-from lib.package import Package
+from lib.dependency import parse_dependency_tag, Dependency
 from lib.inspect import inspect_tree
 from lib import scalaplugin
 from pathlib import Path
@@ -54,22 +55,22 @@ def main() -> None:
     init_parser.add_argument('--no-fetch-scala', dest='fetch_scala', action='store_false',
                              help='don\'t run fetch-scala upon creating the workspace')
     init_parser.add_argument('-a', '--add-pkg', metavar='repo[::revision]', action='append',
-                             type=Package.from_arg, help='add an initial package')
+                             type=parse_dependency_tag, help='add an initial package')
     init_parser.add_argument('workspace_name')
 
     add_pkg_parser = subparsers.add_parser('add-pkg', help='add a package to the workspace')
-    add_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=Package.from_arg)
+    add_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=parse_dependency_tag)
 
     update_pkg_parser = subparsers.add_parser('update-pkg', help='update the revision of a '
                                               'previously added package')
-    update_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=Package.from_arg)
+    update_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=parse_dependency_tag)
 
     add_dep_parser = subparsers.add_parser('add-dep', help='add a dependency to a package')
-    add_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=Package.from_arg)
+    add_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=parse_dependency_tag)
 
     update_dep_parser = subparsers.add_parser('update-dep', help='update revision of a dependency '
                                               'in a package')
-    update_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=Package.from_arg)
+    update_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=parse_dependency_tag)
 
     subparsers.add_parser('status', help='show status of workspace')
     subparsers.add_parser('update', help='update git repos')
@@ -112,8 +113,7 @@ def main() -> None:
         # These commands assume the workspace already exists. Error out if the
         # workspace cannot be found.
         try:
-            ws = WorkSpace.find(Path.cwd())
-            ws.set_repo_path(args.repo_path)
+            ws = WorkSpace.find(Path.cwd(), parse_repo_path(args))
 
         except FileNotFoundError as e:
             log.error("Unable to find workspace root [{}]. Cannot continue.".format(e))
@@ -152,6 +152,10 @@ def main() -> None:
             error(e)
 
 
+def parse_repo_path(args):
+    return args.repo_path.split(' ') if args.repo_path else []
+
+
 def chdir(s) -> None:
     def err(msg):
         raise argparse.ArgumentTypeError(msg)
@@ -165,12 +169,11 @@ def chdir(s) -> None:
 
 def create(args) -> None:
     if args.add_pkg is None:
-        packages = []  # type: List[Package]
+        packages = []
     else:
         packages = args.add_pkg
 
-    ws = WorkSpace.create(args.workspace_name, packages)
-    ws.set_repo_path(args.repo_path)
+    ws = WorkSpace.create(args.workspace_name, parse_repo_path(args))
     for package in packages:
         ws.add_package(package)
 
@@ -190,36 +193,40 @@ def update_pkg(ws, args) -> None:
     ws.update_package(args.repo)
 
 
-def add_dep(ws, args) -> None:
-    pkg = Package.from_cwd(ws)
-    dep = args.pkg
-    # Check package exists in workspace
-    found = ws.get_package(dep.name)
-    if found is None:
-        dep.set_wsroot(ws.path)
-        if GitRepo.is_git_repo(dep.get_path()):
-            log.debug("Repo '{}' already exists, skipping clone...".format(dep.name))
-        else:
-            dep.clone_and_checkout()
-        dep.source = dep.get_remote()
-    else:
-        # Determine revision and source from existing repo
-        dep.revision = found.get_commit(dep.revision)
-        dep.source = found.get_remote()
+def dependency_from_tag(ws, tag):
+    source, revision = tag
+    return Dependency(ws, None, source, revision)
 
-    pkg.add_dependency(dep)
+
+def add_dep(ws, args) -> None:
+    cwd_pkg = get_package_from_cwd(ws)
+    cwd_pkg.load(force_root=True)
+
+    new_dep = dependency_from_tag(ws, args.pkg)
+    new_dep.load_package({}, force_root=True)
+    # Check package exists in workspace
+    found = ws.get_dependency(new_dep.name)
+    if found is None:
+        new_dep.source = new_dep.package.repo.get_remote()
+    else:
+        new_dep.source = found.source
+
+    cwd_pkg.repo.add_dependency(new_dep)
 
 
 def update_dep(ws, args) -> None:
-    pkg = Package.from_cwd(ws)
-    dep = ws.get_package(args.pkg.name)
-    if dep is None:
-        msg = "'{}' not found in workspace. Have you run 'wit update'?".format(args.pkg.name)
+    dep = dependency_from_tag(ws, args.pkg)
+    found = (ws.root/dep.name).exists()
+    if not found:
+        msg = "'{}' not found in workspace. Have you run 'wit update'?".format(dep.name)
         raise PackageNotInWorkspaceError(msg)
     # Be sure to propagate the specified revision!
-    dep.fetch()
-    dep.revision = dep.get_commit(args.pkg.revision)
-    pkg.update_dependency(dep)
+    dep.load_package({}, True)
+    log.info(dep)
+
+    parent_pkg = get_package_from_cwd(ws)
+    parent_pkg.load(force_root=True)
+    parent_pkg.repo.update_dependency(dep)
 
 
 def status(ws, args) -> None:
@@ -233,26 +240,26 @@ def status(ws, args) -> None:
     untracked = []
     seen_paths = {}
     for package in ws.lock.packages:
-        seen_paths[package.get_path()] = True
+        seen_paths[package.repo.get_path()] = True
 
-        lock_commit = package.revision
-        latest_commit = package.get_latest_commit()
+        lock_commit = package.theory_revision
+        latest_commit = package.repo.get_latest_commit()
 
         new_commits = lock_commit != latest_commit
 
-        if new_commits or not package.clean():
+        if new_commits or not package.repo.clean():
             status = []
             if new_commits:
                 status.append("new commits")
-            if package.modified():
+            if package.repo.modified():
                 status.append("modified content")
-            if package.untracked():
+            if package.repo.untracked():
                 status.append("untracked content")
             dirty.append((package, status))
         else:
             clean.append(package)
 
-    for path in ws.path.iterdir():
+    for path in ws.root.iterdir():
         if path not in seen_paths and path.is_dir() and GitRepo.is_git_repo(path):
             untracked.append(path)
         seen_paths[path] = True
@@ -267,12 +274,20 @@ def status(ws, args) -> None:
     if len(untracked) > 0:
         log.info("Untracked packages:")
         for path in untracked:
-            relpath = path.relative_to(ws.path)
+            relpath = path.relative_to(ws.root)
             log.info("    {}".format(relpath))
+
+    packages = ws.resolve()
+    for name in packages:
+        package = packages[name]
+        s = package.status()
+        if s:
+            print(package.name, s)
 
 
 def update(ws, args) -> None:
-    ws.update()
+    packages = ws.resolve(force_root=True)
+    ws.checkout(packages)
 
 
 def fetch_scala(ws, args, agg=True) -> None:
@@ -287,7 +302,7 @@ def fetch_scala(ws, args, agg=True) -> None:
     # Collect ivydependency files
     files = []
     for package in ws.lock.packages:
-        ivyfile = scalaplugin.ivy_deps_file(package.get_path())
+        ivyfile = scalaplugin.ivy_deps_file(package.repo.get_path())
         if os.path.isfile(ivyfile):
             files.append(ivyfile)
         else:
@@ -303,9 +318,9 @@ def fetch_scala(ws, args, agg=True) -> None:
     else:
         log.info("Fetching Scala install and dependencies...")
 
-        install_dir = scalaplugin.scala_install_dir(ws.path)
+        install_dir = scalaplugin.scala_install_dir(ws.root)
 
-        ivy_cache_dir = scalaplugin.ivy_cache_dir(ws.path)
+        ivy_cache_dir = scalaplugin.ivy_cache_dir(ws.root)
         os.makedirs(ivy_cache_dir, exist_ok=True)
 
         # Check if we need to install Bloop

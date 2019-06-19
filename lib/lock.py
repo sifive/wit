@@ -19,6 +19,7 @@ class LockFile:
     """
 
     def __init__(self, packages=[]):
+        # type: Package
         self.packages = packages
 
     def get_package(self, name: str) -> Optional[GitRepo]:
@@ -40,15 +41,18 @@ class LockFile:
         path.write_text(manifest_json)
 
     @staticmethod
-    def read(path):
+    def read(ws, path):
         log.debug("Reading lock file from {}".format(path))
         content = json.loads(path.read_text())
-        wsroot = path.parent
-        return LockFile.process(wsroot, content)
+        return LockFile.process(ws, content)
 
     @staticmethod
-    def process(wsroot, content):
-        packages = [Package.from_manifest(wsroot, x) for _, x in content.items()]
+    def process(ws, content):
+        from lib.dependency import manifest_item_to_dep
+        deps = [manifest_item_to_dep(ws, x) for _, x in content.items()]
+        for dep in deps:
+            dep.load_package({}, False)
+        packages = [dep.package for dep in deps]
         return LockFile(packages)
 
 

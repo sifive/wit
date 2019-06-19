@@ -4,7 +4,9 @@ import subprocess
 from pathlib import Path
 from pprint import pformat
 import json
+import os
 import sys
+import datetime
 import lib.manifest
 from lib.common import WitUserError
 from lib.witlogger import getLogger
@@ -28,7 +30,8 @@ class GitRepo:
     """
     PKG_DEPENDENCY_FILE = "wit-manifest.json"
 
-    def __init__(self, source, revision, name=None, wsroot=None):
+    def __init__(self, ws, source, revision, name=None, wsroot=None):
+        self.ws = ws
         self.wsroot = wsroot
         self.source = source
         self.revision = revision
@@ -36,6 +39,9 @@ class GitRepo:
             self.name = GitRepo.path_to_name(source)
         else:
             self.name = name
+
+    def short_revision(self):
+        return self.revision[:8]
 
     # FIXME
     # Ideally we would always set the path on construction, but constructing
@@ -62,6 +68,11 @@ class GitRepo:
                 self.source = tmp_path
                 return
 
+    def clone_or_fetch(self):
+        if not GitRepo.is_git_repo(self.get_path()):
+            self.clone()
+        self.fetch()
+
     def clone(self):
         assert not GitRepo.is_git_repo(self.get_path()), \
             "Trying to clone and checkout into existing git repo!"
@@ -85,11 +96,15 @@ class GitRepo:
 
     def get_commit(self, commit) -> str:
         proc = self._git_command('rev-parse', commit)
-        self._git_check(proc)
+        try:
+            self._git_check(proc)
+        except Exception:
+            proc = self._git_command('rev-parse', 'origin/{}'.format(commit))
+            self._git_check(proc)
         return proc.stdout.rstrip()
 
     def has_commit(self, commit) -> bool:
-        proc = self._git_command('rev-parse', commit)
+        proc = self._git_command('cat-file', '-t', commit)
         return proc.returncode == 0
 
     def get_remote(self) -> str:
@@ -130,6 +145,11 @@ class GitRepo:
         self._git_check(proc)
         return proc.stdout.rstrip()
 
+    # returns the timestamp of self.revision
+    def get_timestamp(self):
+        unix_time = float(self.commit_to_time(self.revision))
+        return datetime.datetime.fromtimestamp(unix_time)
+
     def is_ancestor(self, ancestor, current=None):
         proc = self._git_command("merge-base", "--is-ancestor", ancestor,
                                  current or self.get_latest_commit())
@@ -143,7 +163,7 @@ class GitRepo:
 
     def read_manifest(self) -> lib.manifest.Manifest:
         mpath = self.manifest_path()
-        return lib.manifest.Manifest.read_manifest(self.wsroot, mpath, safe=True)
+        return lib.manifest.Manifest.read_manifest(self.ws, mpath, safe=True)
 
     def write_manifest(self, manifest) -> None:
         mpath = self.manifest_path()
@@ -155,7 +175,7 @@ class GitRepo:
             log.debug("No dependency file found in repo [{}:{}]".format(revision,
                       self.get_path()))
         json_content = [] if proc.returncode else json.loads(proc.stdout)
-        return lib.manifest.Manifest.process_manifest(self.wsroot, json_content)
+        return lib.manifest.Manifest.process_manifest(self.ws, json_content)
 
     def add_dependency(self, package):
         log.info("Adding dependency to '{}' on '{}' at '{}'".format(
@@ -165,19 +185,19 @@ class GitRepo:
         self.write_manifest(manifest)
 
     # TODO should we check manifest against the committed version?
-    def update_dependency(self, package):
+    def update_dependency(self, dep):
         manifest = self.read_manifest()
-        old = manifest.get_package(package.name)
+        old = manifest.get_package(dep.name)
         if old is None:
-            msg = "Package '{}' does not depend on '{}'!".format(self.name, package.name)
+            msg = "Package '{}' does not depend on '{}'!".format(self.name, dep.name)
             raise WitUserError(msg)
-        if old.revision == package.revision:
+        if old.revision == dep.revision:
             log.warn("Input update revision for '{}' in '{}' is unchanged!".format(
-                     package.name, self.name))
+                     dep.name, self.name))
         else:
             log.info("Updating '{}' dependency on '{}' from '{}' to '{}'".format(
-                     self.name, package.name, old.revision, package.revision))
-            manifest.update_package(package)
+                     self.name, dep.name, old.revision, dep.revision))
+            manifest.update_package(dep)
             manifest.write(self.manifest_path())
 
     def checkout(self):
@@ -240,3 +260,19 @@ class GitRepo:
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+
+
+class NotAPackageError(WitUserError):
+    pass
+
+
+def get_package_from_cwd(ws):
+    cwd = Path(os.getcwd()).resolve()
+
+    # Get the top-directory name relative to the workspace
+    name = cwd.relative_to(ws.root).parts[0]
+    dep = ws.lock.get_package(name)
+    if dep is None:
+        msg = "'{}' is not a package in workspace at '{}'".format(name, ws.root)
+        raise NotAPackageError(msg)
+    return dep
