@@ -79,6 +79,7 @@ class WorkSpace:
         if root.exists():
             log.info("Using existing directory [{}]".format(str(root)))
 
+            (root/'.wit').mkdir()
             if manifest_path.exists():
                 log.error("Manifest file [{}] already exists.".format(manifest_path))
                 sys.exit(1)
