@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import json
-from lib.package import Package
 from lib.gitrepo import GitRepo
 from collections import OrderedDict
 from typing import Optional
@@ -19,7 +18,6 @@ class LockFile:
     """
 
     def __init__(self, packages=[]):
-        # type: Package
         self.packages = packages
 
     def get_package(self, name: str) -> Optional[GitRepo]:

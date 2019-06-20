@@ -61,11 +61,6 @@ class WorkSpace:
 
     def __init__(self, root, repo_paths):
         self.root = root
-        # from wit-lock.json, also added from `wit status`
-        self.packages = {}  # name -> Package
-        # from wit-workspace.json
-        self.dependencies = []
-
         self.repo_paths = repo_paths
         self.manifest = self._load_manifest()
         self.lock = self._load_lockfile()
@@ -105,12 +100,10 @@ class WorkSpace:
         return WorkSpace(root, repo_paths)
 
     def _load_manifest(self):
-        path = self._manifest_path(self.root)
-        return Manifest.read_manifest(self, path)
+        return Manifest.read_manifest(self, self.manifest_path())
 
     def _load_lockfile(self):
-        lockfile_path = WorkSpace._lockfile_path(self.root)
-        return LockFile.read(self, lockfile_path)
+        return LockFile.read(self, self.lockfile_path())
 
     @classmethod
     def _manifest_path(cls, root):
@@ -219,7 +212,6 @@ class WorkSpace:
             raise PackageNotInWorkspaceError(msg)
 
         new_dep.load_package({}, True)
-        self.packages[new_dep.package.name] = new_dep.package
 
         old = self.manifest.get_package(new_dep.name)  # type: Dependency
         old.load_package({}, True)

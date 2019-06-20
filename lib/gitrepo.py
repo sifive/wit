@@ -104,6 +104,7 @@ class GitRepo:
         return proc.stdout.rstrip()
 
     def has_commit(self, commit) -> bool:
+        # rev-parse does not always fail when a commit is missing
         proc = self._git_command('cat-file', '-t', commit)
         return proc.returncode == 0
 
