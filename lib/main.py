@@ -21,7 +21,7 @@ from lib.dependency import parse_dependency_tag, Dependency
 from lib.inspect import inspect_tree
 from lib import scalaplugin
 from pathlib import Path
-from typing import cast, List  # noqa: F401
+from typing import cast, List, Tuple  # noqa: F401
 from lib.common import WitUserError, error
 from lib.gitrepo import GitRepo
 import re
@@ -169,7 +169,7 @@ def chdir(s) -> None:
 
 def create(args) -> None:
     if args.add_pkg is None:
-        packages = []
+        packages = []  # type: List[Tuple[str, str]]
     else:
         packages = args.add_pkg
 
