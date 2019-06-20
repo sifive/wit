@@ -110,7 +110,7 @@ class Package:
         return "{}::{}".format(self.name, self.theory_revision[:8])
 
     def get_id(self):
-        return re.sub(r"([^\w\d])", "_", self.tag())
+        return "pkg_"+re.sub(r"([^\w\d])", "_", self.tag())
 
     def status(self):
         if self.ws.lock.contains_package(self.name):

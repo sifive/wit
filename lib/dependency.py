@@ -94,7 +94,7 @@ class Dependency:
         return "{}::{}".format(self.name, self.revision[:8])
 
     def get_id(self):
-        return re.sub(r"([^\w\d])", "_", self.tag())
+        return "dep_"+re.sub(r"([^\w\d])", "_", self.tag())
 
     def crawl_dep_tree(self, packages):
         fancy_tag = "{}::{}".format(self.name, self.revision[:8])

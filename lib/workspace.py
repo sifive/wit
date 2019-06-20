@@ -65,7 +65,7 @@ class WorkSpace:
         self.manifest = self._load_manifest()
         self.lock = self._load_lockfile()
 
-    def get_tag(self):
+    def tag(self):
         return "root"
 
     def get_id(self):

@@ -18,6 +18,10 @@ def inspect_tree(ws, args):
         _print_dot_tree(ws, packages)
 
 
+BOXED_DEPS = False
+VERBOSE_GRAPH = False
+
+
 def _print_dot_tree(ws, packages_dict):
     packages = list(packages_dict.values())
 
@@ -43,12 +47,15 @@ def _print_dot_tree(ws, packages_dict):
     def print_dep(pkg, dep):
         pkg_id = pkg.get_id()
         dep_id = dep.get_id()
-        if dep_id not in pkg_ids:
-            dep.load_package(packages_dict, False)
-            dep_pkg_id = dep.package.get_id()
-            log.output('{} [label="{}"]'.format(dep_id, dep.tag()))
+        dep.load_package(packages_dict, False)
+        dep_pkg_id = dep.package.get_id()
+        if dep.tag() != dep.package.tag() or VERBOSE_GRAPH:
             draw_connection(dep_id, dep_pkg_id, dotted=True)
-        draw_connection(pkg_id, dep_id)
+            log.output('{} [label="{}"]{}'.format(dep_id, dep.tag(),
+                                                  " [shape=box]" if BOXED_DEPS else ""))
+            draw_connection(pkg_id, dep_id)
+        else:
+            draw_connection(pkg_id, dep_pkg_id)
 
     for dep in ws.manifest.packages:
         print_dep(ws, dep)
