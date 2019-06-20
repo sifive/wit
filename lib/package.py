@@ -11,9 +11,8 @@ log = getLogger()
 
 class Package:
 
-    def __init__(self, ws, name, source, revision):
+    def __init__(self, name, source, revision):
         """Create a package, cloning it to the .wit folder"""
-        self.ws = ws
         self.name = name
         self.source = source
         self.theory_revision = revision or "HEAD"
@@ -33,7 +32,7 @@ class Package:
         if dep not in self.dependents:
             self.dependents.append(dep)
 
-    def load(self, force_root, rev=None):
+    def load(self, wsroot, repo_paths, force_root, rev=None):
         """Load the package for a Dependency.
         If a suitable package already exists in the WorkSpace, load that.
         Otherwise, clone into `.wit`.
@@ -45,14 +44,14 @@ class Package:
         non_hash = len(revision) != 40  # in case our remtoe pointer changed
 
         # Check if we are already checked out
-        self.in_root = (self.ws.root/self.name).exists() or force_root
+        self.in_root = (wsroot/self.name).exists() or force_root
         if self.in_root:
-            repo_root = self.ws.root
+            repo_root = wsroot
         else:
-            repo_root = self.ws.root/'.wit'
+            repo_root = wsroot/'.wit'
 
-        self.repo = GitRepo(self.ws, self.source, self.theory_revision, self.name, repo_root)
-        self.find_source(self.ws.repo_paths)
+        self.repo = GitRepo(self.source, self.theory_revision, self.name, repo_root)
+        self.find_source(repo_paths)
 
         exists = Path(self.repo.get_path()).exists()
         if not exists or not self.repo.has_commit(revision) or non_hash:
@@ -93,14 +92,14 @@ class Package:
         """Change the wit-manifest.json to add a dependency."""
         pass
 
-    def checkout(self):
+    def checkout(self, wsroot):
         """Move to root directory and checkout"""
-        shutil.move(str(self.repo.get_path()), str(self.ws.root/self.name))
-        self.move_to_root()
+        shutil.move(str(self.repo.get_path()), str(wsroot/self.name))
+        self.move_to_root(wsroot)
         self.repo.checkout()
 
-    def move_to_root(self):
-        self.repo.set_wsroot(self.ws.root)
+    def move_to_root(self, wsroot):
+        self.repo.set_wsroot(wsroot)
         self.repo.name = self.name  # in case we got renamed
 
     def __repr__(self):
@@ -112,8 +111,8 @@ class Package:
     def get_id(self):
         return "pkg_"+re.sub(r"([^\w\d])", "_", self.tag())
 
-    def status(self):
-        if self.ws.lock.contains_package(self.name):
+    def status(self, lock):
+        if lock.contains_package(self.name):
             if not self.in_root:
                 return "\033[93m(will be repaired)\033[m"
             elif self.theory_revision != self.repo.get_latest_commit():

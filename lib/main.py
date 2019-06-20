@@ -193,17 +193,17 @@ def update_pkg(ws, args) -> None:
     ws.update_package(args.repo)
 
 
-def dependency_from_tag(ws, tag):
+def dependency_from_tag(tag):
     source, revision = tag
-    return Dependency(ws, None, source, revision)
+    return Dependency(None, source, revision)
 
 
 def add_dep(ws, args) -> None:
     cwd_pkg = get_package_from_cwd(ws)
-    cwd_pkg.load(force_root=True)
+    cwd_pkg.load(ws.root, ws.repo_paths, force_root=True)
 
-    new_dep = dependency_from_tag(ws, args.pkg)
-    new_dep.load_package({}, force_root=True)
+    new_dep = dependency_from_tag(args.pkg)
+    new_dep.load_package(ws.root, ws.repo_paths, {}, force_root=True)
     # Check package exists in workspace
     found = ws.get_dependency(new_dep.name)
     if found is None:
@@ -215,17 +215,17 @@ def add_dep(ws, args) -> None:
 
 
 def update_dep(ws, args) -> None:
-    dep = dependency_from_tag(ws, args.pkg)
+    dep = dependency_from_tag(args.pkg)
     found = (ws.root/dep.name).exists()
     if not found:
         msg = "'{}' not found in workspace. Have you run 'wit update'?".format(dep.name)
         raise PackageNotInWorkspaceError(msg)
     # Be sure to propagate the specified revision!
-    dep.load_package({}, True)
+    dep.load_package(ws.root, ws.repo_paths, {}, True)
     log.info(dep)
 
     parent_pkg = get_package_from_cwd(ws)
-    parent_pkg.load(force_root=True)
+    parent_pkg.load(ws.root, ws.repo_paths, force_root=True)
     parent_pkg.repo.update_dependency(dep)
 
 
@@ -280,7 +280,7 @@ def status(ws, args) -> None:
     packages = ws.resolve()
     for name in packages:
         package = packages[name]
-        s = package.status()
+        s = package.status(ws.lock)
         if s:
             print(package.name, s)
 

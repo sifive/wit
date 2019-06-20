@@ -15,8 +15,7 @@ class Dependency:
 
     '''
 
-    def __init__(self, ws, name, source, revision=None):
-        self.ws = ws
+    def __init__(self, name, source, revision=None):
         self.source = source
         self.revision = revision or "HEAD"
         self.name = name or Dependency.infer_name(source)
@@ -24,11 +23,11 @@ class Dependency:
         self.dependents = []  # type: List[Package]
 
     @passbyval
-    def resolve_deps(self, force_root, source_map, packages, queue):
+    def resolve_deps(self, wsroot, repo_paths, force_root, source_map, packages, queue):
         subdeps = self.package.get_dependencies()
         log.debug("Dependencies for [{}]: [{}]".format(self.name, subdeps))
         for subdep in subdeps:
-            subdep.load_package(packages, force_root)
+            subdep.load_package(wsroot, repo_paths, packages, force_root)
 
             if subdep.get_commit_time() > self.get_commit_time():
                 log.error("Repo [{}] has a dependent that is newer than the source. "
@@ -64,13 +63,13 @@ class Dependency:
     def infer_name(source):
         return Path(source).name.replace('.git', '')
 
-    def load_package(self, packages, force_root):
+    def load_package(self, wsroot, repo_paths, packages, force_root):
         if self.name in packages:
             self.package = packages[self.name]
         else:
-            self.package = Package(self.ws, self.name, self.source, self.revision)
+            self.package = Package(self.name, self.source, self.revision)
         self.package.add_dependent(self)
-        self.package.load(force_root, self.revision)
+        self.package.load(wsroot, repo_paths, force_root, self.revision)
         self.revision = self.package.repo.get_commit(self.revision)
 
     def add_dependent(self, dependent):
@@ -96,9 +95,9 @@ class Dependency:
     def get_id(self):
         return "dep_"+re.sub(r"([^\w\d])", "_", self.tag())
 
-    def crawl_dep_tree(self, packages):
+    def crawl_dep_tree(self, wsroot, repo_paths, packages):
         fancy_tag = "{}::{}".format(self.name, self.revision[:8])
-        self.load_package(packages, False)
+        self.load_package(wsroot, repo_paths, packages, False)
         if self.package.theory_revision != self.revision:
             fancy_tag += "->{}".format(self.package.theory_revision[:8])
             return {'': fancy_tag}
@@ -110,7 +109,7 @@ class Dependency:
             log.error("aaa")
             subdeps = []
         for subdep in subdeps:
-            tree[subdep.get_id()] = subdep.crawl_dep_tree(packages)
+            tree[subdep.get_id()] = subdep.crawl_dep_tree(wsroot, repo_paths, packages)
         return tree
 
 
@@ -126,6 +125,6 @@ def parse_dependency_tag(s):
     return source, rev
 
 
-def manifest_item_to_dep(ws, obj):
+def manifest_item_to_dep(obj):
     # source can be done due to repo path
-    return Dependency(ws, obj['name'], obj.get('source', None), obj['commit'])
+    return Dependency(obj['name'], obj.get('source', None), obj['commit'])

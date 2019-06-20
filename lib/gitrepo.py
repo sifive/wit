@@ -30,8 +30,7 @@ class GitRepo:
     """
     PKG_DEPENDENCY_FILE = "wit-manifest.json"
 
-    def __init__(self, ws, source, revision, name=None, wsroot=None):
-        self.ws = ws
+    def __init__(self, source, revision, name=None, wsroot=None):
         self.wsroot = wsroot
         self.source = source
         self.revision = revision
@@ -164,7 +163,7 @@ class GitRepo:
 
     def read_manifest(self) -> lib.manifest.Manifest:
         mpath = self.manifest_path()
-        return lib.manifest.Manifest.read_manifest(self.ws, mpath, safe=True)
+        return lib.manifest.Manifest.read_manifest(mpath, safe=True)
 
     def write_manifest(self, manifest) -> None:
         mpath = self.manifest_path()
@@ -176,7 +175,7 @@ class GitRepo:
             log.debug("No dependency file found in repo [{}:{}]".format(revision,
                       self.get_path()))
         json_content = [] if proc.returncode else json.loads(proc.stdout)
-        return lib.manifest.Manifest.process_manifest(self.ws, json_content)
+        return lib.manifest.Manifest.process_manifest(json_content)
 
     def add_dependency(self, package):
         log.info("Adding dependency to '{}' on '{}' at '{}'".format(

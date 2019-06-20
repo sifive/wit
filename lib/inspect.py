@@ -10,7 +10,7 @@ def inspect_tree(ws, args):
     if args.tree:
         tree = {}
         for dep in ws.manifest.packages:
-            tree[dep.get_id()] = dep.crawl_dep_tree(packages)
+            tree[dep.get_id()] = dep.crawl_dep_tree(ws.root, ws.repo_paths, packages)
         for key in tree:
             top_dep = tree[key]
             x, _ = _deduplicate_tree(top_dep)
@@ -65,7 +65,7 @@ def _print_dot_tree(ws, packages_dict):
     def print_dep(pkg, dep):
         pkg_id = pkg.get_id()
         dep_id = dep.get_id()
-        dep.load_package(packages_dict, False)
+        dep.load_package(ws.root, ws.repo_paths, packages_dict, False)
         dep_pkg_id = dep.package.get_id()
         if dep.tag() != dep.package.tag() or VERBOSE_GRAPH:
             draw_connection(dep_id, dep_pkg_id, dotted=True)

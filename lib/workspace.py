@@ -101,10 +101,10 @@ class WorkSpace:
         return WorkSpace(root, repo_paths)
 
     def _load_manifest(self):
-        return Manifest.read_manifest(self, self.manifest_path())
+        return Manifest.read_manifest(self.manifest_path())
 
     def _load_lockfile(self):
-        return LockFile.read(self, self.lockfile_path())
+        return LockFile.read(self.root, self.repo_paths, self.lockfile_path())
 
     @classmethod
     def _manifest_path(cls, root):
@@ -133,7 +133,8 @@ class WorkSpace:
         raise FileNotFoundError("Couldn't find workspace file")
 
     def resolve(self, force_root=False):
-        source_map, packages, queue = self.resolve_deps(force_root, {}, {}, [])
+        source_map, packages, queue = self.resolve_deps(self.root, self.repo_paths, force_root,
+                                                        {}, {}, [])
         while queue:
             commit_time, dep = queue.pop()
             log.debug("{} {}".format(commit_time, dep))
@@ -147,13 +148,14 @@ class WorkSpace:
 
             packages[dep.name] = dep.package
 
-            source_map, packages, queue = dep.resolve_deps(force_root, source_map, packages, queue)
+            source_map, packages, queue = dep.resolve_deps(self.root, self.repo_paths, force_root,
+                                                           source_map, packages, queue)
         return packages
 
     @passbyval
-    def resolve_deps(self, force_root, source_map, packages, queue):
+    def resolve_deps(self, wsroot, repo_paths, force_root, source_map, packages, queue):
         for dep in self.manifest.packages:
-            dep.load_package(packages, force_root)
+            dep.load_package(wsroot, repo_paths, packages, force_root)
             source_map[dep.name] = dep.source
 
             commit_time = dep.get_commit_time()
@@ -167,7 +169,7 @@ class WorkSpace:
         lock_packages = []
         for name in packages:
             package = packages[name]
-            package.checkout()
+            package.checkout(self.root)
             lock_packages.append(package)
 
         new_lock = LockFile(lock_packages)
@@ -183,13 +185,13 @@ class WorkSpace:
 
     def add_package(self, tag) -> None:
         source, revision = tag
-        dep = Dependency(self, None, source, revision)
+        dep = Dependency(None, source, revision)
 
         if self.manifest.contains_package(dep.name):
             error("Manifest already contains package {}".format(dep.name))
 
         # resolve tags
-        dep.load_package({}, False)
+        dep.load_package(self.root, self.repo_paths, {}, False)
 
         log.info("Added '{}' to workspace at '{}'".format(dep.package.source, dep.revision))
         self.manifest.add_package(dep)
@@ -202,7 +204,7 @@ class WorkSpace:
 
     def update_package(self, tag) -> None:
         tag_source, tag_revision = tag
-        new_dep = Dependency(self, None, tag_source, tag_revision)
+        new_dep = Dependency(None, tag_source, tag_revision)
 
         if not (self.root/new_dep.name).exists():
             msg = "Cannot update package '{}'".format(new_dep.name)
@@ -212,10 +214,10 @@ class WorkSpace:
                 msg = msg + " as it does not exist in the workspace!"
             raise PackageNotInWorkspaceError(msg)
 
-        new_dep.load_package({}, True)
+        new_dep.load_package(self.root, self.repo_paths, {}, True)
 
         old = self.manifest.get_package(new_dep.name)  # type: Dependency
-        old.load_package({}, True)
+        old.load_package(self.root, self.repo_paths, {}, True)
 
         # See if the commit exists
         if not old.package.repo.has_commit(new_dep.revision):

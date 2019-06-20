@@ -39,17 +39,17 @@ class LockFile:
         path.write_text(manifest_json)
 
     @staticmethod
-    def read(ws, path):
+    def read(wsroot, repo_paths, path):
         log.debug("Reading lock file from {}".format(path))
         content = json.loads(path.read_text())
-        return LockFile.process(ws, content)
+        return LockFile.process(wsroot, repo_paths, content)
 
     @staticmethod
-    def process(ws, content):
+    def process(wsroot, repo_paths, content):
         from lib.dependency import manifest_item_to_dep
-        deps = [manifest_item_to_dep(ws, x) for _, x in content.items()]
+        deps = [manifest_item_to_dep(x) for _, x in content.items()]
         for dep in deps:
-            dep.load_package({}, False)
+            dep.load_package(wsroot, repo_paths, {}, False)
         packages = [dep.package for dep in deps]
         return LockFile(packages)
 

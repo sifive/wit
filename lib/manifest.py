@@ -50,17 +50,17 @@ class Manifest:
     # this method is being used for both wit-workspace and wit-manifest in
     # packages
     @staticmethod
-    def read_manifest(ws, path, safe=False):
+    def read_manifest(path, safe=False):
         if safe and not Path(path).exists():
             return Manifest([])
         content = json.loads(path.read_text())
-        return Manifest.process_manifest(ws, content)
+        return Manifest.process_manifest(content)
 
     @staticmethod
-    def process_manifest(ws, json_content):
+    def process_manifest(json_content):
         # import here to prevent circular dependency
         from lib.dependency import manifest_item_to_dep
-        packages = [manifest_item_to_dep(ws, x) for x in json_content]
+        packages = [manifest_item_to_dep(x) for x in json_content]
         return Manifest(packages)
 
 
