@@ -13,7 +13,7 @@ jobs:
       script: flake8
     - stage: test
       name: "Type Checking"
-      script: mypy wit lib/*.py
+      script: mypy lib/wit/*.py
     - stage: test
       name: "Regression Tests"
       script: ./t/regress.sh

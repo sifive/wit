@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import json
-from lib.package import Package
+from .package import Package
 from pathlib import Path
 
 

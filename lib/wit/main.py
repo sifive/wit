@@ -14,15 +14,15 @@ import subprocess
 import sys
 import argparse
 import os
-from lib.witlogger import getLogger
-from lib.workspace import WorkSpace, PackageNotInWorkspaceError
-from lib.package import Package
-from lib.inspect import inspect_tree
-from lib import scalaplugin
+from .witlogger import getLogger
+from .workspace import WorkSpace, PackageNotInWorkspaceError
+from .package import Package
+from .inspect import inspect_tree
+from . import scalaplugin
 from pathlib import Path
 from typing import cast, List  # noqa: F401
-from lib.common import WitUserError, error
-from lib.gitrepo import GitRepo
+from .common import WitUserError, error
+from .gitrepo import GitRepo
 import re
 
 log = getLogger()

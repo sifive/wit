@@ -1,8 +1,8 @@
 import os
 import sys
 import re
-from lib.manifest import Manifest
-from lib.witlogger import getLogger
+from .manifest import Manifest
+from .witlogger import getLogger
 
 log = getLogger()
 
