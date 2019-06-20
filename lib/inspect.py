@@ -1,3 +1,4 @@
+from lib.common import passbyval
 from lib.witlogger import getLogger
 
 log = getLogger()
@@ -12,7 +13,8 @@ def inspect_tree(ws, args):
             tree[dep.get_id()] = dep.crawl_dep_tree(packages)
         for key in tree:
             top_dep = tree[key]
-            _print_generic_tree(top_dep)
+            x, _ = _deduplicate_tree(top_dep)
+            _print_generic_tree(x)
 
     if args.dot:
         _print_dot_tree(ws, packages)
@@ -20,6 +22,22 @@ def inspect_tree(ws, args):
 
 BOXED_DEPS = False
 VERBOSE_GRAPH = False
+
+
+@passbyval
+def _deduplicate_tree(tree, seen=None):
+    seen = seen or []
+    tag = tree.pop('')
+    ident = tag[-8:]
+    out = {'': tag}
+
+    if ident in seen:
+        return out, seen
+    else:
+        seen.append(ident)
+        for key in tree:
+            out[key], seen = _deduplicate_tree(tree[key], seen)
+        return out, seen
 
 
 def _print_dot_tree(ws, packages_dict):
