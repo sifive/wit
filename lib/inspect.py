@@ -64,6 +64,9 @@ def _print_pkg_tree(data):
 
 
 def _recur_print_pkg_tree(depth, data, keys, idx, done_cols, already_explored):
+    if len(keys) == 0:
+        return
+
     key = keys[idx]
     already_explored_copy = already_explored[:]
     this_already_explored = key in already_explored
