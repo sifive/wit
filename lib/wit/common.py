@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-from lib.witlogger import getLogger
+from .witlogger import getLogger
 
 log = getLogger()
 

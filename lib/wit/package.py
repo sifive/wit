@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import lib.gitrepo
+from . import gitrepo
 import os
 from pathlib import Path
-from lib.common import WitUserError
+from .common import WitUserError
 
 
 class NotAPackageError(WitUserError):
@@ -17,10 +17,10 @@ class Package:
     """
 
     @staticmethod
-    def from_arg(s) -> 'lib.gitrepo.GitRepo':  # String fixes circular dependency
+    def from_arg(s) -> 'gitrepo.GitRepo':  # String fixes circular dependency
         """
         >>> Package.from_arg(".::HEAD")
-        lib.gitrepo.GitRepo(source='.', revision='HEAD')
+        gitrepo.GitRepo(source='.', revision='HEAD')
         >>> Package.from_arg("not-a-repo")
         Traceback (most recent call last):
             ...
@@ -36,7 +36,7 @@ class Package:
         if rev is None:
             rev = "HEAD"
 
-        return lib.gitrepo.GitRepo(source, rev)
+        return gitrepo.GitRepo(source, rev)
 
     @staticmethod
     def from_manifest(wsroot, m):
@@ -48,12 +48,12 @@ class Package:
         source = m.get('source', None)
         # path = wsroot / name
 
-        # if not lib.gitrepo.GitRepo.is_git_repo(path):
+        # if not gitrepo.GitRepo.is_git_repo(path):
         #    # TODO implement redownloading from remote
         #    msg = "path '{}' is not a git repo even though it's in the manifest!".format(path)
         #    raise Exception(msg)
 
-        return lib.gitrepo.GitRepo(source, commit, name=name, wsroot=wsroot)
+        return gitrepo.GitRepo(source, commit, name=name, wsroot=wsroot)
 
     @staticmethod
     def from_cwd(ws):

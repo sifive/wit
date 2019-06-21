@@ -3,13 +3,13 @@
 import sys
 from pathlib import Path
 from pprint import pformat
-from lib.gitrepo import GitRepo, GitCommitNotFound
-from lib.manifest import Manifest
-from lib.lock import LockFile
-from lib.package import Package
+from .gitrepo import GitRepo, GitCommitNotFound
+from .manifest import Manifest
+from .lock import LockFile
+from .package import Package
 from typing import List, Optional
-from lib.common import error, WitUserError
-from lib.witlogger import getLogger
+from .common import error, WitUserError
+from .witlogger import getLogger
 
 log = getLogger()
 

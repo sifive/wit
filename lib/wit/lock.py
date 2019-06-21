@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import json
-from lib.package import Package
-from lib.gitrepo import GitRepo
+from .package import Package
+from .gitrepo import GitRepo
 from collections import OrderedDict
 from typing import Optional
-from lib.witlogger import getLogger
+from .witlogger import getLogger
 
 log = getLogger()
 

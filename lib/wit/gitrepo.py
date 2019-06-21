@@ -6,9 +6,9 @@ from pprint import pformat
 import json
 import sys
 import datetime
-import lib.manifest
-from lib.common import WitUserError
-from lib.witlogger import getLogger
+from . import manifest
+from .common import WitUserError
+from .witlogger import getLogger
 
 log = getLogger()
 
@@ -150,21 +150,21 @@ class GitRepo:
         self.set_wsroot(wsroot)
         return self.read_manifest_from_commit(self.revision).packages
 
-    def read_manifest(self) -> lib.manifest.Manifest:
+    def read_manifest(self) -> manifest.Manifest:
         mpath = self.manifest_path()
-        return lib.manifest.Manifest.read_manifest(self.wsroot, mpath, safe=True)
+        return manifest.Manifest.read_manifest(self.wsroot, mpath, safe=True)
 
     def write_manifest(self, manifest) -> None:
         mpath = self.manifest_path()
         manifest.write(mpath)
 
-    def read_manifest_from_commit(self, revision) -> lib.manifest.Manifest:
+    def read_manifest_from_commit(self, revision) -> manifest.Manifest:
         proc = self._git_command("show", "{}:{}".format(revision, GitRepo.PKG_DEPENDENCY_FILE))
         if proc.returncode:
             log.debug("No dependency file found in repo [{}:{}]".format(revision,
                       self.get_path()))
         json_content = [] if proc.returncode else json.loads(proc.stdout)
-        return lib.manifest.Manifest.process_manifest(self.wsroot, json_content)
+        return manifest.Manifest.process_manifest(self.wsroot, json_content)
 
     def add_dependency(self, package):
         log.info("Adding dependency to '{}' on '{}' at '{}'".format(
