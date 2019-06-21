@@ -28,6 +28,8 @@ git commit -m "xyz:2"
 xyz_commit_2=$(git rev-parse HEAD)
 cd ..
 
+sleep 1
+
 make_repo 'foo'
 cat << EOF | jq . > foo/wit-manifest.json
 [
