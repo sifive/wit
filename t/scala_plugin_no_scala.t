@@ -31,7 +31,7 @@ wit fetch-scala
 check "wit fetch-scala should succeed" [ $? -eq 0 ]
 
 jar="antlr4-4.7.2.jar"
-found=$(find . -name "$jar")
+found=$(find ivycache -name "$jar")
 check "We should find $jar" [ ! -z "$found" ]
 
 report

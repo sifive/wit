@@ -33,7 +33,7 @@ wit fetch-scala
 check "wit fetch-scala should succeed" [ $? -eq 0 ]
 
 jar="paradise_2.12.8-2.1.0.jar"
-found=$(find . -name "$jar")
+found=$(find ivycache -name "$jar")
 check "We should find $jar" [ ! -z "$found" ]
 
 report

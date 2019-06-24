@@ -28,8 +28,8 @@ cd myws
 
 check "scala should NOT be fetched" [ ! -d "scala" ]
 
-found=$(find . -name "*bloop*" | wc -l)
-check "there should NOT be a bloop executable" [ "$found" -eq 0 ]
+found=$(find . -name "*coursier*" | wc -l)
+check "there should NOT be a coursier executable" [ "$found" -eq 0 ]
 
 
 report
