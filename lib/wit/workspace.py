@@ -54,13 +54,13 @@ class NotAncestorError(Exception):
         # TODO: add color
         return ("\n\nAncestry issue:\n"
                 "'{parent_a_name}' and '{parent_b_name}' both depend on '{child_name}':\n"
-                "    {parent_a_tag} depends on "
-                "{child_name}::{child_a_hash}\n"
-                "    {parent_b_tag} depends on "
-                "{child_name}::{child_b_hash}\n\n"
-                "Although {child_name}::{newer_child_hash} is newer than "
-                "{child_name}::{older_child_hash},\n{child_name}::{newer_child_hash} is not "
-                "a descendent of {child_name}::{older_child_hash}.\n\n"
+                "    {newer_parent_tag} depends on "
+                "{newer_child_tag}\n"
+                "    {older_parent_tag} depends on "
+                "{older_child_tag}\n\n"
+                "Although {newer_child_tag} is newer than "
+                "{older_child_tag},\n{newer_child_tag} is not "
+                "a descendent of {older_child_tag}.\n\n"
                 "Therefore, there is no guarantee that "
                 "the dependee needed by {older_parent_tag} will be satisfied "
                 "by the dependee needed by {newer_parent_tag}."
@@ -74,11 +74,13 @@ class NotAncestorError(Exception):
                     child_a_hash=self.child_a.short_revision(),
                     child_b_hash=self.child_b.short_revision(),
 
-                    newer_child_hash=newer_child.short_revision(),
-                    older_child_hash=older_child.short_revision(),
+                    newer_child_tag="\033[36m{}::{}\033[m".format(
+                                        child_name, newer_child.short_revision()),
+                    older_child_tag="\033[95m{}::{}\033[m".format(
+                                        child_name, older_child.short_revision()),
 
-                    newer_parent_tag=newer_parent_tag,
-                    older_parent_tag=older_parent_tag,
+                    newer_parent_tag="\033[94m"+newer_parent_tag+"\033[m",
+                    older_parent_tag="\033[91m"+older_parent_tag+"\033[m",
                 ))
 
 
