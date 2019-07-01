@@ -210,9 +210,10 @@ class WorkSpace:
         if not (self.root/new_dep.name).exists():
             msg = "Cannot update package '{}'".format(new_dep.name)
             if self.lock.contains_package(new_dep.name):
-                msg = msg + ", while it exists, it has not been added!"
+                msg += (":\nAlthough '{}' exists (according to the wit-lock.json), "
+                        "it has not been added to the workspace.").format(new_dep.name)
             else:
-                msg = msg + " as it does not exist in the workspace!"
+                msg += "because it does not exist in the workspace."
             raise PackageNotInWorkspaceError(msg)
 
         new_dep.load_package(self.root, self.repo_paths, {}, True)
