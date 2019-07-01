@@ -18,7 +18,7 @@ cat << EOF | jq . > bar/wit-manifest.json
 ]
 EOF
 git -C bar add -A
-git -C bar commit -m "add dep on foo"
+make_commit bar "add dep on foo"
 
 # Now create workspace
 wit init myws -a $bar_dir

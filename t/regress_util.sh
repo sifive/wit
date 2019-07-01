@@ -17,7 +17,14 @@ make_repo() {
     git -C $repo_name init
     echo $RANDOM > $repo_name/file
     git -C $repo_name add -A
-    git -C $repo_name commit -m "commit1"
+    make_commit $repo_name "commit1"
+}
+
+commit_timestamp=1000000000
+
+make_commit() {
+    GIT_COMMITTER_DATE=$commit_timestamp git -C $1 commit -m "$2"
+    ((commit_timestamp++))
 }
 
 check() {

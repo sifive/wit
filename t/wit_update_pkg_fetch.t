@@ -14,7 +14,7 @@ wit init myws -a $foo_dir
 # Now update the "remote" foo such that the workspace isn't aware
 echo "halp" > foo/file2
 git -C foo add -A
-git -C foo commit -m "commit2"
+make_commit foo "commit2"
 foo_commit2=$(git -C foo rev-parse HEAD)
 
 cd myws

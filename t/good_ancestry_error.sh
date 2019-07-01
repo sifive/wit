@@ -9,12 +9,12 @@ make_repo 'xyz'
 cd xyz
 touch zero
 git add -A
-git commit -m "xyz:0"
+make_commit . "xyz:0"
 
 git checkout -b branch_a
 touch testa
 git add -A
-git commit -m "xyz:a"
+make_commit . "xyz:a"
 xyz_commit_a=$(git rev-parse HEAD)
 
 git checkout master
@@ -22,7 +22,7 @@ git checkout master
 git checkout -b branch_b
 touch testb
 git add -A
-git commit -m "xyz:b"
+make_commit . "xyz:b"
 xyz_commit_b=$(git rev-parse HEAD)
 cd ..
 
@@ -33,7 +33,7 @@ cat << EOF | jq . > foo/wit-manifest.json
 ]
 EOF
 git -C foo add -A
-git -C foo commit -m "add xyz:2"
+make_commit foo "add xyz:2"
 foo_commit=$(git -C foo rev-parse HEAD)
 
 # Set up repo foo
@@ -44,7 +44,7 @@ cat << EOF | jq . > bar/wit-manifest.json
 ]
 EOF
 git -C bar add -A
-git -C bar commit -m "add xyz:1"
+make_commit bar "add xyz:1"
 
 prereq "off"
 

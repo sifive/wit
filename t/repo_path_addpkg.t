@@ -29,7 +29,7 @@ cat << EOF | jq . > bar/wit-manifest.json
 EOF
 
 git -C bar add -A
-git -C bar commit -m "commit1"
+make_commit bar "commit1"
 bar_commit=$(git -C bar rev-parse HEAD)
 
 # Move foo to another directory

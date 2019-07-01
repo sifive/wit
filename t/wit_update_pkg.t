@@ -12,7 +12,7 @@ foo_dir=$PWD/foo
 echo "blah" > foo/file2
 git -C foo checkout -b branch
 git -C foo add -A
-git -C foo commit -m "commit2"
+make_commit foo "commit2"
 foo_commit_branch=$(git -C foo rev-parse HEAD)
 # Now return to master
 git -C foo checkout master

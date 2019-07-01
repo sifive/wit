@@ -9,7 +9,7 @@ mkdir foo
 git -C foo init
 touch foo/file
 git -C foo add -A
-git -C foo commit -m "commit1"
+make_commit foo "commit1"
 foo_dir=$PWD/foo
 
 # Now create an empty workspace

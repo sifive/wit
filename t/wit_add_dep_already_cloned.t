@@ -12,7 +12,7 @@ bar_dir=$PWD/bar
 bar_commit1=$(git -C bar rev-parse HEAD)
 echo "hi" > bar/file2
 git -C bar add -A
-git -C bar commit -m "commit2"
+make_commit bar "commit2"
 bar_commit2=$(git -C bar rev-parse HEAD)
 
 set -x

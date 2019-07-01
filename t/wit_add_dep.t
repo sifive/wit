@@ -26,7 +26,7 @@ git -C bar checkout -b coolbranch
 git -C bar checkout master
 touch bar/file2
 git -C bar add -A
-git -C bar commit -m "commit2"
+make_commit bar "commit2"
 bar_dir=$PWD/bar
 
 prereq off

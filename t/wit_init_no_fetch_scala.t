@@ -19,7 +19,7 @@ cat << EOF | jq . > foo/ivydependencies.json
 EOF
 
 git -C foo add -A
-git -C foo commit -m "add ivydependencies.json"
+make_commit foo "add ivydependencies.json"
 
 prereq "off"
 

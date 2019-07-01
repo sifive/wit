@@ -8,7 +8,7 @@ foo_commit1=$(git -C foo rev-parse HEAD)
 foo_dir=$PWD/foo
 echo "wow" > foo/file2
 git -C foo add -A
-git -C foo commit -m "commit 2"
+make_commit foo "commit 2"
 foo_commit2=$(git -C foo rev-parse HEAD)
 
 make_repo 'bar'
@@ -17,7 +17,7 @@ cat << EOF | jq . > bar/wit-manifest.json
 [ {"commit": "$foo_commit1", "name": "foo", "source": "$foo_dir" } ]
 EOF
 git -C bar add -A
-git -C bar commit -m "Add dep on foo"
+make_commit bar "Add dep on foo"
 bar_commit=$(git -C bar rev-parse HEAD)
 
 make_repo 'fizz'
@@ -26,7 +26,7 @@ cat << EOF | jq . > fizz/wit-manifest.json
 [ {"commit": "$bar_commit", "name": "bar", "source": "$bar_dir" } ]
 EOF
 git -C fizz add -A
-git -C fizz commit -m "Add dep on bar"
+make_commit fizz "Add dep on bar"
 
 set -x
 

@@ -19,7 +19,7 @@ cat << EOF | jq . > foo/ivydependencies.json
 EOF
 
 git -C foo add -A
-git -C foo commit -m "add ivydependencies.json"
+make_commit foo "add ivydependencies.json"
 
 # Note we intentionally have a project name collision below ("foo"),
 # This should have no effect on wit
@@ -34,7 +34,7 @@ cat << EOF | jq . > bar/ivydependencies.json
 EOF
 
 git -C bar add -A
-git -C bar commit -m "add ivydependencies.json"
+make_commit bar "add ivydependencies.json"
 
 prereq "off"
 

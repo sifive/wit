@@ -35,7 +35,7 @@ cat << EOF | jq . > bar/ivydependencies.json
 EOF
 
 git -C bar add -A
-git -C bar commit -m "add ivydependencies.json"
+make_commit bar "add ivydependencies.json"
 
 prereq "off"
 

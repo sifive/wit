@@ -31,7 +31,7 @@ EOF
 cat main_repo/wit-manifest.json
 
 git -C main_repo add -A
-git -C main_repo commit -m "commit1"
+make_commit main_repo "commit1"
 main_repo_commit=$(git -C main_repo rev-parse HEAD)
 
 prereq "off"

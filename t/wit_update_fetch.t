@@ -15,7 +15,7 @@ cat << EOF | jq . > bar/wit-manifest.json
 ]
 EOF
 git -C bar add -A
-git -C bar commit -m "commit2"
+make_commit bar "commit2"
 bar_commit1=$(git -C bar rev-parse HEAD)
 bar_dir=$PWD/bar
 
@@ -25,7 +25,7 @@ wit init myws -a $bar_dir
 # Now update foo and bar remotes
 echo "yep" > foo/file2
 git -C foo add -A
-git -C foo commit -m "commit2"
+make_commit foo "commit2"
 foo_commit2=$(git -C foo rev-parse HEAD)
 
 cat << EOF | jq . > bar/wit-manifest.json
@@ -34,7 +34,7 @@ cat << EOF | jq . > bar/wit-manifest.json
 ]
 EOF
 git -C bar add -A
-git -C bar commit -m "commit3"
+make_commit bar "commit3"
 bar_commit2=$(git -C bar rev-parse HEAD)
 
 set -x
