@@ -47,11 +47,11 @@ wit fetch-scala
 check "wit fetch-scala should succeed" [ $? -eq 0 ]
 
 jar="json4s-native_2.12-3.6.1.jar"
-found=$(find . -name "$jar")
+found=$(find ivycache -name "$jar")
 check "We should find $jar" [ ! -z "$found" ]
 
 jar2="json4s-native_2.11-3.6.1.jar"
-found2=$(find . -name "$jar2")
+found2=$(find ivycache -name "$jar2")
 check "We should *not* find $jar2" [ -z "$found2" ]
 
 report
