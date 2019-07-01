@@ -59,7 +59,7 @@ class Manifest:
     @staticmethod
     def process_manifest(json_content):
         # import here to prevent circular dependency
-        from lib.dependency import manifest_item_to_dep
+        from .dependency import manifest_item_to_dep
         packages = [manifest_item_to_dep(x) for x in json_content]
         return Manifest(packages)
 

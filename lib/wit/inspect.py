@@ -1,5 +1,5 @@
-from lib.common import passbyval
-from lib.witlogger import getLogger
+from .common import passbyval
+from .witlogger import getLogger
 
 log = getLogger()
 

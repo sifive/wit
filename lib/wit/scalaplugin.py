@@ -5,7 +5,7 @@ from collections import OrderedDict
 import subprocess
 import os
 import urllib.request
-from lib.witlogger import getLogger
+from .witlogger import getLogger
 from typing import List
 
 log = getLogger()

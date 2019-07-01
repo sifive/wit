@@ -2,7 +2,7 @@
 
 import sys
 from copy import deepcopy
-from lib.witlogger import getLogger
+from .witlogger import getLogger
 
 log = getLogger()
 

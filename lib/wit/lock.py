@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 import json
-from lib.gitrepo import GitRepo
+from .gitrepo import GitRepo
 from collections import OrderedDict
 from typing import Optional
-from lib.witlogger import getLogger
+from .witlogger import getLogger
 
 log = getLogger()
 
@@ -46,7 +46,7 @@ class LockFile:
 
     @staticmethod
     def process(wsroot, repo_paths, content):
-        from lib.dependency import manifest_item_to_dep
+        from .dependency import manifest_item_to_dep
         deps = [manifest_item_to_dep(x) for _, x in content.items()]
         for dep in deps:
             dep.load_package(wsroot, repo_paths, {}, False)

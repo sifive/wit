@@ -3,8 +3,8 @@
 from pathlib import Path
 import re
 import shutil
-from lib.gitrepo import GitRepo
-from lib.witlogger import getLogger
+from .gitrepo import GitRepo
+from .witlogger import getLogger
 
 log = getLogger()
 

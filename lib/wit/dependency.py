@@ -3,9 +3,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List  # noqa: F401
-from lib.common import passbyval
-from lib.package import Package
-from lib.witlogger import getLogger
+from .common import passbyval
+from .package import Package
+from .witlogger import getLogger
 
 log = getLogger()
 
