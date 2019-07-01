@@ -204,6 +204,7 @@ class WorkSpace:
 
     def update_package(self, tag) -> None:
         tag_source, tag_revision = tag
+        tag_revision = tag_revision or "HEAD"
         new_dep = Dependency(None, tag_source, tag_revision)
 
         if not (self.root/new_dep.name).exists():
@@ -217,20 +218,29 @@ class WorkSpace:
         new_dep.load_package(self.root, self.repo_paths, {}, True)
 
         old = self.manifest.get_package(new_dep.name)  # type: Dependency
+        if old is None:
+            log.error("Package {} not in wit-manifest.json".format(new_dep.name))
+            log.error("Did you mean to run 'wit update-dep'?")
+            sys.exit(1)
         old.load_package(self.root, self.repo_paths, {}, True)
+
+        tag_revision = old.package.repo.get_commit(tag_revision)
 
         # See if the commit exists
         if not old.package.repo.has_commit(new_dep.revision):
             raise GitCommitNotFound(msg)
 
-        if old.revision == new_dep.revision:
+        if old.revision == tag_revision:
             log.warn("Updating '{}' to the same revision it already is!".format(old.name))
+        else:
+            log.info("Updated package '{}' to '{}'".format(old.name, new_dep.revision))
 
         # Update and write manifest
         self.manifest.update_package(new_dep)
         self.manifest.write(self.manifest_path())
-        log.info("Updated package '{}' to '{}', don't forget to run 'wit update'!"
-                 .format(old.name, new_dep.revision))
+
+        if tag_revision != self.lock.get_package(new_dep.name).theory_revision:
+            log.info("Don't forget to run 'wit update'!")
 
     # Enable prettyish-printing of the class
     def __repr__(self):
