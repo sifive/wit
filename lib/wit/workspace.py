@@ -347,7 +347,8 @@ class WorkSpace:
                 raise GitCommitNotFound(msg)
 
         rev = old.get_commit(rev)
-        if rev == old.revision:
+        needs_wit_update = rev != old.revision
+        if old.has_commit(pkg.revision) and old.revision == old.get_commit(pkg.revision):
             log.warn("Updating '{}' to the same revision it already is!".format(old.name))
         # Do update
         old.revision = rev
@@ -355,8 +356,10 @@ class WorkSpace:
         # Update and write manifest
         self.manifest.update_package(old)
         self.manifest.write(self.manifest_path())
-        log.info("Updated package '{}' to '{}', don't forget to run 'wit update'!"
-                 .format(old.name, old.revision))
+        log.info("Updated package '{}' to '{}'".format(old.name, old.revision))
+
+        if needs_wit_update:
+            log.info("Don't forget to run 'wit update'!")
 
     def repo_status(self, source):
         raise NotImplementedError
