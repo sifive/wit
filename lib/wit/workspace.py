@@ -329,9 +329,10 @@ class WorkSpace:
         if old is None:
             msg = "Cannot update package '{}'".format(pkg.name)
             if self.lock.contains_package(pkg.name):
-                msg = msg + ", while it exists, it has not been added!"
+                msg += (":\nAlthough '{}' exists (according to the wit-lock.json), "
+                        "it has not been added to the workspace.").format(pkg.name)
             else:
-                msg = msg + " as it does not exist in the workspace!"
+                msg += "because it does not exist in the workspace."
             raise PackageNotInWorkspaceError(msg)
 
         old.fetch()
