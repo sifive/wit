@@ -269,6 +269,12 @@ class WorkSpace:
 
             # Keep the queue ordered
             queue.sort(key=lambda tup: tup[0])
+            if queue and queue[-1][0] == commit_time:
+                log.error("Multiple commits with the same timestamp:")
+                log.error("{}::{} and {}::{}".format(reponame, commit[:8],
+                                                     queue[-1][2], queue[-1][1][:8]))
+                sys.exit(1)
+
 
             # 12. Go to step 3 (finish loop)
 
