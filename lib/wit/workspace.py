@@ -3,7 +3,6 @@
 import sys
 from pathlib import Path
 from pprint import pformat
-from .gitrepo import GitCommitNotFound
 from .manifest import Manifest
 from .dependency import Dependency
 from .lock import LockFile
@@ -104,7 +103,7 @@ class WorkSpace:
         return Manifest.read_manifest(self.manifest_path())
 
     def _load_lockfile(self):
-        return LockFile.read(self.root, self.repo_paths, self.lockfile_path())
+        return LockFile.read(self.lockfile_path())
 
     @classmethod
     def _manifest_path(cls, root):
@@ -132,8 +131,8 @@ class WorkSpace:
 
         raise FileNotFoundError("Couldn't find workspace file")
 
-    def resolve(self, force_root=False):
-        source_map, packages, queue = self.resolve_deps(self.root, self.repo_paths, force_root,
+    def resolve(self, download=False):
+        source_map, packages, queue = self.resolve_deps(self.root, self.repo_paths, download,
                                                         {}, {}, [])
         while queue:
             commit_time, dep = queue.pop()
@@ -142,20 +141,22 @@ class WorkSpace:
             name = dep.package.name
             if name in packages:
                 package = packages[name]
-                if not package.repo.is_ancestor(dep.revision, package.theory_revision):
+                if not package.repo.is_ancestor(dep.specified_revision, package.revision):
                     raise NotAncestorError(package.dependents[0], dep)
                 continue
 
             packages[dep.name] = dep.package
 
-            source_map, packages, queue = dep.resolve_deps(self.root, self.repo_paths, force_root,
+            source_map, packages, queue = dep.resolve_deps(self.root, self.repo_paths, download,
                                                            source_map, packages, queue)
         return packages
 
     @passbyval
-    def resolve_deps(self, wsroot, repo_paths, force_root, source_map, packages, queue):
-        for dep in self.manifest.packages:
-            dep.load_package(wsroot, repo_paths, packages, force_root)
+    def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue):
+        for dep in self.manifest.dependencies:
+            dep.load_package(packages, repo_paths)
+            dep.package.load_repo(wsroot, download)
+
             source_map[dep.name] = dep.source
 
             commit_time = dep.get_commit_time()
@@ -183,64 +184,71 @@ class WorkSpace:
         else:
             self.repo_paths = []
 
-    def add_package(self, tag) -> None:
+    def add_dependency(self, tag) -> None:
+        """ Resolve a dependency then add it to the wit-workspace.json """
         source, revision = tag
         dep = Dependency(None, source, revision)
 
-        if self.manifest.contains_package(dep.name):
+        if self.manifest.contains_dependency(dep.name):
             error("Manifest already contains package {}".format(dep.name))
 
-        # resolve tags
-        dep.load_package(self.root, self.repo_paths, {}, False)
+        dep.load_package({}, self.repo_paths)
+        dep_pkg = dep.package
+        dep_pkg.load_repo(self.root, download=True)  # clone into .wit if necessary
 
-        log.info("Added '{}' to workspace at '{}'".format(dep.package.source, dep.revision))
-        self.manifest.add_package(dep)
+        assert dep_pkg.repo is not None
+
+        if self.manifest.contains_dependency(dep.name):
+            log.error("Workspace already contains package '{}'".format(dep.name))
+            sys.exit(1)
+
+        self.manifest.add_dependency(dep)
 
         log.debug('my manifest_path = {}'.format(self.manifest_path()))
         self.manifest.write(self.manifest_path())
 
-    def get_dependency(self, name: str):
-        return self.lock.get_package(name)
-
-    def update_package(self, tag) -> None:
+    def update_dependency(self, tag) -> None:
+        # init requested Dependency
         tag_source, tag_revision = tag
-        tag_revision = tag_revision or "HEAD"
-        new_dep = Dependency(None, tag_source, tag_revision)
+        req_dep = Dependency(None, tag_source, tag_revision)
 
-        if not (self.root/new_dep.name).exists():
-            msg = "Cannot update package '{}'".format(new_dep.name)
-            if self.lock.contains_package(new_dep.name):
+        manifest_dep = self.manifest.get_dependency(req_dep.name)
+
+        # check if the package is missing from the wit-workspace.json
+        if manifest_dep is None:
+            log.error("Package {} not in wit-workspace.json".format(req_dep.name))
+            log.error("Did you mean to run 'wit add-pkg' or 'wit update-dep'?")
+            sys.exit(1)
+
+        # load their Package
+        req_dep.load_package({}, self.repo_paths)
+        manifest_dep.load_package({req_dep.name: req_dep.package}, self.repo_paths)
+        pkg = req_dep.package
+
+        # load the Repo on disk
+        pkg.load_repo(self.root, download=True)
+
+        # check if the dependency is missing from disk
+        if pkg.repo is None:
+            msg = "Cannot update package '{}'".format(req_dep.name)
+            if self.lock.contains_package(req_dep.name):
                 msg += (":\nAlthough '{}' exists (according to the wit-lock.json), "
-                        "it has not been added to the workspace.").format(new_dep.name)
+                        "it has not been cloned to the root workspace.").format(req_dep.name)
             else:
                 msg += "because it does not exist in the workspace."
             raise PackageNotInWorkspaceError(msg)
 
-        new_dep.load_package(self.root, self.repo_paths, {}, True)
+        req_resolved_rev = req_dep.resolved_rev()
 
-        old = self.manifest.get_package(new_dep.name)  # type: Dependency
-        if old is None:
-            log.error("Package {} not in wit-manifest.json".format(new_dep.name))
-            log.error("Did you mean to run 'wit update-dep'?")
-            sys.exit(1)
-        old.load_package(self.root, self.repo_paths, {}, True)
+        # compare the requested revision to the revision in the wit-workspace.json
+        if manifest_dep.resolved_rev() == req_resolved_rev:
+            log.warn("Updating '{}' to the same revision it already is!".format(req_dep.name))
 
-        tag_revision = old.package.repo.get_commit(tag_revision)
-
-        # See if the commit exists
-        if not old.package.repo.has_commit(new_dep.revision):
-            raise GitCommitNotFound(msg)
-
-        if old.revision == tag_revision:
-            log.warn("Updating '{}' to the same revision it already is!".format(old.name))
-        else:
-            log.info("Updated package '{}' to '{}'".format(old.name, new_dep.revision))
-
-        # Update and write manifest
-        self.manifest.update_package(new_dep)
+        self.manifest.replace_dependency(req_dep)
         self.manifest.write(self.manifest_path())
 
-        if tag_revision != self.lock.get_package(new_dep.name).theory_revision:
+        # if we differ from the lockfile, tell the user to update
+        if not self.lock.get_package(req_dep.name).revision == req_resolved_rev:
             log.info("Don't forget to run 'wit update'!")
 
     # Enable prettyish-printing of the class

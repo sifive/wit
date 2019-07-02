@@ -15,7 +15,6 @@ import sys
 import argparse
 import os
 from .witlogger import getLogger
-from .gitrepo import get_package_from_cwd
 from .workspace import WorkSpace, PackageNotInWorkspaceError
 from .dependency import parse_dependency_tag, Dependency
 from .inspect import inspect_tree
@@ -24,9 +23,14 @@ from pathlib import Path
 from typing import cast, List, Tuple  # noqa: F401
 from .common import WitUserError, error
 from .gitrepo import GitRepo
+from .manifest import Manifest
 import re
 
 log = getLogger()
+
+
+class NotAPackageError(WitUserError):
+    pass
 
 
 def main() -> None:
@@ -169,13 +173,13 @@ def chdir(s) -> None:
 
 def create(args) -> None:
     if args.add_pkg is None:
-        packages = []  # type: List[Tuple[str, str]]
+        dependencies = []  # type: List[Tuple[str, str]]
     else:
-        packages = args.add_pkg
+        dependencies = args.add_pkg
 
     ws = WorkSpace.create(args.workspace_name, parse_repo_path(args))
-    for package in packages:
-        ws.add_package(package)
+    for dep in dependencies:
+        ws.add_dependency(dep)
 
     if args.update:
         update(ws, args)
@@ -186,11 +190,11 @@ def create(args) -> None:
 
 def add_pkg(ws, args) -> None:
     log.info("Adding package to workspace")
-    ws.add_package(args.repo)
+    ws.add_dependency(args.repo)
 
 
 def update_pkg(ws, args) -> None:
-    ws.update_package(args.repo)
+    ws.update_dependency(args.repo)
 
 
 def dependency_from_tag(tag):
@@ -199,34 +203,73 @@ def dependency_from_tag(tag):
 
 
 def add_dep(ws, args) -> None:
-    cwd_pkg = get_package_from_cwd(ws)
-    cwd_pkg.load(ws.root, ws.repo_paths, force_root=True)
+    """ Resolve a Dependency then add it to the cwd's wit-manifest.json """
+    cwd = Path(os.getcwd()).resolve()
+    cwd_dirname = cwd.relative_to(ws.root).parts[0]
 
-    new_dep = dependency_from_tag(args.pkg)
-    new_dep.load_package(ws.root, ws.repo_paths, {}, force_root=True)
-    # Check package exists in workspace
-    found = ws.get_dependency(new_dep.name)
+    if not ws.lock.contains_package(cwd_dirname):
+        raise NotAPackageError(
+            "'{}' is not a package in workspace at '{}'".format(cwd_dirname, ws.path))
+
+    req_dep = dependency_from_tag(args.pkg)
+
+    # in order to resolve the revision, we need to bind
+    # the req_dep to disk, cloning into .wit if neccesary
+    req_dep.load_package({}, ws.repo_paths)
+    req_dep.package.load_repo(ws.root, download=True)
+
+    found = ws.lock.get_package(req_dep.name)
     if found is None:
-        new_dep.source = new_dep.package.repo.get_remote()
+        req_dep.source = req_dep.package.repo.get_remote()
     else:
-        new_dep.source = found.source
+        req_dep.source = found.source
 
-    cwd_pkg.repo.add_dependency(new_dep)
+    manifest_path = cwd/'wit-manifest.json'
+    if manifest_path.exists():
+        manifest = Manifest.read_manifest(manifest_path)
+    else:
+        manifest = Manifest([])
+    # else:
+    #     log.error("Cannot add dependency to non-package directory.")
+    #     sys.exit(1)
+
+    # make sure the dependency is not already in the cwd's manifest
+    if manifest.contains_dependency(req_dep.name):
+        log.error("'{}' already depends on '{}'".format(cwd_dirname, req_dep.name))
+        sys.exit(1)
+
+    manifest.add_dependency(req_dep)
+    manifest.write(manifest_path)
+
+    log.info("'{}' now depends on '{}'".format(cwd_dirname, req_dep.package.tag()))
 
 
 def update_dep(ws, args) -> None:
-    dep = dependency_from_tag(args.pkg)
-    found = (ws.root/dep.name).exists()
-    if not found:
-        msg = "'{}' not found in workspace. Have you run 'wit update'?".format(dep.name)
-        raise PackageNotInWorkspaceError(msg)
-    # Be sure to propagate the specified revision!
-    dep.load_package(ws.root, ws.repo_paths, {}, True)
-    log.info(dep)
+    req_dep = dependency_from_tag(args.pkg)
 
-    parent_pkg = get_package_from_cwd(ws)
-    parent_pkg.load(ws.root, ws.repo_paths, force_root=True)
-    parent_pkg.repo.update_dependency(dep)
+    req_dep.load_package({}, ws.repo_paths)
+    req_pkg = req_dep.package
+    req_pkg.load_repo(ws.root, download=True)
+
+    # check if the requested repo is missing from disk
+    if req_pkg.repo is None:
+        msg = "'{}' not found in workspace. Have you run 'wit update'?".format(req_dep.name)
+        raise PackageNotInWorkspaceError(msg)
+
+    cwd = Path(os.getcwd()).resolve()
+    cwd_dirname = cwd.relative_to(ws.root).parts[0]
+    manifest = Manifest.read_manifest(cwd/'wit-manifest.json')
+
+    # make sure the package is already in the cwd's manifest
+    if not manifest.contains_dependency(req_dep.name):
+        log.error("'{}' does not depend on '{}'".format(cwd_dirname, req_pkg.tag()))
+        sys.exit(1)
+
+    log.info("Updating to {}".format(req_dep.resolved_rev()))
+    manifest.replace_dependency(req_dep)
+    manifest.write(cwd/'wit-manifest.json')
+
+    log.info("'{}' now depends on '{}'".format(cwd_dirname, req_pkg.tag()))
 
 
 def status(ws, args) -> None:
@@ -242,7 +285,7 @@ def status(ws, args) -> None:
     for package in ws.lock.packages:
         seen_paths[package.repo.get_path()] = True
 
-        lock_commit = package.theory_revision
+        lock_commit = package.revision
         latest_commit = package.repo.get_latest_commit()
 
         new_commits = lock_commit != latest_commit
@@ -286,7 +329,7 @@ def status(ws, args) -> None:
 
 
 def update(ws, args) -> None:
-    packages = ws.resolve(force_root=True)
+    packages = ws.resolve(download=True)
     ws.checkout(packages)
 
 
@@ -302,6 +345,7 @@ def fetch_scala(ws, args, agg=True) -> None:
     # Collect ivydependency files
     files = []
     for package in ws.lock.packages:
+        package.load_repo(ws.root)
         ivyfile = scalaplugin.ivy_deps_file(package.repo.get_path())
         if os.path.isfile(ivyfile):
             files.append(ivyfile)

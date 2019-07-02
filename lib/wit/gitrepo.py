@@ -80,11 +80,7 @@ class GitRepo:
         path = self.get_path()
         path.mkdir()
         proc = self._git_command("clone", "--no-checkout", str(self.source), str(path))
-        try:
-            self._git_check(proc)
-        except Exception as e:
-            log.error("Error cloning into workspace: {}".format(e))
-            sys.exit(1)
+        self._git_check(proc)
 
     def clone_and_checkout(self):
         self.clone()
@@ -225,11 +221,12 @@ class GitRepo:
 
     def _git_check(self, proc):
         if proc.returncode:
-            log.error("Command [{}] exited with non-zero exit status [{}]"
-                      .format(' '.join(proc.args), proc.returncode))
-            log.error("stdout: [{}]".format(proc.stdout.rstrip()))
-            log.error("stderr: [{}]".format(proc.stderr.rstrip()))
-            raise GitError(proc.stderr.rstrip())
+            msg = "Command [{}] exited with non-zero exit status [{}]\n".format(
+                  ' '.join(proc.args), proc.returncode)
+            msg += "stdout: [{}]\n".format(proc.stdout.rstrip())
+            msg += "stderr: [{}]\n".format(proc.stderr.rstrip())
+            msg += proc.stderr.rstrip()
+            raise GitError(msg)
 
         return proc.returncode
 

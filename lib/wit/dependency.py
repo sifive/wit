@@ -15,24 +15,21 @@ class Dependency:
 
     '''
 
-    def __init__(self, name, source, revision=None):
+    def __init__(self, name, source, specified_revision=None):
         self.source = source
-        self.revision = revision or "HEAD"
+        self.revision = None
+        self.specified_revision = specified_revision or "HEAD"
         self.name = name or Dependency.infer_name(source)
         self.package = None  # type: Package
         self.dependents = []  # type: List[Package]
 
     @passbyval
-    def resolve_deps(self, wsroot, repo_paths, force_root, source_map, packages, queue):
+    def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue):
         subdeps = self.package.get_dependencies()
         log.debug("Dependencies for [{}]: [{}]".format(self.name, subdeps))
         for subdep in subdeps:
-            subdep.load_package(wsroot, repo_paths, packages, force_root)
-
-            if subdep.get_commit_time() > self.get_commit_time():
-                log.error("Repo [{}] has a dependent that is newer than the source. "
-                          "This should not happen.\n".format(subdep.name))
-                sys.exit(1)
+            subdep.load_package(packages, repo_paths)
+            subdep.package.load_repo(wsroot, download)
 
             if subdep.name in source_map:
                 if subdep.package.source != source_map[subdep.name]:
@@ -41,7 +38,16 @@ class Dependency:
                               "  {}\n".format(subdep.name, subdep.package.source,
                                               source_map[subdep.name]))
                     sys.exit(1)
+
             source_map[subdep.name] = subdep.package.source
+
+            if subdep.package.repo is None:
+                continue
+
+            if subdep.get_commit_time() > self.get_commit_time():
+                log.error("Repo [{}] has a dependent that is newer than the source. "
+                          "This should not happen.\n".format(subdep.name))
+                sys.exit(1)
 
             commit_time = subdep.get_commit_time()
             queue.append((commit_time, subdep))
@@ -51,7 +57,7 @@ class Dependency:
         return source_map, packages, queue
 
     def __key(self):
-        return (self.source, self.revision, self.name)
+        return (self.source, self.specified_revision, self.name)
 
     def __hash__(self):
         return hash(self.__key())
@@ -63,43 +69,60 @@ class Dependency:
     def infer_name(source):
         return Path(source).name.replace('.git', '')
 
-    def load_package(self, wsroot, repo_paths, packages, force_root):
+    # wsroot, repo_paths, packages, force_root
+    def load_package(self, packages, repo_paths):
+        """
+        Bind itself to a package, using one in the `packages` argument if available.
+        This will also add itself as a dependent of the package
+        """
         if self.name in packages:
             self.package = packages[self.name]
         else:
-            self.package = Package(self.name, self.source, self.revision)
+            self.package = Package(self.name, self.source, self.specified_revision, repo_paths)
         self.package.add_dependent(self)
-        self.package.load(wsroot, repo_paths, force_root, self.revision)
-        self.revision = self.package.repo.get_commit(self.revision)
+        # self.package.load(wsroot, repo_paths, force_root, self.revision)
+        # self.revision = self.package.repo.get_commit(self.revision)
 
     def add_dependent(self, dependent):
         if dependent not in self.dependents:
             self.dependents.append(dependent)
 
     def get_commit_time(self):
-        return datetime.utcfromtimestamp(int(self.package.repo.commit_to_time(self.revision)))
+        return datetime.utcfromtimestamp(int(self.package.repo.commit_to_time(
+            self.specified_revision)))
+
+    def resolved_rev(self):
+        if self.package.repo is None or self.package.repo is None:
+            raise Exception("Cannot resolve dependency that is unbound to disk")
+        return self.package.repo.get_commit(self.specified_revision)
 
     def manifest(self):
         return {
             'name': self.name,
             'source': self.source,
-            'commit': self.revision,
+            'commit': self.specified_revision,
         }
+
+    def resolved(self):
+        if self.package is None or self.package.repo is None:
+            raise Exception("Cannot resolve dependency that us unbound to disk")
+        return Dependency(self.name, self.source, self.resolved_rev())
 
     def __repr__(self):
         return "Dep({})".format(self.tag())
 
     def tag(self):
-        return "{}::{}".format(self.name, self.revision[:8])
+        return "{}::{}".format(self.name, self.specified_revision[:8])
 
     def get_id(self):
         return "dep_"+re.sub(r"([^\w\d])", "_", self.tag())
 
     def crawl_dep_tree(self, wsroot, repo_paths, packages):
         fancy_tag = "{}::{}".format(self.name, self.revision[:8])
-        self.load_package(wsroot, repo_paths, packages, False)
-        if self.package.theory_revision != self.revision:
-            fancy_tag += "->{}".format(self.package.theory_revision[:8])
+        self.load_package(packages, repo_paths)
+        self.package.load_repo(wsroot)
+        if self.package.revision != self.revision:
+            fancy_tag += "->{}".format(self.package.revision[:8])
             return {'': fancy_tag}
 
         tree = {'': fancy_tag}

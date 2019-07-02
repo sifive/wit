@@ -9,7 +9,7 @@ def inspect_tree(ws, args):
 
     if args.tree:
         tree = {}
-        for dep in ws.manifest.packages:
+        for dep in ws.manifest.dependencies:
             tree[dep.get_id()] = dep.crawl_dep_tree(ws.root, ws.repo_paths, packages)
         for key in tree:
             top_dep = tree[key]
@@ -75,7 +75,7 @@ def _print_dot_tree(ws, packages_dict):
         else:
             draw_connection(pkg_id, dep_pkg_id)
 
-    for dep in ws.manifest.packages:
+    for dep in ws.manifest.dependencies:
         print_dep(ws, dep)
 
     for pkg in packages:
