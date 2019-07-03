@@ -12,3 +12,4 @@ t/newdir*
 t/xyz*
 t/fizz*
 .vscode
+.coverage

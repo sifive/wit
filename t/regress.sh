@@ -75,6 +75,13 @@ if ! [ -x "$(command -v java)" ]; then
     echo "Some tests may have failed due to java not being found"
 fi
 
+coverage combine ${regression_dir}/*/.coverage
+cp .coverage ${regression_dir}/.coverage
+coverage report
+
+# so we can manually analyze coverage stats
+echo "${regression_dir}"
+
 if [ $fail -ne 0 ]
 then exit 1
 else exit 0

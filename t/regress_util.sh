@@ -4,7 +4,7 @@ wit_repo='git@github.com:sifive/wit'
 test_root=$(dirname $(perl -MCwd -e "print Cwd::realpath('$0')"))
 wit_root=$(perl -MCwd -e "print Cwd::realpath('$test_root/..')")
 
-export PATH=$wit_root:${PATH}
+alias wit="coverage run -m wit"
 
 fail=0
 pass=0
