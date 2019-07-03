@@ -71,4 +71,3 @@ if __name__ == '__main__':
 
 def lockfile_item_to_pkg(item):
     return Package(item['name'], item.get('source'), item['commit'], [])
-

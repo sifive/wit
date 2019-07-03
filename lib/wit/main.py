@@ -229,9 +229,6 @@ def add_dep(ws, args) -> None:
         manifest = Manifest.read_manifest(manifest_path)
     else:
         manifest = Manifest([])
-    # else:
-    #     log.error("Cannot add dependency to non-package directory.")
-    #     sys.exit(1)
 
     # make sure the dependency is not already in the cwd's manifest
     if manifest.contains_dependency(req_dep.name):
