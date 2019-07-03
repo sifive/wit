@@ -280,6 +280,7 @@ def status(ws, args) -> None:
     untracked = []
     seen_paths = {}
     for package in ws.lock.packages:
+        package.load_repo(ws.root)
         seen_paths[package.repo.get_path()] = True
 
         lock_commit = package.revision
