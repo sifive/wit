@@ -4,8 +4,6 @@ import subprocess
 from pathlib import Path
 from pprint import pformat
 import json
-import os
-import sys
 import datetime
 from . import manifest
 from .common import WitUserError
@@ -67,7 +65,7 @@ class GitRepo:
                 self.source = tmp_path
                 return
 
-    def clone_or_fetch(self):
+    def download(self):
         if not GitRepo.is_git_repo(self.get_path()):
             self.clone()
         self.fetch()
@@ -257,19 +255,3 @@ class GitRepo:
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
-
-
-class NotAPackageError(WitUserError):
-    pass
-
-
-def get_package_from_cwd(ws):
-    cwd = Path(os.getcwd()).resolve()
-
-    # Get the top-directory name relative to the workspace
-    name = cwd.relative_to(ws.root).parts[0]
-    dep = ws.lock.get_package(name)
-    if dep is None:
-        msg = "'{}' is not a package in workspace at '{}'".format(name, ws.root)
-        raise NotAPackageError(msg)
-    return dep

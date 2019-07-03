@@ -65,7 +65,7 @@ class WorkSpace:
         self.lock = self._load_lockfile()
 
     def tag(self):
-        return "root"
+        return "[root]"
 
     def get_id(self):
         return "root"

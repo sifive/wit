@@ -29,6 +29,12 @@ class Package:
 
         self.dependents = []
 
+    def short_revision(self):
+        rev = self.revision or self.unresolved_revision
+        if len(rev) >= 40:
+            rev = rev[:8]
+        return rev
+
     def __key(self):
         return (self.source, self.unresolved_revision, self.name)
 
@@ -73,7 +79,7 @@ class Package:
             if not download:
                 self.repo = None
                 return
-            self.repo.clone_or_fetch()
+            self.repo.download()
 
         self.revision = self.repo.get_commit(self.unresolved_revision)
 
@@ -124,7 +130,7 @@ class Package:
         return "Pkg({})".format(self.tag())
 
     def tag(self):
-        return "{}::{}".format(self.name, self.unresolved_revision[:8])
+        return "{}::{}".format(self.name, self.short_revision())
 
     def get_id(self):
         return "pkg_"+re.sub(r"([^\w\d])", "_", self.tag())
@@ -132,10 +138,10 @@ class Package:
     def status(self, lock):
         if lock.contains_package(self.name):
             if not self.in_root:
-                return "\033[93m(will be repaired)\033[m"
+                return "\033[93m(missing)\033[m"
             elif self.revision != self.repo.get_latest_commit():
                 return "\033[35m(will be checked out to {})\033[m".format(
-                    self.unresolved_revision[:8])
+                    self.short_revision())
         else:
             if not self.in_root:
                 return "\033[92m(will be added to workspace and lockfile)\033[m"

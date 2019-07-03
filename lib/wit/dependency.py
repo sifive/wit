@@ -11,9 +11,7 @@ log = getLogger()
 
 
 class Dependency:
-    '''The version of a repo that is depended upon
-
-    '''
+    """ A dependency that a Package specifies. From wit-manifest.json and wit-workspace.js """
 
     def __init__(self, name, source, specified_revision=None):
         self.source = source
@@ -91,11 +89,6 @@ class Dependency:
         return datetime.utcfromtimestamp(int(self.package.repo.commit_to_time(
             self.specified_revision)))
 
-    def resolved_rev(self):
-        if self.package.repo is None or self.package.repo is None:
-            raise Exception("Cannot resolve dependency that is unbound to disk")
-        return self.package.repo.get_commit(self.specified_revision)
-
     def manifest(self):
         return {
             'name': self.name,
@@ -103,34 +96,42 @@ class Dependency:
             'commit': self.specified_revision,
         }
 
+    # used before saving to manifests/lockfiles
     def resolved(self):
         if self.package is None or self.package.repo is None:
             raise Exception("Cannot resolve dependency that us unbound to disk")
         return Dependency(self.name, self.source, self.resolved_rev())
 
+    def resolved_rev(self):
+        if self.package.repo is None or self.package.repo is None:
+            raise Exception("Cannot resolve dependency that is unbound to disk")
+        return self.package.repo.get_commit(self.specified_revision)
+
     def __repr__(self):
         return "Dep({})".format(self.tag())
 
+    def short_revision(self):
+        rev = self.specified_revision
+        if len(rev) >= 40:
+            rev = rev[:8]
+        return rev
+
     def tag(self):
-        return "{}::{}".format(self.name, self.specified_revision[:8])
+        return "{}::{}".format(self.name, self.short_revision())
 
     def get_id(self):
         return "dep_"+re.sub(r"([^\w\d])", "_", self.tag())
 
     def crawl_dep_tree(self, wsroot, repo_paths, packages):
-        fancy_tag = "{}::{}".format(self.name, self.revision[:8])
+        fancy_tag = "{}::{}".format(self.name, self.short_revision())
         self.load_package(packages, repo_paths)
         self.package.load_repo(wsroot)
-        if self.package.revision != self.revision:
-            fancy_tag += "->{}".format(self.package.revision[:8])
+        if self.package.revision != self.resolved_rev():
+            fancy_tag += "->{}".format(self.package.short_revision())
             return {'': fancy_tag}
 
         tree = {'': fancy_tag}
-        try:
-            subdeps = self.package.get_dependencies()
-        except Exception:
-            log.error("aaa")
-            subdeps = []
+        subdeps = self.package.get_dependencies()
         for subdep in subdeps:
             tree[subdep.get_id()] = subdep.crawl_dep_tree(wsroot, repo_paths, packages)
         return tree
