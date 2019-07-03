@@ -78,8 +78,6 @@ class Dependency:
         else:
             self.package = Package(self.name, self.source, self.specified_revision, repo_paths)
         self.package.add_dependent(self)
-        # self.package.load(wsroot, repo_paths, force_root, self.revision)
-        # self.revision = self.package.repo.get_commit(self.revision)
 
     def add_dependent(self, dependent):
         if dependent not in self.dependents:
@@ -126,6 +124,8 @@ class Dependency:
         fancy_tag = "{}::{}".format(self.name, self.short_revision())
         self.load_package(packages, repo_paths)
         self.package.load_repo(wsroot)
+        if self.package.repo is None:
+            return {'': "{} \033[91m(missing)\033[m".format(fancy_tag)}
         if self.package.revision != self.resolved_rev():
             fancy_tag += "->{}".format(self.package.short_revision())
             return {'': fancy_tag}

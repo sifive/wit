@@ -1,3 +1,4 @@
+import sys
 from .common import passbyval
 from .witlogger import getLogger
 
@@ -67,6 +68,9 @@ def _print_dot_tree(ws, packages_dict):
         dep_id = dep.get_id()
         dep.load_package(packages_dict, ws.repo_paths)
         dep.package.load_repo(ws.root)
+        if dep.package.repo is None:
+            log.error("Cannot generate graph with missing repo '{}'".format(dep.name))
+            sys.exit(1)
         dep_pkg_id = dep.package.get_id()
         if dep.tag() != dep.package.tag() or VERBOSE_GRAPH:
             draw_connection(dep_id, dep_pkg_id, dotted=True)
