@@ -97,7 +97,7 @@ class GitRepo:
         return proc.stdout.rstrip()
 
     def get_shortened_rev(self, commit):
-        proc = self._git_command('rev-parse', '--short')
+        proc = self._git_command('rev-parse', '--short', commit)
         self._git_check(proc)
         return proc.stdout.rstrip()
 

@@ -110,8 +110,9 @@ class Dependency:
 
     def short_revision(self):
         if self.package and self.package.repo:
-            if self.package.repo.is_hash(self.specified_revision):
-                return self.repo.get_shortened_rev(self.specified_revision)
+            if (self.package.repo.has_commit(self.specified_revision)
+                    and self.package.repo.is_hash(self.specified_revision)):
+                return self.package.repo.get_shortened_rev(self.specified_revision)
         return self.specified_revision
 
     def tag(self):
