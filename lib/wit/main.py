@@ -278,9 +278,13 @@ def status(ws, args) -> None:
     clean = []
     dirty = []
     untracked = []
+    damaged = []
     seen_paths = {}
     for package in ws.lock.packages:
         package.load_repo(ws.root)
+        if package.repo is None:
+            damaged.append(package)
+            continue
         seen_paths[package.repo.get_path()] = True
 
         lock_commit = package.revision
@@ -317,6 +321,10 @@ def status(ws, args) -> None:
         for path in untracked:
             relpath = path.relative_to(ws.root)
             log.info("    {}".format(relpath))
+    if len(damaged) > 0:
+        log.info("Damaged packages:")
+        for package in damaged:
+            log.info("    {}".format(package.name))
 
     packages = ws.resolve()
     for name in packages:
