@@ -55,12 +55,6 @@ class Package:
         and self.revision will be updated to the resolved self.unresolved_revision
         """
 
-        non_hash = len(self.unresolved_revision) < 40
-
-        if non_hash and not download:
-            log.error("Cannot create a reproducible workspace!")
-            raise WitBug("Cannot resolve '{}' without permission to download".format(non_hash))
-
         # Check if we are already checked out
         self.in_root = (wsroot/self.name).exists()
         if self.in_root:
@@ -75,7 +69,8 @@ class Package:
         # we carefully use Python's boolean expression evalution short-circuiting
         # to avoid calling has_cmmit if the repo does not exist
         if (not self.repo.get_path().exists()
-                or non_hash or not self.repo.has_commit(self.unresolved_revision)):
+                or not self.repo.has_commit(self.unresolved_revision)
+                or self.repo.get_commit(self.unresolved_revision) != self.unresolved_revision):
             if not download:
                 self.repo = None
                 return
