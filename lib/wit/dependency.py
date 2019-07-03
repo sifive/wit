@@ -109,10 +109,10 @@ class Dependency:
         return "Dep({})".format(self.tag())
 
     def short_revision(self):
-        rev = self.specified_revision
-        if len(rev) >= 40:
-            rev = rev[:8]
-        return rev
+        if self.package and self.package.repo:
+            if self.package.repo.is_hash(self.specified_revision):
+                return self.repo.get_shortened_rev(self.specified_revision)
+        return self.specified_revision
 
     def tag(self):
         return "{}::{}".format(self.name, self.short_revision())

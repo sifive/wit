@@ -96,6 +96,14 @@ class GitRepo:
             self._git_check(proc)
         return proc.stdout.rstrip()
 
+    def get_shortened_rev(self, commit):
+        proc = self._git_command('rev-parse', '--short')
+        self._git_check(proc)
+        return proc.stdout.rstrip()
+
+    def is_hash(self, ref):
+        return self.get_commit(ref) == ref
+
     def has_commit(self, commit) -> bool:
         # rev-parse does not always fail when a commit is missing
         proc = self._git_command('cat-file', '-t', commit)

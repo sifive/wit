@@ -30,10 +30,9 @@ class Package:
         self.dependents = []
 
     def short_revision(self):
-        rev = self.revision or self.unresolved_revision
-        if len(rev) >= 40:
-            rev = rev[:8]
-        return rev
+        if self.revision:
+            return self.repo.get_shortened_rev(self.revision)
+        return self.unresolved_revision
 
     def __key(self):
         return (self.source, self.unresolved_revision, self.name)
@@ -70,7 +69,7 @@ class Package:
         # to avoid calling has_cmmit if the repo does not exist
         if (not self.repo.get_path().exists()
                 or not self.repo.has_commit(self.unresolved_revision)
-                or self.repo.get_commit(self.unresolved_revision) != self.unresolved_revision):
+                or not self.repo.is_hash(self.unresolved_revision)):
             if not download:
                 self.repo = None
                 return
