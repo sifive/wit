@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import sys
 from .gitrepo import GitRepo
 from collections import OrderedDict
 from typing import Optional
@@ -17,6 +18,8 @@ class LockFile:
     """
     Common class for the description of package dependencies and a workspace
     """
+
+    WRITE_VERSION = "v0"
 
     def __init__(self, packages=[]):
         self.packages = packages
@@ -48,8 +51,19 @@ class LockFile:
 
     def write(self, path):
         log.debug("Writing lock file to {}".format(path))
-        contents = OrderedDict((p.name, p.manifest()) for p in self.packages)
-        manifest_json = json.dumps(contents, sort_keys=True, indent=4) + '\n'
+        packages = OrderedDict((p.name, p.manifest()) for p in self.packages)
+        ver = self.WRITE_VERSION
+        if ver == 'v0':
+            body = packages
+        elif ver == 'v1':
+            body = {
+                "version": self.VERSION,
+                "packages": packages,
+            }
+        else:
+            raise NotImplementedError
+
+        manifest_json = json.dumps(body, sort_keys=True, indent=4) + '\n'
         path.write_text(manifest_json)
 
     @staticmethod
@@ -58,10 +72,29 @@ class LockFile:
         content = json.loads(path.read_text())
         return LockFile.process(content)
 
-    @staticmethod
-    def process(content):
-        pkgs = [lockfile_item_to_pkg(x) for _, x in content.items()]
+    @classmethod
+    def process(cls, content):
+        pkgs = []
+        ver = LockFile.get_version(content)
+        if ver == 'v0':
+            pkgs = content
+        elif ver == 'v1':
+            pkgs = content['packages']
+        else:
+            log.error("Unable to read lockfile.")
+            log.error("We are at {}, lockfile is at {}.".format(cls.VERSION, ver))
+            log.error("Please update wit.")
+            sys.exit(1)
+
+        pkgs = [lockfile_item_to_pkg(x) for _, x in pkgs.items()]
         return LockFile(pkgs)
+
+    @staticmethod
+    def get_version(content):
+        if 'version' not in content:
+            return 'v0'
+        else:
+            return content['version']
 
 
 if __name__ == '__main__':

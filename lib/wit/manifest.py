@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import sys
 from pathlib import Path
 from .witlogger import getLogger
 
@@ -14,6 +15,8 @@ class Manifest:
     """
     Common class for the description of package dependencies and a workspace
     """
+
+    WRITE_VERSION = 'v0'
 
     def __init__(self, dependencies):
         self.dependencies = dependencies
@@ -48,8 +51,19 @@ class Manifest:
         self.dependencies = newdeps
 
     def write(self, path):
-        contents = [p.manifest() for p in self.dependencies]
-        manifest_json = json.dumps(contents, sort_keys=True, indent=4) + '\n'
+        deps = [p.manifest() for p in self.dependencies]
+        ver = self.WRITE_VERSION
+        if ver == 'v0':
+            body = deps
+        elif ver == 'v1':
+            body = {
+                'version': self.VERSION,
+                'dependencies': deps,
+            }
+        else:
+            raise NotImplementedError
+
+        manifest_json = json.dumps(body, sort_keys=True, indent=4) + '\n'
         path.write_text(manifest_json)
 
     # FIXME It's maybe a little weird that we need wsroot but that's because
@@ -62,12 +76,31 @@ class Manifest:
         content = json.loads(path.read_text())
         return Manifest.process_manifest(content)
 
-    @staticmethod
-    def process_manifest(json_content):
+    @classmethod
+    def process_manifest(cls, content):
+        deps = []
+        ver = Manifest.get_version(content)
+        if ver == 'v0':
+            deps = content
+        elif ver == 'v1':
+            deps = content['dependencies']
+        else:
+            log.error("Unable to read manifest.")
+            log.error("We are at {}, manifest is at {}.".format(cls.VERSION, ver))
+            log.error("Please update wit.")
+            sys.exit(1)
+
         # import here to prevent circular dependency
         from .dependency import manifest_item_to_dep
-        dependencies = [manifest_item_to_dep(x) for x in json_content]
+        dependencies = [manifest_item_to_dep(x) for x in deps]
         return Manifest(dependencies)
+
+    @staticmethod
+    def get_version(content):
+        if not isinstance(content, dict):
+            return 'v0'
+        else:
+            return content['version']
 
 
 if __name__ == '__main__':
