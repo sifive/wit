@@ -17,8 +17,8 @@ def inspect_tree(ws, args):
             x, _ = _deduplicate_tree(top_dep)
             _print_generic_tree(x)
 
-    if args.dot:
-        _print_dot_tree(ws, packages)
+    # if args.dot:
+    #     _print_dot_tree(ws, packages)
 
 
 BOXED_DEPS = False
@@ -67,7 +67,8 @@ def _print_dot_tree(ws, packages_dict):
         pkg_id = pkg.get_id()
         dep_id = dep.get_id()
         dep.load_package(packages_dict, ws.repo_paths)
-        dep.package.load_repo(ws.root)
+        if dep.package.repo is None:
+            dep.package.load_repo(ws.root)
         if dep.package.repo is None:
             log.error("Cannot generate graph with missing repo '{}'".format(dep.name))
             sys.exit(1)

@@ -54,6 +54,9 @@ class Package:
         and self.revision will be updated to the resolved self.unresolved_revision
         """
 
+        if self.repo is not None:
+            return
+
         # Check if we are already checked out
         self.in_root = (wsroot/self.name).exists()
         if self.in_root:

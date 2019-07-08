@@ -12,6 +12,16 @@ from .witlogger import getLogger
 log = getLogger()
 
 
+def memoize(f):
+    memo = {}
+
+    def helper(self, *x):
+        if x not in memo:
+            memo[x] = f(self, *x)
+        return memo[x]
+    return helper
+
+
 class GitError(Exception):
     pass
 
@@ -87,6 +97,7 @@ class GitRepo:
     def get_latest_commit(self) -> str:
         return self.get_commit('HEAD')
 
+    @memoize
     def get_commit(self, commit) -> str:
         proc = self._git_command('rev-parse', commit)
         try:
@@ -96,11 +107,13 @@ class GitRepo:
             self._git_check(proc)
         return proc.stdout.rstrip()
 
+    @memoize
     def get_shortened_rev(self, commit):
         proc = self._git_command('rev-parse', '--short', commit)
         self._git_check(proc)
         return proc.stdout.rstrip()
 
+    @memoize
     def is_hash(self, ref):
         return self.get_commit(ref) == ref
 
@@ -142,6 +155,7 @@ class GitRepo:
         return False
 
     # TODO Since we're storing the revision, should we be passing it as an argument?
+    @memoize
     def commit_to_time(self, hash):
         proc = self._git_command('log', '-n1', '--format=%ct', hash)
         self._git_check(proc)
@@ -152,6 +166,7 @@ class GitRepo:
         unix_time = float(self.commit_to_time(self.revision))
         return datetime.datetime.fromtimestamp(unix_time)
 
+    @memoize
     def is_ancestor(self, ancestor, current=None):
         proc = self._git_command("merge-base", "--is-ancestor", ancestor,
                                  current or self.get_latest_commit())
@@ -171,6 +186,7 @@ class GitRepo:
         mpath = self.manifest_path()
         manifest.write(mpath)
 
+    @memoize
     def read_manifest_from_commit(self, revision) -> manifest.Manifest:
         proc = self._git_command("show", "{}:{}".format(revision, GitRepo.PKG_DEPENDENCY_FILE))
         if proc.returncode:
