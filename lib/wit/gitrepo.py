@@ -4,7 +4,6 @@ import subprocess
 from pathlib import Path
 from pprint import pformat
 import json
-import sys
 import datetime
 from . import manifest
 from .common import WitUserError
@@ -20,6 +19,11 @@ class GitError(Exception):
 class GitCommitNotFound(WitUserError):
     pass
 
+
+# TODO Could speed up validation
+#   - use git ls-remote to validate remote exists
+#   - use git ls-remote to validate revision for tags and branches
+#   - if github repo, check if page exists (or if you get 404)
 
 class GitRepo:
     """
@@ -66,6 +70,11 @@ class GitRepo:
                 self.source = tmp_path
                 return
 
+    def download(self):
+        if not GitRepo.is_git_repo(self.get_path()):
+            self.clone()
+        self.fetch()
+
     def clone(self):
         assert not GitRepo.is_git_repo(self.get_path()), \
             "Trying to clone and checkout into existing git repo!"
@@ -74,11 +83,7 @@ class GitRepo:
         path = self.get_path()
         path.mkdir()
         proc = self._git_command("clone", "--no-checkout", str(self.source), str(path))
-        try:
-            self._git_check(proc)
-        except Exception as e:
-            log.error("Error cloning into workspace: {}".format(e))
-            sys.exit(1)
+        self._git_check(proc)
 
     def clone_and_checkout(self):
         self.clone()
@@ -89,11 +94,24 @@ class GitRepo:
 
     def get_commit(self, commit) -> str:
         proc = self._git_command('rev-parse', commit)
+        try:
+            self._git_check(proc)
+        except Exception:
+            proc = self._git_command('rev-parse', 'origin/{}'.format(commit))
+            self._git_check(proc)
+        return proc.stdout.rstrip()
+
+    def get_shortened_rev(self, commit):
+        proc = self._git_command('rev-parse', '--short', commit)
         self._git_check(proc)
         return proc.stdout.rstrip()
 
+    def is_hash(self, ref):
+        return self.get_commit(ref) == ref
+
     def has_commit(self, commit) -> bool:
-        proc = self._git_command('rev-parse', commit)
+        # rev-parse does not always fail when a commit is missing
+        proc = self._git_command('cat-file', '-t', commit)
         return proc.returncode == 0
 
     def get_remote(self) -> str:
@@ -152,7 +170,7 @@ class GitRepo:
 
     def read_manifest(self) -> manifest.Manifest:
         mpath = self.manifest_path()
-        return manifest.Manifest.read_manifest(self.wsroot, mpath, safe=True)
+        return manifest.Manifest.read_manifest(mpath, safe=True)
 
     def write_manifest(self, manifest) -> None:
         mpath = self.manifest_path()
@@ -164,7 +182,7 @@ class GitRepo:
             log.debug("No dependency file found in repo [{}:{}]".format(revision,
                       self.get_path()))
         json_content = [] if proc.returncode else json.loads(proc.stdout)
-        return manifest.Manifest.process_manifest(self.wsroot, json_content)
+        return manifest.Manifest.process_manifest(json_content)
 
     def add_dependency(self, package):
         log.info("Adding dependency to '{}' on '{}' at '{}'".format(
@@ -174,19 +192,19 @@ class GitRepo:
         self.write_manifest(manifest)
 
     # TODO should we check manifest against the committed version?
-    def update_dependency(self, package):
+    def update_dependency(self, dep):
         manifest = self.read_manifest()
-        old = manifest.get_package(package.name)
+        old = manifest.get_package(dep.name)
         if old is None:
-            msg = "Package '{}' does not depend on '{}'!".format(self.name, package.name)
+            msg = "Package '{}' does not depend on '{}'!".format(self.name, dep.name)
             raise WitUserError(msg)
-        if old.revision == package.revision:
+        if old.revision == dep.revision:
             log.warn("Input update revision for '{}' in '{}' is unchanged!".format(
-                     package.name, self.name))
+                     dep.name, self.name))
         else:
             log.info("Updating '{}' dependency on '{}' from '{}' to '{}'".format(
-                     self.name, package.name, old.revision, package.revision))
-            manifest.update_package(package)
+                     self.name, dep.name, old.revision, dep.revision))
+            manifest.update_package(dep)
             manifest.write(self.manifest_path())
 
     def checkout(self):
@@ -214,11 +232,11 @@ class GitRepo:
 
     def _git_check(self, proc):
         if proc.returncode:
-            log.error("Command [{}] exited with non-zero exit status [{}]"
-                      .format(' '.join(proc.args), proc.returncode))
-            log.error("stdout: [{}]".format(proc.stdout.rstrip()))
-            log.error("stderr: [{}]".format(proc.stderr.rstrip()))
-            raise GitError(proc.stderr.rstrip())
+            msg = "Command [{}] exited with non-zero exit status [{}]\n".format(
+                  ' '.join(proc.args), proc.returncode)
+            msg += "stdout: [{}]\n".format(proc.stdout.rstrip())
+            msg += "stderr: [{}]\n".format(proc.stderr.rstrip())
+            raise GitError(msg)
 
         return proc.returncode
 

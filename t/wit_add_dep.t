@@ -55,8 +55,6 @@ check "foo should depend on the correct commit of bar" [ "$foo_bar_commit" = "$b
 bar_manifest_source=$(jq -r '.[] | select(.name=="bar") | .source' foo/wit-manifest.json)
 check "Added bar dependency should have correct source" [ "$bar_manifest_source" = "$bar_dir" ]
 
-check "bar should have been cloned when it was added as a dependency" [ -d bar/.git ]
-
 set +x
 
 report

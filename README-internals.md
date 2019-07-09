@@ -64,3 +64,20 @@ Wit's purpose is to assist development by deterministically generating a workspa
 7. Determine `P`'s `wit` dependencies from `P/wit-manifest.json`. Append these to the ordered list from step 2 based on commit time.
 8. Go to step 3.
 
+## Types of Commands
+
+### Modify json
+- `add-pkg`
+- `add-dep`
+- `update-pkg`
+- `update-dep`
+
+### Analyze json, Modify .wit
+- `status`: compare `resolve(workspace.json)` to the filetree
+- `resolve()`
+
+### Analyze json, user filetree
+- `inspect`: analyze the output of `resolve(lock.json)`
+
+### Modify user filetree
+- `update`: update filetree to match the model of `resolve(workspace.json)`

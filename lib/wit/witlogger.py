@@ -68,5 +68,9 @@ class WitLogger(logging.Logger):
         if self.isEnabledFor(SPAM):
             self._log(SPAM, msg, args, **kwargs)
 
+    # for potential future -o flags (e.g. for `wit inspect --dot`)
+    def output(self, msg):
+        print(msg)
+
 
 logging.setLoggerClass(WitLogger)

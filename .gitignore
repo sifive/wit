@@ -9,4 +9,6 @@ t/foo*
 t/myws*
 t/main_repo*
 t/newdir*
+t/xyz*
+t/fizz*
 .vscode

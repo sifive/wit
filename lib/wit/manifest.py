@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
 import json
-from .package import Package
 from pathlib import Path
+from .witlogger import getLogger
+
+log = getLogger()
 
 
 # TODO
@@ -13,37 +15,40 @@ class Manifest:
     Common class for the description of package dependencies and a workspace
     """
 
-    def __init__(self, packages):
-        self.packages = packages
+    def __init__(self, dependencies):
+        self.dependencies = dependencies
 
-    def get_package(self, name: str):
-        for p in self.packages:
-            if p.name == name:
-                return p
+    def get_dependency(self, name: str):
+        for d in self.dependencies:
+            if d.name == name:
+                return d
         return None
 
-    def contains_package(self, name: str) -> bool:
-        return self.get_package(name) is not None
+    def contains_dependency(self, name: str) -> bool:
+        return self.get_dependency(name) is not None
 
-    def add_package(self, package):
-        self.packages.append(package)
-        return self
+    def add_dependency(self, dep):
+        resolved = dep.resolved()
+        log.debug("Adding to manifest: {}".format(resolved))
+        self.dependencies.append(resolved)
 
-    def update_package(self, package) -> None:
-        newpkgs = []
+    def replace_dependency(self, dep) -> None:
+        newdeps = []
         found = False
-        for p in self.packages:
-            if p.name == package.name:
-                newpkgs.append(package)
+        for d in self.dependencies:
+            if d.name == dep.name:
+                resolved = dep.resolved()
+                log.debug("New replace dep: {}".format(resolved))
+                newdeps.append(resolved)
                 found = True
             else:
-                newpkgs.append(p)
+                newdeps.append(d)
         assert found, \
-            "Trying to update '{}' but it doesn't exist in manifest!".format(package.name)
-        self.packages = newpkgs
+            "Trying to update '{}' but it doesn't exist in manifest!".format(dep.name)
+        self.dependencies = newdeps
 
     def write(self, path):
-        contents = [p.manifest() for p in self.packages]
+        contents = [p.manifest() for p in self.dependencies]
         manifest_json = json.dumps(contents, sort_keys=True, indent=4) + '\n'
         path.write_text(manifest_json)
 
@@ -51,16 +56,18 @@ class Manifest:
     # this method is being used for both wit-workspace and wit-manifest in
     # packages
     @staticmethod
-    def read_manifest(wsroot, path, safe=False):
+    def read_manifest(path, safe=False):
         if safe and not Path(path).exists():
             return Manifest([])
         content = json.loads(path.read_text())
-        return Manifest.process_manifest(wsroot, content)
+        return Manifest.process_manifest(content)
 
     @staticmethod
-    def process_manifest(wsroot, json_content):
-        packages = [Package.from_manifest(wsroot, x) for x in json_content]
-        return Manifest(packages)
+    def process_manifest(json_content):
+        # import here to prevent circular dependency
+        from .dependency import manifest_item_to_dep
+        dependencies = [manifest_item_to_dep(x) for x in json_content]
+        return Manifest(dependencies)
 
 
 if __name__ == '__main__':

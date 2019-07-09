@@ -16,16 +16,21 @@ import argparse
 import os
 from .witlogger import getLogger
 from .workspace import WorkSpace, PackageNotInWorkspaceError
-from .package import Package
+from .dependency import parse_dependency_tag, Dependency
 from .inspect import inspect_tree
 from . import scalaplugin
 from pathlib import Path
-from typing import cast, List  # noqa: F401
+from typing import cast, List, Tuple  # noqa: F401
 from .common import WitUserError, error
 from .gitrepo import GitRepo
+from .manifest import Manifest
 import re
 
 log = getLogger()
+
+
+class NotAPackageError(WitUserError):
+    pass
 
 
 def main() -> None:
@@ -54,22 +59,22 @@ def main() -> None:
     init_parser.add_argument('--no-fetch-scala', dest='fetch_scala', action='store_false',
                              help='don\'t run fetch-scala upon creating the workspace')
     init_parser.add_argument('-a', '--add-pkg', metavar='repo[::revision]', action='append',
-                             type=Package.from_arg, help='add an initial package')
+                             type=parse_dependency_tag, help='add an initial package')
     init_parser.add_argument('workspace_name')
 
     add_pkg_parser = subparsers.add_parser('add-pkg', help='add a package to the workspace')
-    add_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=Package.from_arg)
+    add_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=parse_dependency_tag)
 
     update_pkg_parser = subparsers.add_parser('update-pkg', help='update the revision of a '
                                               'previously added package')
-    update_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=Package.from_arg)
+    update_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=parse_dependency_tag)
 
     add_dep_parser = subparsers.add_parser('add-dep', help='add a dependency to a package')
-    add_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=Package.from_arg)
+    add_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=parse_dependency_tag)
 
     update_dep_parser = subparsers.add_parser('update-dep', help='update revision of a dependency '
                                               'in a package')
-    update_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=Package.from_arg)
+    update_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=parse_dependency_tag)
 
     subparsers.add_parser('status', help='show status of workspace')
     subparsers.add_parser('update', help='update git repos')
@@ -112,8 +117,7 @@ def main() -> None:
         # These commands assume the workspace already exists. Error out if the
         # workspace cannot be found.
         try:
-            ws = WorkSpace.find(Path.cwd())
-            ws.set_repo_path(args.repo_path)
+            ws = WorkSpace.find(Path.cwd(), parse_repo_path(args))
 
         except FileNotFoundError as e:
             log.error("Unable to find workspace root [{}]. Cannot continue.".format(e))
@@ -152,6 +156,10 @@ def main() -> None:
             error(e)
 
 
+def parse_repo_path(args):
+    return args.repo_path.split(' ') if args.repo_path else []
+
+
 def chdir(s) -> None:
     def err(msg):
         raise argparse.ArgumentTypeError(msg)
@@ -165,14 +173,13 @@ def chdir(s) -> None:
 
 def create(args) -> None:
     if args.add_pkg is None:
-        packages = []  # type: List[Package]
+        dependencies = []  # type: List[Tuple[str, str]]
     else:
-        packages = args.add_pkg
+        dependencies = args.add_pkg
 
-    ws = WorkSpace.create(args.workspace_name, packages)
-    ws.set_repo_path(args.repo_path)
-    for package in packages:
-        ws.add_package(package)
+    ws = WorkSpace.create(args.workspace_name, parse_repo_path(args))
+    for dep in dependencies:
+        ws.add_dependency(dep)
 
     if args.update:
         update(ws, args)
@@ -183,43 +190,87 @@ def create(args) -> None:
 
 def add_pkg(ws, args) -> None:
     log.info("Adding package to workspace")
-    ws.add_package(args.repo)
+    ws.add_dependency(args.repo)
 
 
 def update_pkg(ws, args) -> None:
-    ws.update_package(args.repo)
+    ws.update_dependency(args.repo)
+
+
+def dependency_from_tag(tag):
+    source, revision = tag
+    return Dependency(None, source, revision)
 
 
 def add_dep(ws, args) -> None:
-    pkg = Package.from_cwd(ws)
-    dep = args.pkg
-    # Check package exists in workspace
-    found = ws.get_package(dep.name)
-    if found is None:
-        dep.set_wsroot(ws.path)
-        if GitRepo.is_git_repo(dep.get_path()):
-            log.debug("Repo '{}' already exists, skipping clone...".format(dep.name))
-        else:
-            dep.clone_and_checkout()
-        dep.source = dep.get_remote()
-    else:
-        # Determine revision and source from existing repo
-        dep.revision = found.get_commit(dep.revision)
-        dep.source = found.get_remote()
+    """ Resolve a Dependency then add it to the cwd's wit-manifest.json """
+    cwd = Path(os.getcwd()).resolve()
+    cwd_dirname = cwd.relative_to(ws.root).parts[0]
 
-    pkg.add_dependency(dep)
+    if not ws.lock.contains_package(cwd_dirname):
+        raise NotAPackageError(
+            "'{}' is not a package in workspace at '{}'".format(cwd_dirname, ws.path))
+
+    req_dep = dependency_from_tag(args.pkg)
+
+    # in order to resolve the revision, we need to bind
+    # the req_dep to disk, cloning into .wit if neccesary
+    packages = {pkg.name: pkg for pkg in ws.lock.packages}
+    req_dep.load_package(packages, ws.repo_paths)
+    req_dep.package.load_repo(ws.root, download=True, needed_commit=req_dep.specified_revision)
+    req_dep.package.revision = req_dep.resolved_rev()
+
+    found = ws.lock.get_package(req_dep.name)
+    if found is None:
+        req_dep.source = req_dep.package.repo.get_remote()
+    else:
+        req_dep.source = found.source
+
+    manifest_path = cwd/'wit-manifest.json'
+    if manifest_path.exists():
+        manifest = Manifest.read_manifest(manifest_path)
+    else:
+        manifest = Manifest([])
+
+    # make sure the dependency is not already in the cwd's manifest
+    if manifest.contains_dependency(req_dep.name):
+        log.error("'{}' already depends on '{}'".format(cwd_dirname, req_dep.name))
+        sys.exit(1)
+
+    manifest.add_dependency(req_dep)
+    manifest.write(manifest_path)
+
+    log.info("'{}' now depends on '{}'".format(cwd_dirname, req_dep.package.tag()))
 
 
 def update_dep(ws, args) -> None:
-    pkg = Package.from_cwd(ws)
-    dep = ws.get_package(args.pkg.name)
-    if dep is None:
-        msg = "'{}' not found in workspace. Have you run 'wit update'?".format(args.pkg.name)
+    req_dep = dependency_from_tag(args.pkg)
+
+    packages = {pkg.name: pkg for pkg in ws.lock.packages}
+    req_dep.load_package(packages, ws.repo_paths)
+    req_pkg = req_dep.package
+    req_pkg.load_repo(ws.root, download=True, needed_commit=req_dep.specified_revision)
+    req_pkg.revision = req_dep.resolved_rev()
+
+    # check if the requested repo is missing from disk
+    if req_pkg.repo is None:
+        msg = "'{}' not found in workspace. Have you run 'wit update'?".format(req_dep.name)
         raise PackageNotInWorkspaceError(msg)
-    # Be sure to propagate the specified revision!
-    dep.fetch()
-    dep.revision = dep.get_commit(args.pkg.revision)
-    pkg.update_dependency(dep)
+
+    cwd = Path(os.getcwd()).resolve()
+    cwd_dirname = cwd.relative_to(ws.root).parts[0]
+    manifest = Manifest.read_manifest(cwd/'wit-manifest.json')
+
+    # make sure the package is already in the cwd's manifest
+    if not manifest.contains_dependency(req_dep.name):
+        log.error("'{}' does not depend on '{}'".format(cwd_dirname, req_pkg.tag()))
+        sys.exit(1)
+
+    log.info("Updating to {}".format(req_dep.resolved_rev()))
+    manifest.replace_dependency(req_dep)
+    manifest.write(cwd/'wit-manifest.json')
+
+    log.info("'{}' now depends on '{}'".format(cwd_dirname, req_pkg.tag()))
 
 
 def status(ws, args) -> None:
@@ -231,28 +282,33 @@ def status(ws, args) -> None:
     clean = []
     dirty = []
     untracked = []
+    missing = []
     seen_paths = {}
     for package in ws.lock.packages:
-        seen_paths[package.get_path()] = True
+        package.load_repo(ws.root)
+        if package.repo is None:
+            missing.append(package)
+            continue
+        seen_paths[package.repo.get_path()] = True
 
         lock_commit = package.revision
-        latest_commit = package.get_latest_commit()
+        latest_commit = package.repo.get_latest_commit()
 
         new_commits = lock_commit != latest_commit
 
-        if new_commits or not package.clean():
+        if new_commits or not package.repo.clean():
             status = []
             if new_commits:
                 status.append("new commits")
-            if package.modified():
+            if package.repo.modified():
                 status.append("modified content")
-            if package.untracked():
+            if package.repo.untracked():
                 status.append("untracked content")
             dirty.append((package, status))
         else:
             clean.append(package)
 
-    for path in ws.path.iterdir():
+    for path in ws.root.iterdir():
         if path not in seen_paths and path.is_dir() and GitRepo.is_git_repo(path):
             untracked.append(path)
         seen_paths[path] = True
@@ -267,12 +323,24 @@ def status(ws, args) -> None:
     if len(untracked) > 0:
         log.info("Untracked packages:")
         for path in untracked:
-            relpath = path.relative_to(ws.path)
+            relpath = path.relative_to(ws.root)
             log.info("    {}".format(relpath))
+    if len(missing) > 0:
+        log.info("Missing packages:")
+        for package in missing:
+            log.info("    {}".format(package.name))
+
+    packages = ws.resolve()
+    for name in packages:
+        package = packages[name]
+        s = package.status(ws.lock)
+        if s:
+            print(package.name, s)
 
 
 def update(ws, args) -> None:
-    ws.update()
+    packages = ws.resolve(download=True)
+    ws.checkout(packages)
 
 
 def fetch_scala(ws, args, agg=True) -> None:
@@ -287,7 +355,8 @@ def fetch_scala(ws, args, agg=True) -> None:
     # Collect ivydependency files
     files = []
     for package in ws.lock.packages:
-        ivyfile = scalaplugin.ivy_deps_file(package.get_path())
+        package.load_repo(ws.root)
+        ivyfile = scalaplugin.ivy_deps_file(package.repo.get_path())
         if os.path.isfile(ivyfile):
             files.append(ivyfile)
         else:
@@ -303,9 +372,9 @@ def fetch_scala(ws, args, agg=True) -> None:
     else:
         log.info("Fetching Scala install and dependencies...")
 
-        install_dir = scalaplugin.scala_install_dir(ws.path)
+        install_dir = scalaplugin.scala_install_dir(ws.root)
 
-        ivy_cache_dir = scalaplugin.ivy_cache_dir(ws.path)
+        ivy_cache_dir = scalaplugin.ivy_cache_dir(ws.root)
         os.makedirs(ivy_cache_dir, exist_ok=True)
 
         # Check if we need to install Bloop

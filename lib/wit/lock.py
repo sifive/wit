@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import json
-from .package import Package
 from .gitrepo import GitRepo
 from collections import OrderedDict
 from typing import Optional
 from .witlogger import getLogger
+from .package import Package
 
 log = getLogger()
 
@@ -33,6 +33,19 @@ class LockFile:
     def add_package(self, package):
         self.packages.append(package)
 
+    def replace_package(self, package) -> None:
+        newpkgs = []
+        found = False
+        for p in self.packages:
+            if p.name == package.name:
+                newpkgs.append(package)
+                found = True
+            else:
+                newpkgs.append(p)
+        assert found, \
+            "Trying to update '{}' but it doesn't exist in manifest!".format(package.name)
+        self.packages = newpkgs
+
     def write(self, path):
         log.debug("Writing lock file to {}".format(path))
         contents = OrderedDict((p.name, p.manifest()) for p in self.packages)
@@ -43,15 +56,21 @@ class LockFile:
     def read(path):
         log.debug("Reading lock file from {}".format(path))
         content = json.loads(path.read_text())
-        wsroot = path.parent
-        return LockFile.process(wsroot, content)
+        return LockFile.process(content)
 
     @staticmethod
-    def process(wsroot, content):
-        packages = [Package.from_manifest(wsroot, x) for _, x in content.items()]
-        return LockFile(packages)
+    def process(content):
+        pkgs = [lockfile_item_to_pkg(x) for _, x in content.items()]
+        return LockFile(pkgs)
 
 
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+
+
+def lockfile_item_to_pkg(item):
+    pkg = Package(item['name'], [])
+    pkg.set_source(item['source'])
+    pkg.revision = item['commit']
+    return pkg
