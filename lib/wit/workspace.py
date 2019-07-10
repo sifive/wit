@@ -197,6 +197,10 @@ class WorkSpace:
         dep.load_package(packages, self.repo_paths)
         dep_pkg = dep.package
         dep_pkg.load_repo(self.root, download=True, needed_commit=dep.specified_revision)
+
+        if not dep_pkg.repo.has_commit(dep.specified_revision):
+            error("Cannot find commit '{}' in '{}'".format(dep.specified_revision, dep.name))
+
         dep_pkg.revision = dep.resolved_rev()
 
         assert dep_pkg.repo is not None

@@ -218,6 +218,10 @@ def add_dep(ws, args) -> None:
     packages = {pkg.name: pkg for pkg in ws.lock.packages}
     req_dep.load_package(packages, ws.repo_paths)
     req_dep.package.load_repo(ws.root, download=True, needed_commit=req_dep.specified_revision)
+
+    if not req_dep.package.repo.has_commit(req_dep.specified_revision):
+        error("Cannot find commit '{}' in '{}'".format(req_dep.specified_revision, req_dep.name))
+
     req_dep.package.revision = req_dep.resolved_rev()
 
     found = ws.lock.get_package(req_dep.name)
