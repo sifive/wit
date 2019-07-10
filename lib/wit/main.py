@@ -322,8 +322,8 @@ def fetch_scala(ws, args, agg=True) -> None:
 
 
 def version() -> None:
-    path = Path(__file__).resolve().parent.parent
-    log.trace("Script path is {}".format(path))
+    path = Path(__file__).resolve().parent.parent.parent
+    log.trace("Wit root is {}".format(path))
     version_file = path.joinpath('__version__')
 
     try:
