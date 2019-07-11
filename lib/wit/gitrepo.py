@@ -4,7 +4,6 @@ import subprocess
 from pathlib import Path
 from pprint import pformat
 import json
-import datetime
 from . import manifest
 from .common import WitUserError
 from .witlogger import getLogger
@@ -45,13 +44,6 @@ class GitRepo:
     def short_revision(self):
         return self.revision[:8]
 
-    # FIXME
-    # Ideally we would always set the path on construction, but constructing
-    # GitRepo (see Package.from_arg) during argument parsing, we don't yet know
-    # the path
-    def set_path(self, wsroot):
-        self.path = wsroot / self.name
-
     def get_path(self):
         try:
             return self.path
@@ -61,14 +53,6 @@ class GitRepo:
 
     def set_wsroot(self, wsroot):
         self.wsroot = wsroot
-
-    # find the repo based on path variable
-    def find_source(self, repo_paths):
-        for path in repo_paths:
-            tmp_path = str(Path(path) / self.name)
-            if GitRepo.is_git_repo(tmp_path):
-                self.source = tmp_path
-                return
 
     def download(self):
         if not GitRepo.is_git_repo(self.get_path()):
@@ -84,10 +68,6 @@ class GitRepo:
         path.mkdir()
         proc = self._git_command("clone", "--no-checkout", str(self.source), str(path))
         self._git_check(proc)
-
-    def clone_and_checkout(self):
-        self.clone()
-        self.checkout()
 
     def get_latest_commit(self) -> str:
         return self.get_commit('HEAD')
@@ -151,11 +131,6 @@ class GitRepo:
         proc = self._git_command('log', '-n1', '--format=%ct', hash)
         self._git_check(proc)
         return proc.stdout.rstrip()
-
-    # returns the timestamp of self.revision
-    def get_timestamp(self):
-        unix_time = float(self.commit_to_time(self.revision))
-        return datetime.datetime.fromtimestamp(unix_time)
 
     def is_ancestor(self, ancestor, current=None):
         proc = self._git_command("merge-base", "--is-ancestor", ancestor,

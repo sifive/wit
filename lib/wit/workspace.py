@@ -185,12 +185,6 @@ class WorkSpace:
         new_lock.write(new_lock_path)
         self.lock = new_lock
 
-    def set_repo_path(self, repo_path):
-        if repo_path is not None:
-            self.repo_paths = repo_path.split(" ")
-        else:
-            self.repo_paths = []
-
     def add_dependency(self, tag) -> None:
         """ Resolve a dependency then add it to the wit-workspace.json """
         source, revision = tag

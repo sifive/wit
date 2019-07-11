@@ -33,19 +33,6 @@ class LockFile:
     def add_package(self, package):
         self.packages.append(package)
 
-    def replace_package(self, package) -> None:
-        newpkgs = []
-        found = False
-        for p in self.packages:
-            if p.name == package.name:
-                newpkgs.append(package)
-                found = True
-            else:
-                newpkgs.append(p)
-        assert found, \
-            "Trying to update '{}' but it doesn't exist in manifest!".format(package.name)
-        self.packages = newpkgs
-
     def write(self, path):
         log.debug("Writing lock file to {}".format(path))
         contents = OrderedDict((p.name, p.manifest()) for p in self.packages)
