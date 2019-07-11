@@ -114,6 +114,9 @@ class GitRepo:
         proc = self._git_command('cat-file', '-t', commit)
         return proc.returncode == 0
 
+    def roughly_has_rev(self, rev):
+        return self.has_commit(rev) or self.has_commit("origin/{}".format(rev))
+
     def get_remote(self) -> str:
         # TODO Do we need to worry about other remotes?
         proc = self._git_command('remote', 'get-url', 'origin')
