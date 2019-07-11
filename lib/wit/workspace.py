@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import shutil
 from pathlib import Path
 from pprint import pformat
 from .manifest import Manifest
@@ -78,7 +79,6 @@ class WorkSpace:
         if root.exists():
             log.info("Using existing directory [{}]".format(str(root)))
 
-            (root/'.wit').mkdir()
             if manifest_path.exists():
                 log.error("Manifest file [{}] already exists.".format(manifest_path))
                 sys.exit(1)
@@ -86,10 +86,16 @@ class WorkSpace:
             log.info("Creating new workspace [{}]".format(str(root)))
             try:
                 root.mkdir()
-                (root/'.wit').mkdir()
             except Exception as e:
                 log.error("Unable to create workspace [{}]: {}".format(str(root), e))
                 sys.exit(1)
+
+        dotwit = root/'.wit'
+        if dotwit.exists():
+            # we could keep the old cached repos, but if the user is explicitly re-initing,
+            # they probably want a 100% clean slate
+            shutil.rmtree(str(dotwit))
+        dotwit.mkdir()
 
         manifest = Manifest([])
         manifest.write(manifest_path)
