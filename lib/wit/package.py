@@ -77,15 +77,21 @@ class Package:
 
         self.repo = GitRepo(self.source, self.revision, self.name, repo_root)
 
-        # we carefully use Python's boolean expression evalution short-circuiting
-        # to avoid calling has_cmmit if the repo does not exist
-        if (not self.repo.get_path().exists()
-                or not self.repo.has_commit(needed_commit)
-                or not self.repo.is_hash(needed_commit)):
-            if not download:
-                self.repo = None
+        self.download_if_necessary(download, needed_commit)
+
+    def download_if_necessary(self, can_download, needed_commit):
+        if self.repo.get_path().exists():
+            if needed_commit == "HEAD":
                 return
-            self.repo.download()
+
+            if self.repo.has_commit(needed_commit) and self.repo.is_hash(needed_commit):
+                return
+
+        if not can_download:
+            self.repo = None
+            return
+
+        self.repo.download()
 
     def is_ancestor(self, other_commit):
         return self.repo.is_ancestor(other_commit, self.revision)
