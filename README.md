@@ -14,6 +14,9 @@ Each package may optionally contain a wit-manifest.json file which defines other
 Wit resolves this hierarchy of dependencies and generates a flattened directory structure in which each package
 may exist only once.
 
+## How does Wit deduplicate packages?
+When multiple versions of the same package are requested, Wit chooses the latest requested version, making sure the selected version's commit is a descendant of every other requested versions' commits.
+
 ## Getting started
 
 The best way to learn wit is to check out the [tutorial](share/doc/wit/tutorial.md).
