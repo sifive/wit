@@ -5,7 +5,7 @@ from pathlib import Path
 from pprint import pformat
 import json
 from . import manifest
-from .common import WitUserError
+from .common import WitUserError, error
 from .witlogger import getLogger
 
 log = getLogger()
@@ -55,6 +55,8 @@ class GitRepo:
         self.wsroot = wsroot
 
     def download(self):
+        if self.source is None:
+            error("Cannot find remote for '{}'".format(self.name))
         if not GitRepo.is_git_repo(self.get_path()):
             self.clone()
         self.fetch()
@@ -67,7 +69,14 @@ class GitRepo:
         path = self.get_path()
         path.mkdir()
         proc = self._git_command("clone", "--no-checkout", str(self.source), str(path))
-        self._git_check(proc)
+        try:
+            self._git_check(proc)
+        except Exception:
+            if proc.stderr.startswith('fatal: repository') and \
+               proc.stderr.endswith('does not exist\n'):
+                error("Remote '{}' is not a git repo.".format(self.source))
+            else:
+                raise
 
     def get_latest_commit(self) -> str:
         return self.get_commit('HEAD')
