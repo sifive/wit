@@ -141,27 +141,30 @@ class WorkSpace:
         raise FileNotFoundError("Couldn't find workspace file")
 
     def resolve(self, download=False):
-        source_map, packages, queue, errors = \
-            self.resolve_deps(self.root, self.repo_paths, download, {}, {}, [], [])
-
-        while queue:
-            commit_time, dep = queue.pop()
-            log.debug("{} {}".format(commit_time, dep))
-
-            name = dep.package.name
-            if name in packages and packages[name].revision is not None:
-                package = packages[name]
-                if not package.repo.is_ancestor(dep.specified_revision, package.revision):
-                    errors.append(NotAncestorError(package.dependents[0], dep))
-                continue
-
-            packages[dep.name] = dep.package
-            packages[dep.name].revision = dep.resolved_rev()
-            packages[dep.name].set_source(dep.source)
-
+        try:
             source_map, packages, queue, errors = \
-                dep.resolve_deps(self.root, self.repo_paths, download,
-                                 source_map, packages, queue, errors)
+                self.resolve_deps(self.root, self.repo_paths, download, {}, {}, [], [])
+
+            while queue:
+                commit_time, dep = queue.pop()
+                log.debug("{} {}".format(commit_time, dep))
+
+                name = dep.package.name
+                if name in packages and packages[name].revision is not None:
+                    package = packages[name]
+                    if not package.repo.is_ancestor(dep.specified_revision, package.revision):
+                        errors.append(NotAncestorError(package.dependents[0], dep))
+                    continue
+
+                packages[dep.name] = dep.package
+                packages[dep.name].revision = dep.resolved_rev()
+                packages[dep.name].set_source(dep.source)
+
+                source_map, packages, queue, errors = \
+                    dep.resolve_deps(self.root, self.repo_paths, download,
+                                     source_map, packages, queue, errors)
+        except KeyboardInterrupt:  # everything here should be safely interruptible
+            sys.exit(1)
         return packages, errors
 
     @passbyval

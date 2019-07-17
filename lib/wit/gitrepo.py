@@ -3,6 +3,7 @@
 import subprocess
 from pathlib import Path
 from pprint import pformat
+import shutil
 import json
 from . import manifest
 from .common import WitUserError
@@ -55,6 +56,8 @@ class GitRepo:
     # name is needed for generating error messages
     def download(self, source, name):
         if not GitRepo.is_git_repo(self.path):
+            if Path(self.path).exists() and Path(self.path).parts[-2] == '.wit':
+                shutil.rmtree(self.path)
             self.clone(source, name)
         self.fetch(source, name)
 
