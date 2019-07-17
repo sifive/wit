@@ -32,7 +32,7 @@ prereq "off"
 wit init myws -a $PWD/main_repo
 
 # Should fail because of conflicting paths for foo
-check "wit init with conflicting paths fails" [ $? -ne 0 ]
+check "wit init with conflicting paths passes" [ $? -eq 0 ]
 
 
 wit --repo-path="$PWD $PWD/newdir $PWD/newdir2" init myws2 -a $PWD/main_repo

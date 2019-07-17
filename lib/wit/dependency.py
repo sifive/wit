@@ -3,7 +3,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List  # noqa: F401
-from .common import passbyval
+from .common import passbyval, error
 from .package import Package
 from .witlogger import getLogger
 
@@ -31,11 +31,13 @@ class Dependency:
 
             if subdep.name in source_map:
                 if subdep.package.resolve_source(subdep.source) != source_map[subdep.name]:
-                    log.error("Dependency [{}] has multiple conflicting paths:\n"
-                              "  {}\n"
-                              "  {}\n".format(subdep.name, subdep.source,
-                                              source_map[subdep.name]))
-                    sys.exit(1)
+                    if not packages[subdep.name].repo.has_commit(subdep.specified_revision):
+                        error(("Two dependencies have the same name "
+                               "but an unrelated git history:\n"
+                               "  {}\n"
+                               "  {}\n"
+                               "".format(subdep.package.resolve_source(subdep.source),
+                                         source_map[subdep.name])))
 
             source_map[subdep.name] = subdep.package.resolve_source(subdep.source)
 
