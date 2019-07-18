@@ -363,7 +363,7 @@ def fetch_scala(ws, args, agg=True) -> None:
             log.debug("No ivydependencies.json file found in package {}".format(package.name))
 
     if len(files) == 0:
-        msg = "No ivydependency.json files found, skipping fetching Scala..."
+        msg = "No ivydependencies.json files found, skipping fetching Scala..."
         if agg:
             log.debug(msg)
         else:
