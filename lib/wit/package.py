@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 import os
 import shutil
-from .gitrepo import GitRepo
+from .gitrepo import GitRepo, BadSource
 from .witlogger import getLogger
 
 log = getLogger()
@@ -85,7 +85,11 @@ class Package:
             if not download:
                 self.repo = None
                 return
-            self.repo.download()
+            try:
+                self.repo.download()
+            except BadSource:
+                self.repo = None
+                raise
 
     def is_ancestor(self, other_commit):
         return self.repo.is_ancestor(other_commit, self.revision)

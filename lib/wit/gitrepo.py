@@ -19,6 +19,15 @@ class GitCommitNotFound(WitUserError):
     pass
 
 
+class BadSource(WitUserError):
+    def __init__(self, name, source):
+        self.name = name
+        self.source = source
+
+    def __str__(self):
+        return "Bad remote for '{}':\n  {}".format(self.name, self.source)
+
+
 # TODO Could speed up validation
 #   - use git ls-remote to validate remote exists
 #   - use git ls-remote to validate revision for tags and branches
@@ -67,7 +76,14 @@ class GitRepo:
         path = self.get_path()
         path.mkdir()
         proc = self._git_command("clone", "--no-checkout", str(self.source), str(path))
-        self._git_check(proc)
+        try:
+            self._git_check(proc)
+        except GitError:
+            if proc.stderr.startswith("fatal: repository") and \
+               proc.stderr.endswith("does not exist\n"):
+                raise BadSource(self.name, self.source)
+            else:
+                raise
 
     def get_latest_commit(self) -> str:
         return self.get_commit('HEAD')

@@ -6,6 +6,7 @@ from typing import List  # noqa: F401
 from .common import passbyval, WitUserError
 from .package import Package
 from .witlogger import getLogger
+from .gitrepo import BadSource
 
 log = getLogger()
 
@@ -41,7 +42,11 @@ class Dependency:
         log.debug("Dependencies for [{}]: [{}]".format(self.name, subdeps))
         for subdep in subdeps:
             subdep.load_package(packages, repo_paths)
-            subdep.package.load_repo(wsroot, download, subdep.specified_revision)
+            try:
+                subdep.package.load_repo(wsroot, download, subdep.specified_revision)
+            except BadSource as e:
+                errors.append(e)
+                continue
 
             if subdep.name in source_map:
                 if subdep.package.resolve_source(subdep.source) != source_map[subdep.name]:

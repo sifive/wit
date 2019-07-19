@@ -209,7 +209,7 @@ def add_dep(ws, args) -> None:
 
     if not ws.lock.contains_package(cwd_dirname):
         raise NotAPackageError(
-            "'{}' is not a package in workspace at '{}'".format(cwd_dirname, ws.root))
+            "'{}' is not a package in workspace at '{}'".format(cwd_dirname, ws.path))
 
     req_dep = dependency_from_tag(args.pkg)
 
