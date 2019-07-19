@@ -138,8 +138,9 @@ class WorkSpace:
         raise FileNotFoundError("Couldn't find workspace file")
 
     def resolve(self, download=False):
-        source_map, packages, queue = self.resolve_deps(self.root, self.repo_paths, download,
-                                                        {}, {}, [])
+        source_map, packages, queue, errors = \
+            self.resolve_deps(self.root, self.repo_paths, download, {}, {}, [], [])
+
         while queue:
             commit_time, dep = queue.pop()
             log.debug("{} {}".format(commit_time, dep))
@@ -148,18 +149,19 @@ class WorkSpace:
             if name in packages and packages[name].revision is not None:
                 package = packages[name]
                 if not package.repo.is_ancestor(dep.specified_revision, package.revision):
-                    raise NotAncestorError(package.dependents[0], dep)
+                    errors.append(NotAncestorError(package.dependents[0], dep))
                 continue
 
             packages[dep.name] = dep.package
             packages[dep.name].revision = dep.resolved_rev()
 
-            source_map, packages, queue = dep.resolve_deps(self.root, self.repo_paths, download,
-                                                           source_map, packages, queue)
-        return packages
+            source_map, packages, queue, errors = \
+                dep.resolve_deps(self.root, self.repo_paths, download,
+                                 source_map, packages, queue, errors)
+        return packages, errors
 
     @passbyval
-    def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue):
+    def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue, errors):
         for dep in self.manifest.dependencies:
             dep.load_package(packages, repo_paths)
             dep.package.load_repo(wsroot, download, dep.specified_revision)
@@ -171,7 +173,7 @@ class WorkSpace:
 
         queue.sort(key=lambda tup: tup[0])
 
-        return source_map, packages, queue
+        return source_map, packages, queue, []
 
     def checkout(self, packages):
         lock_packages = []

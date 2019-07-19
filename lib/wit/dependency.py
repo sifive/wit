@@ -3,11 +3,25 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List  # noqa: F401
-from .common import passbyval
+from .common import passbyval, WitUserError
 from .package import Package
 from .witlogger import getLogger
 
 log = getLogger()
+
+
+class DependeeNewerThanDepender(WitUserError):
+    def __init__(self, depender, dependee):
+        self.depender = depender
+        self.dependee = dependee
+
+    def __str__(self, packages):
+        return ("Depender {} is older than its dependee {}\n"
+                "This should not happen, but it may be caused by a ficticious "
+                "clock time being stored in a commit.\n This should be fixable "
+                "by creating a new commit in the dependee then depending on "
+                "that commit."
+                "".format(self.depender.tag(), self.dependee.tag()))
 
 
 class Dependency:
@@ -22,7 +36,7 @@ class Dependency:
         self.dependents = []  # type: List[Package]
 
     @passbyval
-    def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue):
+    def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue, errors):
         subdeps = self.package.get_dependencies()
         log.debug("Dependencies for [{}]: [{}]".format(self.name, subdeps))
         for subdep in subdeps:
@@ -43,16 +57,15 @@ class Dependency:
                 continue
 
             if subdep.get_commit_time() > self.get_commit_time():
-                log.error("Repo [{}] has a dependent that is newer than the source. "
-                          "This should not happen.\n".format(subdep.name))
-                sys.exit(1)
+                errors.append(DependeeNewerThanDepender(self, subdep))
+                continue
 
             commit_time = subdep.get_commit_time()
             queue.append((commit_time, subdep))
 
         queue.sort(key=lambda tup: tup[0])
 
-        return source_map, packages, queue
+        return source_map, packages, queue, errors
 
     def __key(self):
         return (self.source, self.specified_revision, self.name)

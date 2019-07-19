@@ -21,7 +21,7 @@ from .inspect import inspect_tree
 from . import scalaplugin
 from pathlib import Path
 from typing import cast, List, Tuple  # noqa: F401
-from .common import WitUserError, error
+from .common import error, WitUserError, print_errors
 from .gitrepo import GitRepo
 from .manifest import Manifest
 import re
@@ -330,17 +330,23 @@ def status(ws, args) -> None:
         for package in missing:
             log.info("    {}".format(package.name))
 
-    packages = ws.resolve()
+    packages, errors = ws.resolve()
     for name in packages:
         package = packages[name]
         s = package.status(ws.lock)
         if s:
             print(package.name, s)
 
+    print_errors(errors)
+
 
 def update(ws, args) -> None:
-    packages = ws.resolve(download=True)
-    ws.checkout(packages)
+    packages, errors = ws.resolve(download=True)
+    if len(errors) == 0:
+        ws.checkout(packages)
+    else:
+        print_errors(errors)
+        sys.exit(1)
 
 
 def fetch_scala(ws, args, agg=True) -> None:

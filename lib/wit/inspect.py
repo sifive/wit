@@ -1,12 +1,12 @@
 import sys
-from .common import passbyval
+from .common import passbyval, print_errors
 from .witlogger import getLogger
 
 log = getLogger()
 
 
 def inspect_tree(ws, args):
-    packages = ws.resolve()
+    packages, errors = ws.resolve()
 
     if args.tree:
         tree = {}
@@ -19,6 +19,8 @@ def inspect_tree(ws, args):
 
     if args.dot:
         _print_dot_tree(ws, packages)
+
+    print_errors(errors)
 
 
 BOXED_DEPS = False
