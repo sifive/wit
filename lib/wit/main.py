@@ -22,7 +22,7 @@ from . import scalaplugin
 from pathlib import Path
 from typing import cast, List, Tuple  # noqa: F401
 from .common import error, WitUserError, print_errors
-from .gitrepo import GitRepo, BadSource
+from .gitrepo import GitRepo
 from .manifest import Manifest
 import re
 
@@ -213,7 +213,7 @@ def add_dep(ws, args) -> None:
     if not ws.lock.contains_package(cwd_dirname):
         raise NotAPackageError(
             "'{}' is not a package in workspace at '{}'".format(cwd_dirname, ws.path))
-    
+
     lock_pkg = ws.lock.get_package(req_dep.name)
 
     if lock_pkg and req_dep.source == lock_pkg.name:
@@ -256,7 +256,7 @@ def update_dep(ws, args) -> None:
     if not manifest.contains_dependency(req_dep.name):
         log.error("'{}' does not depend on '{}'".format(cwd_dirname, req_dep.name))
         sys.exit(1)
-    
+
     manifest_dep = manifest.get_dependency(req_dep.name)
 
     if req_dep.source == manifest_dep.name:

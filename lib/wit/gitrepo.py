@@ -110,7 +110,7 @@ class GitRepo:
         proc = self._git_command('remote', 'get-url', 'origin')
         self._git_check(proc)
         return proc.stdout.rstrip()
-    
+
     def set_origin(self, source):
         proc = self._git_command('remote', 'set-url', 'origin', source)
         self._git_check(proc)
