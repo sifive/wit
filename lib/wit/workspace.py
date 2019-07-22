@@ -210,7 +210,7 @@ class WorkSpace:
         log.debug('my manifest_path = {}'.format(self.manifest_path()))
         self.manifest.write(self.manifest_path())
 
-        log.info("The workspace now depends on '{}'".format(dep.tag()))
+        log.info("The workspace now depends on '{}'".format(dep.package.tag()))
 
     def update_dependency(self, tag) -> None:
         # init requested Dependency
@@ -253,7 +253,7 @@ class WorkSpace:
         self.manifest.replace_dependency(req_dep)
         self.manifest.write(self.manifest_path())
 
-        log.info("The workspace now depends on '{}'".format(req_dep.tag()))
+        log.info("The workspace now depends on '{}'".format(req_dep.package.tag()))
 
         # if we differ from the lockfile, tell the user to update
         if not self.lock.get_package(req_dep.name).revision == req_resolved_rev:
