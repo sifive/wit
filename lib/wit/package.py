@@ -90,8 +90,6 @@ class Package:
                 self.repo = None
                 return
             try:
-                log.info('DOWNLOADING!!')
-                log.info(revision)
                 self.repo.download(source)
             except BadSource:
                 self.repo = None
