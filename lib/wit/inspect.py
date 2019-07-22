@@ -1,12 +1,12 @@
 import sys
-from .common import passbyval
+from .common import passbyval, print_errors
 from .witlogger import getLogger
 
 log = getLogger()
 
 
 def inspect_tree(ws, args):
-    packages = ws.resolve()
+    packages, errors = ws.resolve()
 
     if args.tree:
         tree = {}
@@ -19,6 +19,8 @@ def inspect_tree(ws, args):
 
     if args.dot:
         _print_dot_tree(ws, packages)
+
+    print_errors(errors)
 
 
 BOXED_DEPS = False
@@ -66,8 +68,7 @@ def _print_dot_tree(ws, packages_dict):
     def print_dep(pkg, dep):
         pkg_id = pkg.get_id()
         dep_id = dep.get_id()
-        dep.load_package(packages_dict, ws.repo_paths)
-        dep.package.load_repo(ws.root)
+        dep.load(packages_dict, ws.repo_paths, ws.root, False)
         if dep.package.repo is None:
             log.error("Cannot generate graph with missing repo '{}'".format(dep.name))
             sys.exit(1)

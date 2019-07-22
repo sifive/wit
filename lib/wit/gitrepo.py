@@ -19,6 +19,15 @@ class GitCommitNotFound(WitUserError):
     pass
 
 
+class BadSource(WitUserError):
+    def __init__(self, name, source):
+        self.name = name
+        self.source = source
+
+    def __str__(self):
+        return "Bad remote for '{}':\n  {}".format(self.name, self.source)
+
+
 # TODO Could speed up validation
 #   - use git ls-remote to validate remote exists
 #   - use git ls-remote to validate revision for tags and branches
@@ -32,44 +41,46 @@ class GitRepo:
     """
     PKG_DEPENDENCY_FILE = "wit-manifest.json"
 
-    def __init__(self, source, revision, name=None, wsroot=None):
-        self.wsroot = wsroot
-        self.source = source
-        self.revision = revision
-        if name is None:
-            self.name = GitRepo.path_to_name(source)
-        else:
-            self.name = name
+    def __init__(self, name, wsroot: Path):
+        self.name = name
+        self.path = wsroot / name
 
-    def short_revision(self):
-        return self.revision[:8]
+    def download(self, source):
+        if not GitRepo.is_git_repo(self.path):
+            self.clone(source)
+        self.fetch(source)
 
-    def get_path(self):
-        try:
-            return self.path
-
-        except AttributeError:
-            return self.wsroot / self.name
-
-    def set_wsroot(self, wsroot):
-        self.wsroot = wsroot
-
-    def download(self):
-        if not GitRepo.is_git_repo(self.get_path()):
-            self.clone()
-        self.fetch()
-
-    def clone(self):
-        assert not GitRepo.is_git_repo(self.get_path()), \
+    def clone(self, source):
+        assert not GitRepo.is_git_repo(self.path), \
             "Trying to clone and checkout into existing git repo!"
         log.info('Cloning {}...'.format(self.name))
 
-        path = self.get_path()
-        path.mkdir()
-        proc = self._git_command("clone", "--no-checkout", str(self.source), str(path))
-        self._git_check(proc)
+        self.path.mkdir()
+        proc = self._git_command("clone", "--no-checkout", source, str(self.path))
+        try:
+            self._git_check(proc)
+        except GitError:
+            if proc.stderr.startswith("fatal: repository") and \
+               proc.stderr.endswith("does not exist\n"):
+                raise BadSource(self.name, source)
+            else:
+                raise
 
-    def get_latest_commit(self) -> str:
+    def fetch(self, source):
+        # in case source is a remote and we want a commit
+        proc = self._git_command('fetch', source)
+        # in case source is a file path and we want, for example, origin/master
+        self._git_command('fetch', '--all')
+        try:
+            self._git_check(proc)
+        except GitError:
+            if 'does not appear to be a git repository' in proc.stderr:
+                raise BadSource
+            else:
+                raise
+        return proc.returncode == 0
+
+    def get_head_commit(self) -> str:
         return self.get_commit('HEAD')
 
     def get_commit(self, commit) -> str:
@@ -99,16 +110,15 @@ class GitRepo:
         proc = self._git_command('remote', 'get-url', 'origin')
         self._git_check(proc)
         return proc.stdout.rstrip()
+    
+    def set_origin(self, source):
+        proc = self._git_command('remote', 'set-url', 'origin', source)
+        self._git_check(proc)
 
     def clean(self):
         proc = self._git_command('status', '--porcelain')
         self._git_check(proc)
         return proc.stdout == ""
-
-    def fetch(self):
-        proc = self._git_command('fetch', '--all')
-        self._git_check(proc)
-        return proc.returncode == 0
 
     def modified(self):
         proc = self._git_command('status', '--porcelain')
@@ -134,14 +144,8 @@ class GitRepo:
 
     def is_ancestor(self, ancestor, current=None):
         proc = self._git_command("merge-base", "--is-ancestor", ancestor,
-                                 current or self.get_latest_commit())
+                                 current or self.get_head_commit())
         return proc.returncode == 0
-
-    # FIXME should we pass wsroot or should it be a member of the GitRepo?
-    # Should this be a separate mutation or part of normal construction?
-    def get_dependencies(self, wsroot):
-        self.set_wsroot(wsroot)
-        return self.read_manifest_from_commit(self.revision).packages
 
     def read_manifest(self) -> manifest.Manifest:
         mpath = self.manifest_path()
@@ -155,54 +159,31 @@ class GitRepo:
         proc = self._git_command("show", "{}:{}".format(revision, GitRepo.PKG_DEPENDENCY_FILE))
         if proc.returncode:
             log.debug("No dependency file found in repo [{}:{}]".format(revision,
-                      self.get_path()))
+                      self.path))
         json_content = [] if proc.returncode else json.loads(proc.stdout)
         return manifest.Manifest.process_manifest(json_content)
 
-    def add_dependency(self, package):
-        log.info("Adding dependency to '{}' on '{}' at '{}'".format(
-                  self.name, package.name, package.revision))
-        manifest = self.read_manifest()
-        manifest.add_package(package)
-        self.write_manifest(manifest)
-
-    # TODO should we check manifest against the committed version?
-    def update_dependency(self, dep):
-        manifest = self.read_manifest()
-        old = manifest.get_package(dep.name)
-        if old is None:
-            msg = "Package '{}' does not depend on '{}'!".format(self.name, dep.name)
-            raise WitUserError(msg)
-        if old.revision == dep.revision:
-            log.warn("Input update revision for '{}' in '{}' is unchanged!".format(
-                     dep.name, self.name))
-        else:
-            log.info("Updating '{}' dependency on '{}' from '{}' to '{}'".format(
-                     self.name, dep.name, old.revision, dep.revision))
-            manifest.update_package(dep)
-            manifest.write(self.manifest_path())
-
-    def checkout(self):
-        proc = self._git_command("checkout", self.revision)
+    def checkout(self, revision):
+        proc = self._git_command("checkout", revision)
         self._git_check(proc)
         # If our revision was a branch or tag, get the actual commit
-        self.revision = self.get_latest_commit()
+        self.revision = self.get_head_commit()
 
     def manifest_path(self):
-        return self.get_path() / self.PKG_DEPENDENCY_FILE
+        return self.path / self.PKG_DEPENDENCY_FILE
 
-    def manifest(self):
+    def manifest(self, source, revision):
         return {
             'name': self.name,
-            'source': self.source,
-            'commit': self.revision,
+            'source': source,
+            'commit': revision,
         }
 
     def _git_command(self, *args):
-        log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), self.get_path()))
+        log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), self.path))
         proc = subprocess.run(['git', *args], stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
-                              cwd=str(self.get_path()), universal_newlines=True)
+                              cwd=str(self.path), universal_newlines=True)
         return proc
 
     def _git_check(self, proc):

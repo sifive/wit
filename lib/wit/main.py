@@ -21,8 +21,8 @@ from .inspect import inspect_tree
 from . import scalaplugin
 from pathlib import Path
 from typing import cast, List, Tuple  # noqa: F401
-from .common import WitUserError, error
-from .gitrepo import GitRepo
+from .common import error, WitUserError, print_errors
+from .gitrepo import GitRepo, BadSource
 from .manifest import Manifest
 import re
 
@@ -204,27 +204,28 @@ def dependency_from_tag(tag):
 
 def add_dep(ws, args) -> None:
     """ Resolve a Dependency then add it to the cwd's wit-manifest.json """
+    packages = {pkg.name: pkg for pkg in ws.lock.packages}
+    req_dep = dependency_from_tag(args.pkg)
+
     cwd = Path(os.getcwd()).resolve()
     cwd_dirname = cwd.relative_to(ws.root).parts[0]
 
     if not ws.lock.contains_package(cwd_dirname):
         raise NotAPackageError(
             "'{}' is not a package in workspace at '{}'".format(cwd_dirname, ws.path))
+    
+    lock_pkg = ws.lock.get_package(req_dep.name)
 
-    req_dep = dependency_from_tag(args.pkg)
+    if lock_pkg and req_dep.source == lock_pkg.name:
+        req_dep.source = lock_pkg.source
 
     # in order to resolve the revision, we need to bind
     # the req_dep to disk, cloning into .wit if neccesary
-    packages = {pkg.name: pkg for pkg in ws.lock.packages}
-    req_dep.load_package(packages, ws.repo_paths)
-    req_dep.package.load_repo(ws.root, download=True, needed_commit=req_dep.specified_revision)
+    req_dep.load(packages, ws.repo_paths, ws.root, True)
     req_dep.package.revision = req_dep.resolved_rev()
 
-    found = ws.lock.get_package(req_dep.name)
-    if found is None:
+    if lock_pkg is None:
         req_dep.source = req_dep.package.repo.get_remote()
-    else:
-        req_dep.source = found.source
 
     manifest_path = cwd/'wit-manifest.json'
     if manifest_path.exists():
@@ -244,18 +245,8 @@ def add_dep(ws, args) -> None:
 
 
 def update_dep(ws, args) -> None:
-    req_dep = dependency_from_tag(args.pkg)
-
     packages = {pkg.name: pkg for pkg in ws.lock.packages}
-    req_dep.load_package(packages, ws.repo_paths)
-    req_pkg = req_dep.package
-    req_pkg.load_repo(ws.root, download=True, needed_commit=req_dep.specified_revision)
-    req_pkg.revision = req_dep.resolved_rev()
-
-    # check if the requested repo is missing from disk
-    if req_pkg.repo is None:
-        msg = "'{}' not found in workspace. Have you run 'wit update'?".format(req_dep.name)
-        raise PackageNotInWorkspaceError(msg)
+    req_dep = dependency_from_tag(args.pkg)
 
     cwd = Path(os.getcwd()).resolve()
     cwd_dirname = cwd.relative_to(ws.root).parts[0]
@@ -263,8 +254,22 @@ def update_dep(ws, args) -> None:
 
     # make sure the package is already in the cwd's manifest
     if not manifest.contains_dependency(req_dep.name):
-        log.error("'{}' does not depend on '{}'".format(cwd_dirname, req_pkg.tag()))
+        log.error("'{}' does not depend on '{}'".format(cwd_dirname, req_dep.name))
         sys.exit(1)
+    
+    manifest_dep = manifest.get_dependency(req_dep.name)
+
+    if req_dep.source == manifest_dep.name:
+        req_dep.source = manifest_dep.source
+
+    req_dep.load(packages, ws.repo_paths, ws.root, True)
+    req_pkg = req_dep.package
+    req_pkg.revision = req_dep.resolved_rev()
+
+    # check if the requested repo is missing from disk
+    if req_pkg.repo is None:
+        msg = "'{}' not found in workspace. Have you run 'wit update'?".format(req_dep.name)
+        raise PackageNotInWorkspaceError(msg)
 
     log.info("Updating to {}".format(req_dep.resolved_rev()))
     manifest.replace_dependency(req_dep)
@@ -285,11 +290,11 @@ def status(ws, args) -> None:
     missing = []
     seen_paths = {}
     for package in ws.lock.packages:
-        package.load_repo(ws.root)
+        package.load(ws.root, False)
         if package.repo is None:
             missing.append(package)
             continue
-        seen_paths[package.repo.get_path()] = True
+        seen_paths[package.repo.path] = True
 
         lock_commit = package.revision
         latest_commit = package.repo.get_latest_commit()
@@ -330,17 +335,23 @@ def status(ws, args) -> None:
         for package in missing:
             log.info("    {}".format(package.name))
 
-    packages = ws.resolve()
+    packages, errors = ws.resolve()
     for name in packages:
         package = packages[name]
         s = package.status(ws.lock)
         if s:
             print(package.name, s)
 
+    print_errors(errors)
+
 
 def update(ws, args) -> None:
-    packages = ws.resolve(download=True)
-    ws.checkout(packages)
+    packages, errors = ws.resolve(download=True)
+    if len(errors) == 0:
+        ws.checkout(packages)
+    else:
+        print_errors(errors)
+        sys.exit(1)
 
 
 def fetch_scala(ws, args, agg=True) -> None:
@@ -355,15 +366,15 @@ def fetch_scala(ws, args, agg=True) -> None:
     # Collect ivydependency files
     files = []
     for package in ws.lock.packages:
-        package.load_repo(ws.root)
-        ivyfile = scalaplugin.ivy_deps_file(package.repo.get_path())
+        package.load(ws.root, False)
+        ivyfile = scalaplugin.ivy_deps_file(package.repo.path)
         if os.path.isfile(ivyfile):
             files.append(ivyfile)
         else:
             log.debug("No ivydependencies.json file found in package {}".format(package.name))
 
     if len(files) == 0:
-        msg = "No ivydependency.json files found, skipping fetching Scala..."
+        msg = "No ivydependencies.json files found, skipping fetching Scala..."
         if agg:
             log.debug(msg)
         else:

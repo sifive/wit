@@ -138,8 +138,9 @@ class WorkSpace:
         raise FileNotFoundError("Couldn't find workspace file")
 
     def resolve(self, download=False):
-        source_map, packages, queue = self.resolve_deps(self.root, self.repo_paths, download,
-                                                        {}, {}, [])
+        source_map, packages, queue, errors = \
+            self.resolve_deps(self.root, self.repo_paths, download, {}, {}, [], [])
+
         while queue:
             commit_time, dep = queue.pop()
             log.debug("{} {}".format(commit_time, dep))
@@ -148,21 +149,22 @@ class WorkSpace:
             if name in packages and packages[name].revision is not None:
                 package = packages[name]
                 if not package.repo.is_ancestor(dep.specified_revision, package.revision):
-                    raise NotAncestorError(package.dependents[0], dep)
+                    errors.append(NotAncestorError(package.dependents[0], dep))
                 continue
 
             packages[dep.name] = dep.package
             packages[dep.name].revision = dep.resolved_rev()
+            packages[dep.name].set_source(dep.source)
 
-            source_map, packages, queue = dep.resolve_deps(self.root, self.repo_paths, download,
-                                                           source_map, packages, queue)
-        return packages
+            source_map, packages, queue, errors = \
+                dep.resolve_deps(self.root, self.repo_paths, download,
+                                 source_map, packages, queue, errors)
+        return packages, errors
 
     @passbyval
-    def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue):
+    def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue, errors):
         for dep in self.manifest.dependencies:
-            dep.load_package(packages, repo_paths)
-            dep.package.load_repo(wsroot, download, dep.specified_revision)
+            dep.load(packages, repo_paths, wsroot, download)
 
             source_map[dep.name] = dep.source
 
@@ -171,7 +173,7 @@ class WorkSpace:
 
         queue.sort(key=lambda tup: tup[0])
 
-        return source_map, packages, queue
+        return source_map, packages, queue, []
 
     def checkout(self, packages):
         lock_packages = []
@@ -194,12 +196,10 @@ class WorkSpace:
             error("Manifest already contains package {}".format(dep.name))
 
         packages = {pkg.name: pkg for pkg in self.lock.packages}
-        dep.load_package(packages, self.repo_paths)
-        dep_pkg = dep.package
-        dep_pkg.load_repo(self.root, download=True, needed_commit=dep.specified_revision)
-        dep_pkg.revision = dep.resolved_rev()
+        dep.load(packages, self.repo_paths, self.root, True)
+        dep.package.revision = dep.resolved_rev()
 
-        assert dep_pkg.repo is not None
+        assert dep.package.repo is not None
 
         if self.manifest.contains_dependency(dep.name):
             log.error("Workspace already contains package '{}'".format(dep.name))
@@ -209,6 +209,8 @@ class WorkSpace:
 
         log.debug('my manifest_path = {}'.format(self.manifest_path()))
         self.manifest.write(self.manifest_path())
+
+        log.info("The workspace now depends on '{}'".format(dep.tag()))
 
     def update_dependency(self, tag) -> None:
         # init requested Dependency
@@ -225,15 +227,15 @@ class WorkSpace:
 
         # load their Package
         packages = {pkg.name: pkg for pkg in self.lock.packages}
-        req_dep.load_package(packages, self.repo_paths)
-        manifest_dep.load_package({req_dep.name: req_dep.package}, self.repo_paths)
-        pkg = req_dep.package
 
-        # load the Repo on disk
-        pkg.load_repo(self.root, download=True)
+        if req_dep.source == manifest_dep.name:
+            req_dep.source = manifest_dep.source
+
+        req_dep.load(packages, self.repo_paths, self.root, True)
+        manifest_dep.load(packages, self.repo_paths, self.root, True)
 
         # check if the dependency is missing from disk
-        if pkg.repo is None:
+        if req_dep.package.repo is None:
             msg = "Cannot update package '{}'".format(req_dep.name)
             if self.lock.contains_package(req_dep.name):
                 msg += (":\nAlthough '{}' exists (according to the wit-lock.json), "
@@ -250,6 +252,8 @@ class WorkSpace:
 
         self.manifest.replace_dependency(req_dep)
         self.manifest.write(self.manifest_path())
+
+        log.info("The workspace now depends on '{}'".format(req_dep.tag()))
 
         # if we differ from the lockfile, tell the user to update
         if not self.lock.get_package(req_dep.name).revision == req_resolved_rev:

@@ -64,6 +64,41 @@ Wit's purpose is to assist development by deterministically generating a workspa
 7. Determine `P`'s `wit` dependencies from `P/wit-manifest.json`. Append these to the ordered list from step 2 based on commit time.
 8. Go to step 3.
 
+## Post-refactor Package Resolution etc
+Wit has three main responsibilities:
+1. Generate a reproducible dependency tree from a `wit-workspace.json`
+2. Deduplicate packages in that dependency tree into a flat list of packages
+3. Make the workspace filesystem match the aforementioned flat list of packages as close as possible without overwriting the users' uncommitted changes
+
+As of [`5670099b`][5670099b], Wit is increasingly built with assumption that we might encounter problems while fulfilling Responsibilities 1 & 2.
+
+[5670099b]: https://github.com/sifive/wit/commit/5670099b45988e16c765ed696045231684de3b5d
+
+## Dependency tree exploring & deduplication
+Responsibilities 1 & 2 are fulfilled by the same algorithm in Wit to reduce unnecessary cloning of Git repos.
+
+In Wit, the process of exploring & deduplicating packages is called "package resolution."
+
+The following objects are used to store data:
+1. `Dependency`: what's _requested_ by the `wit-workspace.json` and `wit-manifest.json` files
+2. `Package`: the outcome of deduplicating a list of `Dependency` objects with the same
+3. `GitRepo`: the repo on disk used to analyze `Package` and `Dependency` objects
+
+During package resolution, Wit does the following:
+1. Explore `wit-workspace.json` and `wit-manifest.json` files, generating `Dependency` objects
+2. Bind each `Dependency` object to `Package` object of the same name. All `Dependency` objects of the same name should point to the same Package object.
+3. Bind that `Package` object to `GitRepo` on disk, used to find the commit times and git ancestry of each Dependency
+4. Use the `GitRepo` to find the commit time of each Dependency
+5. Add the `Dependency` objects to the queue in tuples of (Dependency, commit time).
+6. Pop the `Dependency` with the newest commit time from the queue
+7. The newest `Dependency` out of all of the `Dependency` objects of the same name is the one we want to cloned to disk. Therefore, the `Dependency` we just popped is the "winner" of the deduplication algorithm
+8. So far, the `Package` object was used to group `Dependency` objects of the same name together. Now that we know which `Dependency` is the winner, we can populate the `source` and `revision` fields of the `Package`.
+9. Does the popped `Package` object have a `wit-manifest.json`?
+   1. Yes: Skip to Step 1, using its `wit-manifest.json`
+   2. No: Are there more items in the queue?
+      1. Yes: Skip to step 6
+      2. No: Package resolution complete!
+
 ## Types of Commands
 
 ### Modify json
