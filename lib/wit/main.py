@@ -297,7 +297,7 @@ def status(ws, args) -> None:
         seen_paths[package.repo.path] = True
 
         lock_commit = package.revision
-        latest_commit = package.repo.get_latest_commit()
+        latest_commit = package.repo.get_head_commit()
 
         new_commits = lock_commit != latest_commit
 
