@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import collections
 from pathlib import Path
 from .witlogger import getLogger
 
@@ -15,8 +16,9 @@ class Manifest:
     Common class for the description of package dependencies and a workspace
     """
 
-    def __init__(self, dependencies):
+    def __init__(self, dependencies, replaces):
         self.dependencies = dependencies
+        self.replaces = replaces
 
     def get_dependency(self, name: str):
         for d in self.dependencies:
@@ -58,16 +60,24 @@ class Manifest:
     @staticmethod
     def read_manifest(path, safe=False):
         if safe and not Path(path).exists():
-            return Manifest([])
+            return Manifest([], [])
         content = json.loads(path.read_text())
         return Manifest.process_manifest(content)
 
     @staticmethod
     def process_manifest(json_content):
+        replaces = []
+        if isinstance(json_content, collections.Mapping):
+            if 'replaces' in json_content:
+                replaces = json_content['replaces']
+            dep_specs = json_content['dependencies']
+        else:
+            dep_specs = json_content
+
         # import here to prevent circular dependency
         from .dependency import manifest_item_to_dep
-        dependencies = [manifest_item_to_dep(x) for x in json_content]
-        return Manifest(dependencies)
+        dependencies = [manifest_item_to_dep(x) for x in dep_specs]
+        return Manifest(dependencies, replaces)
 
 
 if __name__ == '__main__':

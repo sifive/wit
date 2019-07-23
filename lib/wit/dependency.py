@@ -46,18 +46,18 @@ class Dependency:
                 errors.append(e)
                 continue
 
-            if subdep.name in source_map:
+            if subdep.package.name in source_map:
                 subdep_resolved_source = subdep.package.resolve_source(subdep.source)
-                if subdep_resolved_source != source_map[subdep.name]:
+                if subdep_resolved_source != source_map[subdep.package.name]:
                     if not subdep.package.dependents_have_common_ancestor():
                         raise WitUserError(("Two dependencies have the same name "
                                             "but an unrelated git history:\n"
                                             "  {}\n"
                                             "  {}\n"
                                             "".format(subdep_resolved_source,
-                                                      source_map[subdep.name])))
+                                                      source_map[subdep.package.name])))
 
-            source_map[subdep.name] = subdep.package.resolve_source(subdep.source)
+            source_map[subdep.package.name] = subdep.package.resolve_source(subdep.source)
 
             if subdep.package.repo is None:
                 continue
@@ -86,7 +86,7 @@ class Dependency:
     def infer_name(source):
         return Path(source).name.replace('.git', '')
 
-    # NB: mutates packages[self.name]
+    # NB: mutates packages!
     def load(self, packages, repo_paths, wsroot, download):
         if self.name in packages:
             self.package = packages[self.name]
@@ -138,12 +138,18 @@ class Dependency:
         return "dep_"+re.sub(r"([^\w\d])", "_", self.tag())
 
     def crawl_dep_tree(self, wsroot, repo_paths, packages):
-        fancy_tag = "{}::{}".format(self.name, self.short_revision())
         self.load(packages, repo_paths, wsroot, False)
+        fancy_tag = "{}::{}".format(self.name, self.short_revision())
         if self.package.repo is None:
             return {'': "{} \033[91m(missing)\033[m".format(fancy_tag)}
-        if self.package.revision != self.resolved_rev():
-            fancy_tag += "->{}".format(self.package.short_revision())
+
+        different_name = self.package.name != self.name
+        if self.package.revision != self.resolved_rev() or different_name:
+            if different_name:
+                replacement = self.package.tag()
+            else:
+                replacement = self.package.short_revision()
+            fancy_tag += " -> {}".format(replacement)
             return {'': fancy_tag}
 
         tree = {'': fancy_tag}
