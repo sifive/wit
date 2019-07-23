@@ -42,6 +42,8 @@ class Package:
 
     def short_revision(self):
         if self.revision:
+            if self.repo.is_tag(self.revision):
+                return self.revision
             return self.repo.get_shortened_rev(self.revision)
         return None
 
@@ -85,7 +87,7 @@ class Package:
         # to avoid calling has_commit if the repo does not exist
         if (not self.repo.path.exists()
                 or not self.repo.has_commit(revision)
-                or not self.repo.is_hash(revision)):
+                or not (self.repo.is_hash(revision) or self.repo.is_tag(revision))):
             if not download:
                 self.repo = None
                 return

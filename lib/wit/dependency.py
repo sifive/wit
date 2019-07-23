@@ -119,6 +119,8 @@ class Dependency:
     def resolved_rev(self):
         if self.package.repo is None or self.package.repo is None:
             raise Exception("Cannot resolve dependency that is unbound to disk")
+        if self.package.repo.is_tag(self.specified_revision):
+            return self.specified_revision
         return self.package.repo.get_commit(self.specified_revision)
 
     def __repr__(self):
