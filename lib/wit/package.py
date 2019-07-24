@@ -145,6 +145,11 @@ class Package:
         self.move_to_root(wsroot)
         self.repo.checkout(self.revision)
 
+    def dependents_have_common_ancestor(self):
+        commits = [d.specified_revision for d in self.dependents]
+        assert self.repo is not None
+        return self.repo.have_common_ancestor(commits)
+
     def move_to_root(self, wsroot: Path):
         assert self.repo.name == self.name
         self.repo.path = wsroot/self.repo.name

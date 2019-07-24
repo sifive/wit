@@ -114,6 +114,10 @@ class GitRepo:
         proc = self._git_command('cat-file', '-t', commit)
         return proc.returncode == 0
 
+    def have_common_ancestor(self, commits):
+        proc = self._git_command('merge-base', '--octopus', *commits)
+        return proc.returncode == 0
+
     def get_remote(self) -> str:
         # TODO Do we need to worry about other remotes?
         proc = self._git_command('remote', 'get-url', 'origin')

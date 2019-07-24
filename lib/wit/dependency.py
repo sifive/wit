@@ -47,13 +47,14 @@ class Dependency:
                 continue
 
             if subdep.name in source_map:
-                if subdep.package.resolve_source(subdep.source) != source_map[subdep.name]:
-                    if not packages[subdep.name].repo.has_commit(subdep.specified_revision):
+                subdep_resolved_source = subdep.package.resolve_source(subdep.source)
+                if subdep_resolved_source != source_map[subdep.name]:
+                    if not subdep.package.dependents_have_common_ancestor():
                         raise WitUserError(("Two dependencies have the same name "
                                             "but an unrelated git history:\n"
                                             "  {}\n"
                                             "  {}\n"
-                                            "".format(subdep.package.resolve_source(subdep.source),
+                                            "".format(subdep_resolved_source,
                                                       source_map[subdep.name])))
 
             source_map[subdep.name] = subdep.package.resolve_source(subdep.source)

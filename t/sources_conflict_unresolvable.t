@@ -37,10 +37,16 @@ main_repo_commit=$(git -C main_repo rev-parse HEAD)
 prereq "off"
 
 # Now create a workspace from main_repo
-wit init myws -a $PWD/main_repo
+output=$( wit init myws -a $PWD/main_repo 2>&1 )
 
 # Should fail because of conflicting paths for foo
 check "wit init with conflicting paths fails" [ $? -ne 0 ]
+
+echo $output
+
+echo $output | grep "Two dependencies have the same name"
+
+check "error message is somewhat descriptive" [ $? -eq 0 ]
 
 report
 finish

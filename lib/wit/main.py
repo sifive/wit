@@ -110,21 +110,21 @@ def main() -> None:
         version()
         sys.exit(0)
 
-    # FIXME: This big switch statement... no good.
-    if args.command == 'init':
-        create(args)
+    try:
+        # FIXME: This big switch statement... no good.
+        if args.command == 'init':
+            create(args)
 
-    else:
-        # These commands assume the workspace already exists. Error out if the
-        # workspace cannot be found.
-        try:
-            ws = WorkSpace.find(Path.cwd(), parse_repo_path(args))
+        else:
+            # These commands assume the workspace already exists. Error out if the
+            # workspace cannot be found.
+            try:
+                ws = WorkSpace.find(Path.cwd(), parse_repo_path(args))
 
-        except FileNotFoundError as e:
-            log.error("Unable to find workspace root [{}]. Cannot continue.".format(e))
-            sys.exit(1)
+            except FileNotFoundError as e:
+                log.error("Unable to find workspace root [{}]. Cannot continue.".format(e))
+                sys.exit(1)
 
-        try:
             if args.command == 'add-pkg':
                 add_pkg(ws, args)
 
@@ -153,10 +153,10 @@ def main() -> None:
                     log.error('`wit inspect` must be run with a flag')
                     print(parser.parse_args('inspect -h'.split()))
                     sys.exit(1)
-        except WitUserError as e:
-            error(e)
-        except AssertionError as e:
-            raise WitBug(e)
+    except WitUserError as e:
+        error(e)
+    except AssertionError as e:
+        raise WitBug(e)
 
 
 def parse_repo_path(args):
