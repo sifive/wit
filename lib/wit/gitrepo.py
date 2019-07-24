@@ -45,6 +45,13 @@ class GitRepo:
         self.name = name
         self.path = wsroot / name
 
+    @staticmethod
+    def is_bad_source_error(proc):
+        return ((proc.stderr.startswith("fatal: repository") and
+                 proc.stderr.endswith("does not exist\n")) or
+                "Repository not found" in proc.stderr or
+                "remote: Not Found" in proc.stderr)
+
     # name is needed for generating error messages
     def download(self, source, name):
         if not GitRepo.is_git_repo(self.path):
@@ -62,8 +69,7 @@ class GitRepo:
         try:
             self._git_check(proc)
         except GitError:
-            if proc.stderr.startswith("fatal: repository") and \
-               proc.stderr.endswith("does not exist\n"):
+            if GitRepo.is_bad_source_error(proc):
                 raise BadSource(name, source)
             else:
                 raise
@@ -77,7 +83,7 @@ class GitRepo:
         try:
             self._git_check(proc)
         except GitError:
-            if 'does not appear to be a git repository' in proc.stderr:
+            if GitRepo.is_bad_source_error(proc):
                 raise BadSource(name, source)
             else:
                 raise
