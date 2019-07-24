@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import List  # noqa: F401
-from .common import passbyval, error, WitUserError
+from .common import passbyval, WitUserError
 from .package import Package
 from .witlogger import getLogger
 from .gitrepo import BadSource
