@@ -196,6 +196,11 @@ class WorkSpace:
             error("Manifest already contains package {}".format(dep.name))
 
         packages = {pkg.name: pkg for pkg in self.lock.packages}
+        if dep.name in packages:
+            lockfile_dep = packages[dep.name]
+            if dep.source == lockfile_dep.name:
+                dep.source = lockfile_dep.source
+
         dep.load(packages, self.repo_paths, self.root, True)
         dep.package.revision = dep.resolved_rev()
 
