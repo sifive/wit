@@ -45,12 +45,14 @@ class GitRepo:
         self.name = name
         self.path = wsroot / name
 
-    def download(self, source):
+    # name is needed for generating error messages
+    def download(self, source, name):
         if not GitRepo.is_git_repo(self.path):
-            self.clone(source)
-        self.fetch(source)
+            self.clone(source, name)
+        self.fetch(source, name)
 
-    def clone(self, source):
+    # name is needed for generating error messages
+    def clone(self, source, name):
         assert not GitRepo.is_git_repo(self.path), \
             "Trying to clone and checkout into existing git repo!"
         log.info('Cloning {}...'.format(self.name))
@@ -62,11 +64,12 @@ class GitRepo:
         except GitError:
             if proc.stderr.startswith("fatal: repository") and \
                proc.stderr.endswith("does not exist\n"):
-                raise BadSource(self.name, source)
+                raise BadSource(name, source)
             else:
                 raise
 
-    def fetch(self, source):
+    # name is needed for generating error messages
+    def fetch(self, source, name):
         # in case source is a remote and we want a commit
         proc = self._git_command('fetch', source)
         # in case source is a file path and we want, for example, origin/master
@@ -75,7 +78,7 @@ class GitRepo:
             self._git_check(proc)
         except GitError:
             if 'does not appear to be a git repository' in proc.stderr:
-                raise BadSource
+                raise BadSource(name, source)
             else:
                 raise
         return proc.returncode == 0

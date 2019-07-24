@@ -90,7 +90,7 @@ class Package:
                 self.repo = None
                 return
             try:
-                self.repo.download(source)
+                self.repo.download(source, self.name)
             except BadSource:
                 self.repo = None
                 raise
