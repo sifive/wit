@@ -31,7 +31,6 @@ prereq "off"
 # Now create a workspace from main_repo
 wit init myws -a $PWD/main_repo
 
-# Should fail because of conflicting paths for foo
 check "wit init with conflicting paths passes" [ $? -eq 0 ]
 
 
