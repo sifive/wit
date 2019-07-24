@@ -67,8 +67,8 @@ class Package:
         source = self.resolve_source(source) or self.resolve_source(self.source)
         revision = revision or self.revision
 
-        assert revision is not None, WitBug("Cannot load repo for unknown commit.")
-        assert source is not None, WitBug("Cannot load repo for unknown source.")
+        assert revision is not None, "Cannot load repo for unknown commit."
+        assert source is not None, "Cannot load repo for unknown source."
 
         # Check if we are already checked out
         self.in_root = (wsroot/self.name).exists()

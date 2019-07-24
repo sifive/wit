@@ -24,6 +24,7 @@ from typing import cast, List, Tuple  # noqa: F401
 from .common import error, WitUserError, print_errors
 from .gitrepo import GitRepo
 from .manifest import Manifest
+from .package import WitBug
 import re
 
 log = getLogger()
@@ -154,6 +155,8 @@ def main() -> None:
                     sys.exit(1)
         except WitUserError as e:
             error(e)
+        except AssertionError as e:
+            raise WitBug(e)
 
 
 def parse_repo_path(args):
