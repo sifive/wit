@@ -197,15 +197,24 @@ def update_pkg(ws, args) -> None:
     ws.update_dependency(args.repo)
 
 
-def dependency_from_tag(tag):
+def dependency_from_tag(wsroot, tag):
     source, revision = tag
+
+    if (wsroot/source).exists() and (wsroot/source).parent == wsroot:
+        repo = GitRepo((wsroot/source).name, wsroot)
+        source = repo.get_remote()
+    elif (wsroot/source).exists():
+        source = str((wsroot/source).resolve())
+    elif Path(source).exists():
+        source = str(Path(source).resolve())
+
     return Dependency(None, source, revision)
 
 
 def add_dep(ws, args) -> None:
     """ Resolve a Dependency then add it to the cwd's wit-manifest.json """
     packages = {pkg.name: pkg for pkg in ws.lock.packages}
-    req_dep = dependency_from_tag(args.pkg)
+    req_dep = dependency_from_tag(ws.root, args.pkg)
 
     cwd = Path(os.getcwd()).resolve()
     cwd_dirname = cwd.relative_to(ws.root).parts[0]
@@ -214,18 +223,10 @@ def add_dep(ws, args) -> None:
         raise NotAPackageError(
             "'{}' is not a package in workspace at '{}'".format(cwd_dirname, ws.path))
 
-    lock_pkg = ws.lock.get_package(req_dep.name)
-
-    if lock_pkg and req_dep.source == lock_pkg.name:
-        req_dep.source = lock_pkg.source
-
     # in order to resolve the revision, we need to bind
     # the req_dep to disk, cloning into .wit if neccesary
     req_dep.load(packages, ws.repo_paths, ws.root, True)
     req_dep.package.revision = req_dep.resolved_rev()
-
-    if lock_pkg is None:
-        req_dep.source = req_dep.package.repo.get_remote()
 
     manifest_path = cwd/'wit-manifest.json'
     if manifest_path.exists():
@@ -246,9 +247,13 @@ def add_dep(ws, args) -> None:
 
 def update_dep(ws, args) -> None:
     packages = {pkg.name: pkg for pkg in ws.lock.packages}
-    req_dep = dependency_from_tag(args.pkg)
+    req_dep = dependency_from_tag(ws.root, args.pkg)
 
     cwd = Path(os.getcwd()).resolve()
+
+    if cwd == ws.root:
+        error("Cannot run update-dep from root of workspace.")
+
     cwd_dirname = cwd.relative_to(ws.root).parts[0]
     manifest = Manifest.read_manifest(cwd/'wit-manifest.json')
 
@@ -256,11 +261,6 @@ def update_dep(ws, args) -> None:
     if not manifest.contains_dependency(req_dep.name):
         log.error("'{}' does not depend on '{}'".format(cwd_dirname, req_dep.name))
         sys.exit(1)
-
-    manifest_dep = manifest.get_dependency(req_dep.name)
-
-    if req_dep.source == manifest_dep.name:
-        req_dep.source = manifest_dep.source
 
     req_dep.load(packages, ws.repo_paths, ws.root, True)
     req_pkg = req_dep.package

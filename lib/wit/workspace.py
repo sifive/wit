@@ -189,26 +189,17 @@ class WorkSpace:
 
     def add_dependency(self, tag) -> None:
         """ Resolve a dependency then add it to the wit-workspace.json """
-        source, revision = tag
-        dep = Dependency(None, source, revision)
+        from .main import dependency_from_tag
+        dep = dependency_from_tag(self.root, tag)
 
         if self.manifest.contains_dependency(dep.name):
             error("Manifest already contains package {}".format(dep.name))
 
         packages = {pkg.name: pkg for pkg in self.lock.packages}
-        if dep.name in packages:
-            lockfile_dep = packages[dep.name]
-            if dep.source == lockfile_dep.name:
-                dep.source = lockfile_dep.source
-
         dep.load(packages, self.repo_paths, self.root, True)
         dep.package.revision = dep.resolved_rev()
 
         assert dep.package.repo is not None
-
-        if self.manifest.contains_dependency(dep.name):
-            log.error("Workspace already contains package '{}'".format(dep.name))
-            sys.exit(1)
 
         self.manifest.add_dependency(dep)
 
@@ -219,8 +210,8 @@ class WorkSpace:
 
     def update_dependency(self, tag) -> None:
         # init requested Dependency
-        tag_source, tag_revision = tag
-        req_dep = Dependency(None, tag_source, tag_revision)
+        from .main import dependency_from_tag
+        req_dep = dependency_from_tag(self.root, tag)
 
         manifest_dep = self.manifest.get_dependency(req_dep.name)
 
@@ -232,11 +223,8 @@ class WorkSpace:
 
         # load their Package
         packages = {pkg.name: pkg for pkg in self.lock.packages}
-
-        if req_dep.source == manifest_dep.name:
-            req_dep.source = manifest_dep.source
-
         req_dep.load(packages, self.repo_paths, self.root, True)
+
         manifest_dep.load(packages, self.repo_paths, self.root, True)
 
         # check if the dependency is missing from disk
