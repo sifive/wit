@@ -18,7 +18,6 @@ from .witlogger import getLogger
 from .workspace import WorkSpace, PackageNotInWorkspaceError
 from .dependency import parse_dependency_tag, Dependency
 from .inspect import inspect_tree
-from . import scalaplugin
 from pathlib import Path
 from typing import cast, List, Tuple  # noqa: F401
 from .common import error, WitUserError, print_errors
@@ -34,9 +33,12 @@ class NotAPackageError(WitUserError):
     pass
 
 
-def main() -> None:
-    # Parse arguments. Create sub-commands for each of the modes of operation
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+class ExpandPath(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, os.path.abspath(os.path.expanduser(values)))
+
+
+def build_base_parser(parser):
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help='''Specify level of verbosity
 -v:    verbose
@@ -45,19 +47,22 @@ def main() -> None:
 -vvvv: spam
 ''')
     parser.add_argument('--version', action='store_true', help='Print wit version')
-    parser.add_argument('-C', dest='cwd', type=chdir, metavar='path', help='Run in given path')
+    parser.add_argument('-C', dest='cwd', metavar='path',
+                        help='Run in given path', action=ExpandPath)
     parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'),
                         help='Specify alternative paths to look for packages')
     parser.add_argument('--prepend-repo-path', default=None,
                         help='Prepend paths to the default repo search path.')
 
+
+def add_sub_parsers(parser):
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 
     init_parser = subparsers.add_parser('init', help='create workspace')
     init_parser.add_argument('--no-update', dest='update', action='store_false',
                              help=('don\'t run update upon creating the workspace'
                                    ' (implies --no-fetch-scala)'))
-    init_parser.add_argument('--no-fetch-scala', dest='fetch_scala', action='store_false',
+    init_parser.add_argument('--no-fetch-scala', dest='no_fetch_scala', action='store_true',
                              help='don\'t run fetch-scala upon creating the workspace')
     init_parser.add_argument('-a', '--add-pkg', metavar='repo[::revision]', action='append',
                              type=parse_dependency_tag, help='add an initial package')
@@ -85,9 +90,24 @@ def main() -> None:
     inspect_group.add_argument('--tree', action="store_true")
     inspect_group.add_argument('--dot', action="store_true")
 
-    subparsers.add_parser('fetch-scala', help='Fetch dependencies for Scala projects')
+    return subparsers
 
-    args = parser.parse_args()
+
+def main() -> None:
+    parser = argparse.ArgumentParser(add_help=False)
+    # parse_known_args does not support sub-commands so we split parsing into mutliple phases
+    build_base_parser(parser)
+
+    args, unknown = parser.parse_known_args()
+
+    if args.cwd:
+        os.chdir(args.cwd)
+
+    if args.prepend_repo_path and args.repo_path:
+        args.repo_path = " ".join([args.prepend_repo_path, args.repo_path])
+    elif args.prepend_repo_path:
+        args.repo_path = args.prepend_repo_path
+
     if args.verbose == 4:
         log.setLevel('SPAM')
     elif args.verbose == 3:
@@ -101,20 +121,23 @@ def main() -> None:
 
     log.debug("Log level: {}".format(log.getLevelName()))
 
-    if args.prepend_repo_path and args.repo_path:
-        args.repo_path = " ".join([args.prepend_repo_path, args.repo_path])
-    elif args.prepend_repo_path:
-        args.repo_path = args.prepend_repo_path
-
     if args.version:
         version()
         sys.exit(0)
 
-    try:
-        # FIXME: This big switch statement... no good.
-        if args.command == 'init':
-            create(args)
+    # Now let's add the subparsers
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    build_base_parser(parser)
+    subparsers = add_sub_parsers(parser)
 
+    try:
+        # If the sub-command is init, then it's not a plugin command
+        if 'init' in unknown:
+            args = parser.parse_args()
+
+            assert args.command == 'init'
+            create(args)
+        # FIXME: This big switch statement... no good.
         else:
             # These commands assume the workspace already exists. Error out if the
             # workspace cannot be found.
@@ -125,6 +148,18 @@ def main() -> None:
                 log.error("Unable to find workspace root [{}]. Cannot continue.".format(e))
                 sys.exit(1)
 
+            ws.load_plugins()
+
+            # Load plugins into parser
+            plugin_cmds = {}
+            for plugin in ws.plugins:
+                cmd = plugin.add_subparser(subparsers)
+                if cmd is not None:
+                    plugin_cmds[cmd] = plugin
+
+            args = parser.parse_args()
+
+            # Built-in commands
             if args.command == 'add-pkg':
                 add_pkg(ws, args)
 
@@ -143,9 +178,6 @@ def main() -> None:
             elif args.command == 'update':
                 update(ws, args)
 
-            elif args.command == 'fetch-scala':
-                fetch_scala(ws, args, agg=False)
-
             elif args.command == 'inspect':
                 if args.dot or args.tree:
                     inspect_tree(ws, args)
@@ -153,6 +185,11 @@ def main() -> None:
                     log.error('`wit inspect` must be run with a flag')
                     print(parser.parse_args('inspect -h'.split()))
                     sys.exit(1)
+
+            # Plugin commands
+            elif args.command in plugin_cmds:
+                plugin = plugin_cmds[args.command]
+                plugin.post_parse(ws, args, log)
     except WitUserError as e:
         error(e)
     except AssertionError as e:
@@ -186,9 +223,6 @@ def create(args) -> None:
 
     if args.update:
         update(ws, args)
-
-        if args.fetch_scala:
-            fetch_scala(ws, args, agg=True)
 
 
 def add_pkg(ws, args) -> None:
@@ -356,52 +390,11 @@ def update(ws, args) -> None:
         print_errors(errors)
         sys.exit(1)
 
+    # Reload plugins after an update
+    ws.load_plugins()
 
-def fetch_scala(ws, args, agg=True) -> None:
-    """Fetches bloop, coursier, and ivy dependencies
-
-    It only fetches if ivydependencies.json files are found in packages
-    ws -- the Workspace
-    args -- arguments to the parser
-    agg -- indicates if this invocation is part of a larger command (like init)
-    """
-
-    # Collect ivydependency files
-    files = []
-    for package in ws.lock.packages:
-        package.load(ws.root, False)
-        ivyfile = scalaplugin.ivy_deps_file(package.repo.path)
-        if os.path.isfile(ivyfile):
-            files.append(ivyfile)
-        else:
-            log.debug("No ivydependencies.json file found in package {}".format(package.name))
-
-    if len(files) == 0:
-        msg = "No ivydependencies.json files found, skipping fetching Scala..."
-        if agg:
-            log.debug(msg)
-        else:
-            # We want to print something if you run `wit fetch-scala` directly and nothing happens
-            log.info(msg)
-    else:
-        log.info("Fetching Scala install and dependencies...")
-
-        install_dir = scalaplugin.scala_install_dir(ws.root)
-
-        ivy_cache_dir = scalaplugin.ivy_cache_dir(ws.root)
-        os.makedirs(ivy_cache_dir, exist_ok=True)
-
-        # Check if we need to install Bloop
-        if os.path.isdir(install_dir):
-            log.info("Scala install directory {} exists, skipping installation..."
-                     .format(install_dir))
-        else:
-            log.info("Installing Scala to {}...".format(install_dir))
-            os.makedirs(install_dir, exist_ok=True)
-            scalaplugin.install_coursier(install_dir)
-
-        log.info("Fetching ivy dependencies...")
-        scalaplugin.fetch_ivy_dependencies(files, install_dir, ivy_cache_dir)
+    for plugin in ws.plugins:
+        plugin.post_update(ws, args, log)
 
 
 def version() -> None:
