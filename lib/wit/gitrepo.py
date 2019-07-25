@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 from pprint import pformat
 import json
+import re
 from . import manifest
 from .common import WitUserError
 from .witlogger import getLogger
@@ -17,6 +18,9 @@ class GitError(Exception):
 
 class GitCommitNotFound(WitUserError):
     pass
+
+
+verbose_prefix = re.compile(r"^refs/(?:heads/)?")
 
 
 # TODO Could speed up validation
@@ -183,8 +187,33 @@ class GitRepo:
             manifest.write(self.manifest_path())
 
     def checkout(self):
-        proc = self._git_command("checkout", self.revision)
-        self._git_check(proc)
+        wanted_hash = self.get_commit(self.revision)
+        if self.get_commit('HEAD') != wanted_hash:
+            proc_ref = self._git_command("show-ref")
+            self._git_check(proc_ref)
+            rev_names = proc_ref.stdout.rstrip().split('\n')
+            rev_names = [r.split(' ') for r in rev_names]
+            rev_names = [r[1] for r in rev_names if r[0] == wanted_hash]
+            rev_names = [r for r in rev_names if not r.startswith('refs/remotes')]
+            rev_names = [verbose_prefix.sub('', r) for r in rev_names]
+
+            suggestions = ''
+            if len(rev_names) > 1:
+                suggestions = ' ({})'.format(', '.join(rev_names))
+
+            if len(rev_names) != 1:
+                rev = self.revision
+                log.info("Checking out '{}' at '{}'{}".format(self.name, rev, suggestions))
+            else:
+                rev = rev_names[0]
+                log.info("Checking out '{}' at '{}' ({})".format(self.name, rev, self.revision))
+
+            proc = self._git_command("checkout", rev)
+            self._git_check(proc)
+        else:
+            proc = self._git_command("checkout")
+            self._git_check(proc)
+
         # If our revision was a branch or tag, get the actual commit
         self.revision = self.get_latest_commit()
 
