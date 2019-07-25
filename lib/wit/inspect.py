@@ -70,7 +70,6 @@ def _print_dot_tree(ws, packages_dict):
         dep_id = dep.get_id()
         dep.load(packages_dict, ws.repo_paths, ws.root, False)
         if dep.package.repo is None:
-            log.info(dep.package)
             log.error("Cannot generate graph with missing repo '{}'".format(dep.name))
             sys.exit(1)
         dep_pkg_id = dep.package.get_id()
