@@ -16,7 +16,7 @@ class GitError(Exception):
     pass
 
 
-class GitCommitNotFound(WitUserError):
+class GitCommitNotFound(Exception):
     pass
 
 
@@ -80,9 +80,15 @@ class GitRepo:
         proc = self._git_command('rev-parse', commit)
         try:
             self._git_check(proc)
-        except Exception:
+        except GitError:
             proc = self._git_command('rev-parse', 'origin/{}'.format(commit))
-            self._git_check(proc)
+            try:
+                self._git_check(proc)
+            except GitError:
+                if 'unknown revision or path not in the working tree' in proc.stderr:
+                    raise GitCommitNotFound
+                else:
+                    raise
         return proc.stdout.rstrip()
 
     def get_shortened_rev(self, commit):

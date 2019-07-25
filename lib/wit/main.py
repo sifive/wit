@@ -22,7 +22,7 @@ from . import scalaplugin
 from pathlib import Path
 from typing import cast, List, Tuple  # noqa: F401
 from .common import error, WitUserError, print_errors
-from .gitrepo import GitRepo
+from .gitrepo import GitRepo, GitCommitNotFound
 from .manifest import Manifest
 import re
 
@@ -209,7 +209,7 @@ def add_dep(ws, args) -> None:
 
     if not ws.lock.contains_package(cwd_dirname):
         raise NotAPackageError(
-            "'{}' is not a package in workspace at '{}'".format(cwd_dirname, ws.root))
+            "'{}' is not a package in workspace at '{}'".format(cwd_dirname, ws.path))
 
     req_dep = dependency_from_tag(args.pkg)
 
@@ -218,7 +218,12 @@ def add_dep(ws, args) -> None:
     packages = {pkg.name: pkg for pkg in ws.lock.packages}
     req_dep.load_package(packages, ws.repo_paths)
     req_dep.package.load_repo(ws.root, download=True, needed_commit=req_dep.specified_revision)
-    req_dep.package.revision = req_dep.resolved_rev()
+
+    try:
+        req_dep.package.revision = req_dep.resolved_rev()
+    except GitCommitNotFound:
+        raise WitUserError("Could not find commit or reference '{}' in '{}'"
+                           "".format(req_dep.specified_revision, req_dep.name))
 
     found = ws.lock.get_package(req_dep.name)
     if found is None:
@@ -250,7 +255,12 @@ def update_dep(ws, args) -> None:
     req_dep.load_package(packages, ws.repo_paths)
     req_pkg = req_dep.package
     req_pkg.load_repo(ws.root, download=True, needed_commit=req_dep.specified_revision)
-    req_pkg.revision = req_dep.resolved_rev()
+
+    try:
+        req_pkg.revision = req_dep.resolved_rev()
+    except GitCommitNotFound:
+        raise WitUserError("Could not find commit or reference '{}' in '{}'"
+                           "".format(req_dep.specified_revision, req_dep.name))
 
     # check if the requested repo is missing from disk
     if req_pkg.repo is None:

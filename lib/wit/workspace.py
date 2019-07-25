@@ -9,6 +9,7 @@ from .dependency import Dependency
 from .lock import LockFile
 from .common import WitUserError, error, passbyval
 from .witlogger import getLogger
+from .gitrepo import GitCommitNotFound
 
 log = getLogger()
 
@@ -199,7 +200,12 @@ class WorkSpace:
         dep.load_package(packages, self.repo_paths)
         dep_pkg = dep.package
         dep_pkg.load_repo(self.root, download=True, needed_commit=dep.specified_revision)
-        dep_pkg.revision = dep.resolved_rev()
+
+        try:
+            dep_pkg.revision = dep.resolved_rev()
+        except GitCommitNotFound:
+            raise WitUserError("Could not find commit or reference '{}' in '{}'"
+                               "".format(dep.specified_revision, dep.name))
 
         assert dep_pkg.repo is not None
 
@@ -244,7 +250,11 @@ class WorkSpace:
                 msg += "because it does not exist in the workspace."
             raise PackageNotInWorkspaceError(msg)
 
-        req_resolved_rev = req_dep.resolved_rev()
+        try:
+            req_resolved_rev = req_dep.resolved_rev()
+        except GitCommitNotFound:
+            raise WitUserError("Could not find commit or reference '{}' in '{}'"
+                               "".format(req_dep.specified_revision, req_dep.name))
 
         # compare the requested revision to the revision in the wit-workspace.json
         if manifest_dep.resolved_rev() == req_resolved_rev:
