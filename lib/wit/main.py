@@ -383,12 +383,21 @@ def status(ws, args) -> None:
 
 
 def update(ws, args) -> None:
+    force = 'force' in args and args.force
     packages, errors = ws.resolve(download=True)
-    if len(errors) == 0:
-        ws.checkout(packages)
-    else:
+
+    # the errors assume the repos are still in .wit
+    if len(errors) > 0:
         print_errors(errors)
-        sys.exit(1)
+
+        if force:
+            log.info("\n")  # newlines
+
+    if len(errors) == 0 or force:
+        ws.checkout(packages)
+
+    for plugin in ws.plugins:
+        plugin.post_update(ws, args, log)
 
     # Reload plugins after an update
     ws.load_plugins()

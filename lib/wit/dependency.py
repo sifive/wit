@@ -143,7 +143,8 @@ class Dependency:
         if self.package.repo is None:
             return {'': "{} \033[91m(missing)\033[m".format(fancy_tag)}
         if self.package.revision != self.resolved_rev():
-            fancy_tag += "->{}".format(self.package.short_revision())
+            rev = self.package.short_revision() or "???"
+            fancy_tag += "->{}".format(rev)
             return {'': fancy_tag}
 
         tree = {'': fancy_tag}

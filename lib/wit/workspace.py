@@ -153,6 +153,7 @@ class WorkSpace:
                 if name in packages and packages[name].revision is not None:
                     package = packages[name]
                     if not package.repo.is_ancestor(dep.specified_revision, package.revision):
+                        package.revision = None
                         errors.append(NotAncestorError(package.dependents[0], dep))
                     continue
 

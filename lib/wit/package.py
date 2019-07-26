@@ -67,9 +67,6 @@ class Package:
         source = self.resolve_source(source) or self.resolve_source(self.source)
         revision = revision or self.revision
 
-        assert revision is not None, "Cannot load repo for unknown commit."
-        assert source is not None, "Cannot load repo for unknown source."
-
         # Check if we are already checked out
         self.in_root = (wsroot/self.name).exists()
         if self.in_root:
@@ -80,6 +77,10 @@ class Package:
                 os.mkdir(str(repo_root))
 
         self.repo = GitRepo(self.name, repo_root)
+
+        if revision is None or source is None:
+            self.repo = None
+            return
 
         # we carefully use Python's boolean expression evalution short-circuiting
         # to avoid calling has_commit if the repo does not exist
@@ -143,6 +144,9 @@ class Package:
         assert self.repo.name == self.name
         shutil.move(str(self.repo.path), str(wsroot/self.repo.name))
         self.move_to_root(wsroot)
+        if self.revision is None:
+            log.info("Unsure what version of '{}' to check out.".format(self.name))
+            return
         self.repo.checkout(self.revision)
 
     def dependents_have_common_ancestor(self):
@@ -165,7 +169,9 @@ class Package:
 
     def status(self, lock):
         if lock.contains_package(self.name):
-            if self.repo and self.revision != self.repo.get_head_commit():
+            if self.revision is None:
+                return "(undetermined revision)"
+            elif self.repo and self.revision != self.repo.get_head_commit():
                 return "\033[35m(will be checked out to {})\033[m".format(
                     self.short_revision())
         else:
