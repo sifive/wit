@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 import os
 import shutil
-from .gitrepo import GitRepo
+from .gitrepo import GitRepo, BadSource
 from .witlogger import getLogger
 
 log = getLogger()
@@ -37,6 +37,9 @@ class Package:
         self.repo = None
         self.dependents = []
 
+    def set_source(self, source):
+        self.source = self.resolve_source(source)
+
     def short_revision(self):
         if self.revision:
             return self.repo.get_shortened_rev(self.revision)
@@ -55,16 +58,17 @@ class Package:
         if dep not in self.dependents:
             self.dependents.append(dep)
 
-    def load_repo(self, wsroot, download=False, needed_commit=None):
+    def load(self, wsroot, download, source=None, revision=None):
         """Connect a Package to a GitRepo on disk.
 
         If found, self.repo will be updated.
         """
 
-        needed_commit = needed_commit or self.revision
+        source = self.resolve_source(source) or self.resolve_source(self.source)
+        revision = revision or self.revision
 
-        if needed_commit is None:
-            raise Exception("Cannot load repo for unknown commit.")
+        assert revision is not None, "Cannot load repo for unknown commit."
+        assert source is not None, "Cannot load repo for unknown source."
 
         # Check if we are already checked out
         self.in_root = (wsroot/self.name).exists()
@@ -75,23 +79,24 @@ class Package:
             if not repo_root.exists():
                 os.mkdir(str(repo_root))
 
-        self.repo = GitRepo(self.source, self.revision, self.name, repo_root)
+        self.repo = GitRepo(self.name, repo_root)
 
         # we carefully use Python's boolean expression evalution short-circuiting
-        # to avoid calling has_cmmit if the repo does not exist
-        if (not self.repo.get_path().exists()
-                or not self.repo.has_commit(needed_commit)
-                or not self.repo.is_hash(needed_commit)):
+        # to avoid calling has_commit if the repo does not exist
+        if (not self.repo.path.exists()
+                or not self.repo.has_commit(revision)
+                or not self.repo.is_hash(revision)):
             if not download:
                 self.repo = None
                 return
-            self.repo.download()
+            try:
+                self.repo.download(source, self.name)
+            except BadSource:
+                self.repo = None
+                raise
 
     def is_ancestor(self, other_commit):
         return self.repo.is_ancestor(other_commit, self.revision)
-
-    def set_source(self, source):
-        self.source = self.resolve_source(source)
 
     def resolve_source(self, source):
         for path in self.repo_paths:
@@ -122,14 +127,32 @@ class Package:
 
     def checkout(self, wsroot):
         """Move to root directory and checkout"""
-        shutil.move(str(self.repo.get_path()), str(wsroot/self.name))
+        current_origin = self.repo.get_remote()
+        wanted_origin = self.source
+        if current_origin != wanted_origin:
+            if self.repo.path.parts[-2] == '.wit':
+                self.repo.set_origin(self.source)
+            else:
+                log.warn("Package '{}' wants a different git remote origin.\n"
+                         "Origin is currently:\n  {}\n"
+                         "Package '{}' wants origin:\n  {}\n"
+                         "Please manually update the origin with:\n"
+                         "  git -C {} \\\n    remote set-url origin {}"
+                         "".format(self.name, current_origin, self.name,
+                                   wanted_origin, self.repo.path, wanted_origin))
+        assert self.repo.name == self.name
+        shutil.move(str(self.repo.path), str(wsroot/self.repo.name))
         self.move_to_root(wsroot)
-        self.repo.revision = self.revision
-        self.repo.checkout()
+        self.repo.checkout(self.revision)
 
-    def move_to_root(self, wsroot):
-        self.repo.set_wsroot(wsroot)
-        self.repo.name = self.name  # in case we got renamed
+    def dependents_have_common_ancestor(self):
+        commits = [d.specified_revision for d in self.dependents]
+        assert self.repo is not None
+        return self.repo.have_common_ancestor(commits)
+
+    def move_to_root(self, wsroot: Path):
+        assert self.repo.name == self.name
+        self.repo.path = wsroot/self.repo.name
 
     def __repr__(self):
         return "Pkg({})".format(self.tag())
@@ -142,7 +165,7 @@ class Package:
 
     def status(self, lock):
         if lock.contains_package(self.name):
-            if self.repo and self.revision != self.repo.get_latest_commit():
+            if self.repo and self.revision != self.repo.get_head_commit():
                 return "\033[35m(will be checked out to {})\033[m".format(
                     self.short_revision())
         else:

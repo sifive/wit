@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from pprint import pformat
 from .manifest import Manifest
-from .dependency import Dependency
+from .dependency import Dependency, sources_conflict_check
 from .lock import LockFile
 from .common import WitUserError, error, passbyval
 from .witlogger import getLogger
@@ -155,6 +155,7 @@ class WorkSpace:
 
             packages[dep.name] = dep.package
             packages[dep.name].revision = dep.resolved_rev()
+            packages[dep.name].set_source(dep.source)
 
             source_map, packages, queue, errors = \
                 dep.resolve_deps(self.root, self.repo_paths, download,
@@ -164,8 +165,9 @@ class WorkSpace:
     @passbyval
     def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue, errors):
         for dep in self.manifest.dependencies:
-            dep.load_package(packages, repo_paths)
-            dep.package.load_repo(wsroot, download, dep.specified_revision)
+            dep.load(packages, repo_paths, wsroot, download)
+
+            sources_conflict_check(dep, source_map)
 
             source_map[dep.name] = dep.source
 
@@ -190,38 +192,33 @@ class WorkSpace:
 
     def add_dependency(self, tag) -> None:
         """ Resolve a dependency then add it to the wit-workspace.json """
-        source, revision = tag
-        dep = Dependency(None, source, revision)
+        from .main import dependency_from_tag
+        dep = dependency_from_tag(self.root, tag)
 
         if self.manifest.contains_dependency(dep.name):
             error("Manifest already contains package {}".format(dep.name))
 
         packages = {pkg.name: pkg for pkg in self.lock.packages}
-        dep.load_package(packages, self.repo_paths)
-        dep_pkg = dep.package
-        dep_pkg.load_repo(self.root, download=True, needed_commit=dep.specified_revision)
-
+        dep.load(packages, self.repo_paths, self.root, True)
         try:
-            dep_pkg.revision = dep.resolved_rev()
+            dep.package.revision = dep.resolved_rev()
         except GitCommitNotFound:
             raise WitUserError("Could not find commit or reference '{}' in '{}'"
                                "".format(dep.specified_revision, dep.name))
 
-        assert dep_pkg.repo is not None
-
-        if self.manifest.contains_dependency(dep.name):
-            log.error("Workspace already contains package '{}'".format(dep.name))
-            sys.exit(1)
+        assert dep.package.repo is not None
 
         self.manifest.add_dependency(dep)
 
         log.debug('my manifest_path = {}'.format(self.manifest_path()))
         self.manifest.write(self.manifest_path())
 
+        log.info("The workspace now depends on '{}'".format(dep.package.tag()))
+
     def update_dependency(self, tag) -> None:
         # init requested Dependency
-        tag_source, tag_revision = tag
-        req_dep = Dependency(None, tag_source, tag_revision)
+        from .main import dependency_from_tag
+        req_dep = dependency_from_tag(self.root, tag)
 
         manifest_dep = self.manifest.get_dependency(req_dep.name)
 
@@ -233,15 +230,12 @@ class WorkSpace:
 
         # load their Package
         packages = {pkg.name: pkg for pkg in self.lock.packages}
-        req_dep.load_package(packages, self.repo_paths)
-        manifest_dep.load_package({req_dep.name: req_dep.package}, self.repo_paths)
-        pkg = req_dep.package
+        req_dep.load(packages, self.repo_paths, self.root, True)
 
-        # load the Repo on disk
-        pkg.load_repo(self.root, download=True)
+        manifest_dep.load(packages, self.repo_paths, self.root, True)
 
         # check if the dependency is missing from disk
-        if pkg.repo is None:
+        if req_dep.package.repo is None:
             msg = "Cannot update package '{}'".format(req_dep.name)
             if self.lock.contains_package(req_dep.name):
                 msg += (":\nAlthough '{}' exists (according to the wit-lock.json), "
@@ -262,6 +256,8 @@ class WorkSpace:
 
         self.manifest.replace_dependency(req_dep)
         self.manifest.write(self.manifest_path())
+
+        log.info("The workspace now depends on '{}'".format(req_dep.package.tag()))
 
         # if we differ from the lockfile, tell the user to update
         if not self.lock.get_package(req_dep.name).revision == req_resolved_rev:

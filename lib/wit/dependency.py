@@ -1,11 +1,11 @@
 import re
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List  # noqa: F401
 from .common import passbyval, WitUserError
 from .package import Package
 from .witlogger import getLogger
+from .gitrepo import BadSource
 
 log = getLogger()
 
@@ -15,7 +15,7 @@ class DependeeNewerThanDepender(WitUserError):
         self.depender = depender
         self.dependee = dependee
 
-    def __str__(self, packages):
+    def __str__(self):
         return ("Depender {} is older than its dependee {}\n"
                 "This should not happen, but it may be caused by a ficticious "
                 "clock time being stored in a commit.\n This should be fixable "
@@ -40,16 +40,13 @@ class Dependency:
         subdeps = self.package.get_dependencies()
         log.debug("Dependencies for [{}]: [{}]".format(self.name, subdeps))
         for subdep in subdeps:
-            subdep.load_package(packages, repo_paths)
-            subdep.package.load_repo(wsroot, download, subdep.specified_revision)
+            try:
+                subdep.load(packages, repo_paths, wsroot, download)
+            except BadSource as e:
+                errors.append(e)
+                continue
 
-            if subdep.name in source_map:
-                if subdep.package.resolve_source(subdep.source) != source_map[subdep.name]:
-                    log.error("Dependency [{}] has multiple conflicting paths:\n"
-                              "  {}\n"
-                              "  {}\n".format(subdep.name, subdep.source,
-                                              source_map[subdep.name]))
-                    sys.exit(1)
+            sources_conflict_check(subdep, source_map)
 
             source_map[subdep.name] = subdep.package.resolve_source(subdep.source)
 
@@ -80,20 +77,16 @@ class Dependency:
     def infer_name(source):
         return Path(source).name.replace('.git', '')
 
-    # wsroot, repo_paths, packages, force_root
-    # NB: mutates packages[self.name]!
-    def load_package(self, packages, repo_paths):
-        """
-        Bind itself to a package, using one in the `packages` argument if available.
-        This will also add itself as a dependent of the package
-        """
+    # NB: mutates packages[self.name]
+    def load(self, packages, repo_paths, wsroot, download):
         if self.name in packages:
             self.package = packages[self.name]
         else:
             self.package = Package(self.name, repo_paths)
-            self.package.set_source(self.source)
             packages[self.name] = self.package
         self.package.add_dependent(self)
+
+        self.package.load(wsroot, download, source=self.source, revision=self.specified_revision)
 
     def add_dependent(self, dependent):
         if dependent not in self.dependents:
@@ -137,8 +130,7 @@ class Dependency:
 
     def crawl_dep_tree(self, wsroot, repo_paths, packages):
         fancy_tag = "{}::{}".format(self.name, self.short_revision())
-        self.load_package(packages, repo_paths)
-        self.package.load_repo(wsroot, download=False, needed_commit=self.specified_revision)
+        self.load(packages, repo_paths, wsroot, False)
         if self.package.repo is None:
             return {'': "{} \033[91m(missing)\033[m".format(fancy_tag)}
         if self.package.revision != self.resolved_rev():
@@ -150,6 +142,19 @@ class Dependency:
         for subdep in subdeps:
             tree[subdep.get_id()] = subdep.crawl_dep_tree(wsroot, repo_paths, packages)
         return tree
+
+
+def sources_conflict_check(dep, source_map):
+    if dep.name in source_map:
+        dep_resolved_source = dep.package.resolve_source(dep.source)
+        if dep_resolved_source != source_map[dep.name]:
+            if not dep.package.dependents_have_common_ancestor():
+                raise WitUserError(("Two dependencies have the same name "
+                                    "but an unrelated git history:\n"
+                                    "  {}\n"
+                                    "  {}\n"
+                                    "".format(dep_resolved_source,
+                                              source_map[dep.name])))
 
 
 def parse_dependency_tag(s):

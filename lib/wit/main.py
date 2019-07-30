@@ -24,6 +24,7 @@ from typing import cast, List, Tuple  # noqa: F401
 from .common import error, WitUserError, print_errors
 from .gitrepo import GitRepo, GitCommitNotFound
 from .manifest import Manifest
+from .package import WitBug
 import re
 
 log = getLogger()
@@ -109,21 +110,21 @@ def main() -> None:
         version()
         sys.exit(0)
 
-    # FIXME: This big switch statement... no good.
-    if args.command == 'init':
-        create(args)
+    try:
+        # FIXME: This big switch statement... no good.
+        if args.command == 'init':
+            create(args)
 
-    else:
-        # These commands assume the workspace already exists. Error out if the
-        # workspace cannot be found.
-        try:
-            ws = WorkSpace.find(Path.cwd(), parse_repo_path(args))
+        else:
+            # These commands assume the workspace already exists. Error out if the
+            # workspace cannot be found.
+            try:
+                ws = WorkSpace.find(Path.cwd(), parse_repo_path(args))
 
-        except FileNotFoundError as e:
-            log.error("Unable to find workspace root [{}]. Cannot continue.".format(e))
-            sys.exit(1)
+            except FileNotFoundError as e:
+                log.error("Unable to find workspace root [{}]. Cannot continue.".format(e))
+                sys.exit(1)
 
-        try:
             if args.command == 'add-pkg':
                 add_pkg(ws, args)
 
@@ -152,8 +153,10 @@ def main() -> None:
                     log.error('`wit inspect` must be run with a flag')
                     print(parser.parse_args('inspect -h'.split()))
                     sys.exit(1)
-        except WitUserError as e:
-            error(e)
+    except WitUserError as e:
+        error(e)
+    except AssertionError as e:
+        raise WitBug(e)
 
 
 def parse_repo_path(args):
@@ -197,13 +200,25 @@ def update_pkg(ws, args) -> None:
     ws.update_dependency(args.repo)
 
 
-def dependency_from_tag(tag):
+def dependency_from_tag(wsroot, tag):
     source, revision = tag
+
+    if (wsroot/source).exists() and (wsroot/source).parent == wsroot:
+        repo = GitRepo((wsroot/source).name, wsroot)
+        source = repo.get_remote()
+    elif (wsroot/source).exists():
+        source = str((wsroot/source).resolve())
+    elif Path(source).exists():
+        source = str(Path(source).resolve())
+
     return Dependency(None, source, revision)
 
 
 def add_dep(ws, args) -> None:
     """ Resolve a Dependency then add it to the cwd's wit-manifest.json """
+    packages = {pkg.name: pkg for pkg in ws.lock.packages}
+    req_dep = dependency_from_tag(ws.root, args.pkg)
+
     cwd = Path(os.getcwd()).resolve()
     cwd_dirname = cwd.relative_to(ws.root).parts[0]
 
@@ -211,25 +226,14 @@ def add_dep(ws, args) -> None:
         raise NotAPackageError(
             "'{}' is not a package in workspace at '{}'".format(cwd_dirname, ws.path))
 
-    req_dep = dependency_from_tag(args.pkg)
-
     # in order to resolve the revision, we need to bind
     # the req_dep to disk, cloning into .wit if neccesary
-    packages = {pkg.name: pkg for pkg in ws.lock.packages}
-    req_dep.load_package(packages, ws.repo_paths)
-    req_dep.package.load_repo(ws.root, download=True, needed_commit=req_dep.specified_revision)
-
+    req_dep.load(packages, ws.repo_paths, ws.root, True)
     try:
         req_dep.package.revision = req_dep.resolved_rev()
     except GitCommitNotFound:
         raise WitUserError("Could not find commit or reference '{}' in '{}'"
                            "".format(req_dep.specified_revision, req_dep.name))
-
-    found = ws.lock.get_package(req_dep.name)
-    if found is None:
-        req_dep.source = req_dep.package.repo.get_remote()
-    else:
-        req_dep.source = found.source
 
     manifest_path = cwd/'wit-manifest.json'
     if manifest_path.exists():
@@ -249,13 +253,24 @@ def add_dep(ws, args) -> None:
 
 
 def update_dep(ws, args) -> None:
-    req_dep = dependency_from_tag(args.pkg)
-
     packages = {pkg.name: pkg for pkg in ws.lock.packages}
-    req_dep.load_package(packages, ws.repo_paths)
-    req_pkg = req_dep.package
-    req_pkg.load_repo(ws.root, download=True, needed_commit=req_dep.specified_revision)
+    req_dep = dependency_from_tag(ws.root, args.pkg)
 
+    cwd = Path(os.getcwd()).resolve()
+
+    if cwd == ws.root:
+        error("Cannot run update-dep from root of workspace.")
+
+    cwd_dirname = cwd.relative_to(ws.root).parts[0]
+    manifest = Manifest.read_manifest(cwd/'wit-manifest.json')
+
+    # make sure the package is already in the cwd's manifest
+    if not manifest.contains_dependency(req_dep.name):
+        log.error("'{}' does not depend on '{}'".format(cwd_dirname, req_dep.name))
+        sys.exit(1)
+
+    req_dep.load(packages, ws.repo_paths, ws.root, True)
+    req_pkg = req_dep.package
     try:
         req_pkg.revision = req_dep.resolved_rev()
     except GitCommitNotFound:
@@ -266,15 +281,6 @@ def update_dep(ws, args) -> None:
     if req_pkg.repo is None:
         msg = "'{}' not found in workspace. Have you run 'wit update'?".format(req_dep.name)
         raise PackageNotInWorkspaceError(msg)
-
-    cwd = Path(os.getcwd()).resolve()
-    cwd_dirname = cwd.relative_to(ws.root).parts[0]
-    manifest = Manifest.read_manifest(cwd/'wit-manifest.json')
-
-    # make sure the package is already in the cwd's manifest
-    if not manifest.contains_dependency(req_dep.name):
-        log.error("'{}' does not depend on '{}'".format(cwd_dirname, req_pkg.tag()))
-        sys.exit(1)
 
     log.info("Updating to {}".format(req_dep.resolved_rev()))
     manifest.replace_dependency(req_dep)
@@ -295,14 +301,14 @@ def status(ws, args) -> None:
     missing = []
     seen_paths = {}
     for package in ws.lock.packages:
-        package.load_repo(ws.root)
+        package.load(ws.root, False)
         if package.repo is None:
             missing.append(package)
             continue
-        seen_paths[package.repo.get_path()] = True
+        seen_paths[package.repo.path] = True
 
         lock_commit = package.revision
-        latest_commit = package.repo.get_latest_commit()
+        latest_commit = package.repo.get_head_commit()
 
         new_commits = lock_commit != latest_commit
 
@@ -371,8 +377,8 @@ def fetch_scala(ws, args, agg=True) -> None:
     # Collect ivydependency files
     files = []
     for package in ws.lock.packages:
-        package.load_repo(ws.root)
-        ivyfile = scalaplugin.ivy_deps_file(package.repo.get_path())
+        package.load(ws.root, False)
+        ivyfile = scalaplugin.ivy_deps_file(package.repo.path)
         if os.path.isfile(ivyfile):
             files.append(ivyfile)
         else:
