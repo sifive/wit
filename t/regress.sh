@@ -42,7 +42,7 @@ for test_path in $test_root/*.t; do
     then continue
     fi
 
-    echo "Running test [$test_name]"
+    echo -n "Running test [$test_name]"
     mkdir $test_name
     cd $test_name
 
@@ -57,9 +57,9 @@ for test_path in $test_root/*.t; do
         ((fail++))
         regression_result=1
     fi
-done
 
-for test_name in ${!test_results[@]}; do echo "${test_results[$test_name]} - ${test_name}"; done
+    echo -e "\033[1K\033[1G${test_results[$test_name]} - ${test_name}";
+done
 
 echo
 echo
