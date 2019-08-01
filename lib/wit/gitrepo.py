@@ -119,6 +119,11 @@ class GitRepo:
     def is_hash(self, ref):
         return self.get_commit(ref) == ref
 
+    def is_tag(self, ref):
+        proc = self._git_command('tag', '--list', ref)
+        self._git_check(proc)
+        return ref in proc.stdout.split('\n')
+
     def has_commit(self, commit) -> bool:
         # rev-parse does not always fail when a commit is missing
         proc = self._git_command('cat-file', '-t', commit)
