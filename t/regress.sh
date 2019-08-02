@@ -42,7 +42,7 @@ for test_path in $test_root/*.t; do
     then continue
     fi
 
-    echo -n "Running test [$test_name]"
+    # echo -n "Running test [$test_name]"
     mkdir $test_name
     cd $test_name
 
