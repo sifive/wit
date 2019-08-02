@@ -4,6 +4,8 @@ import sys
 import shutil
 from pathlib import Path
 from pprint import pformat
+import importlib.util
+import inspect
 from .manifest import Manifest
 from .dependency import Dependency, sources_conflict_check
 from .lock import LockFile
@@ -65,6 +67,7 @@ class WorkSpace:
         self.repo_paths = repo_paths
         self.manifest = self._load_manifest()
         self.lock = self._load_lockfile()
+        self.plugins = []
 
     def tag(self):
         return "[root]"
@@ -177,6 +180,26 @@ class WorkSpace:
         queue.sort(key=lambda tup: tup[0])
 
         return source_map, packages, queue, []
+
+    def load_plugins(self):
+        for package in self.lock.packages:
+            package.load(self.root, False)
+            if package.repo is None:
+                log.debug("Cannot find source for package '{}'".format(package.name))
+                continue
+            path = package.repo.path
+            plugin_path = "{}/wit-plugin.py".format(path)
+            if Path(plugin_path).is_file():
+                log.debug("Found plugin file at [{}]".format(plugin_path))
+                # Load the file
+                spec = importlib.util.spec_from_file_location("wit-plugin", plugin_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                for name, value in inspect.getmembers(module):
+                    if inspect.isclass(value):
+                        if name == 'WitInterface':
+                            log.debug("Found plugin '{}' in '{}'".format(name, plugin_path))
+                            self.plugins.append(value())
 
     def checkout(self, packages):
         lock_packages = []

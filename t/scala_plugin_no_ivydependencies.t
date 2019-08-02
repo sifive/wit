@@ -13,6 +13,9 @@ prereq "off"
 wit init myws -a $PWD/foo
 
 cd myws
+wit add-pkg https://github.com/sifive/wit-scala-plugin::9246f3400b8fab6eccc828981026c9947d4a1b0c
+wit update
+
 wit fetch-scala
 
 check "wit fetch-scala should succeed" [ $? -eq 0 ]
