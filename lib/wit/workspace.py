@@ -98,7 +98,7 @@ class WorkSpace:
             shutil.rmtree(str(dotwit))
         dotwit.mkdir()
 
-        manifest = Manifest([])
+        manifest = Manifest([], [])
         manifest.write(manifest_path)
 
         lockfile = LockFile([])
@@ -160,6 +160,32 @@ class WorkSpace:
             source_map, packages, queue, errors = \
                 dep.resolve_deps(self.root, self.repo_paths, download,
                                  source_map, packages, queue, errors)
+
+        replaces_map = {}
+        for name in packages:
+            pkg = packages[name]
+            if pkg.repo:
+                replaces_map[name] = pkg.repo.read_manifest_from_commit(pkg.revision).replaces
+        for parent_name in replaces_map:
+            parent = packages[parent_name]
+            child_names = replaces_map[parent_name]
+            if len(child_names) > 0:
+                for child_name in child_names:
+                    if child_name not in packages:
+                        log.debug("Did not find replaced child {}".format(child_name))
+                        continue
+                    replaced = packages[child_name]
+                    if not parent.repo.is_ancestor(replaced.revision, parent.revision):
+                        error("I refuse to replace package '{}' with '{}' because \n"
+                              "{} is not a git ancestor of {}".format(child_name, parent_name,
+                                                                      replaced.tag(), parent.tag()))
+                    log.debug("Replacing {} with {}".format(child_name, parent_name))
+                    for dependent in replaced.dependents:
+                        dependent.package = parent
+                        parent.add_dependent(dependent)
+
+                    packages[child_name] = parent
+
         return packages, errors
 
     @passbyval
@@ -180,7 +206,15 @@ class WorkSpace:
 
     def checkout(self, packages):
         lock_packages = []
-        for name in packages:
+
+        for orig_name in packages:
+            pkg = packages[orig_name]
+            if orig_name != pkg.name and (self.root/orig_name).exists():
+                log.warn("Package '{}' has been replaced by '{}', but the folder of '{}' still "
+                         "exists".format(orig_name, pkg.name, orig_name))
+        package_names = [packages[orig_name].name for orig_name in packages]
+        package_names = list(set(package_names))
+        for name in package_names:
             package = packages[name]
             package.checkout(self.root)
             lock_packages.append(package)

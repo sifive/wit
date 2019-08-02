@@ -239,7 +239,7 @@ def add_dep(ws, args) -> None:
     if manifest_path.exists():
         manifest = Manifest.read_manifest(manifest_path)
     else:
-        manifest = Manifest([])
+        manifest = Manifest([], [])
 
     # make sure the dependency is not already in the cwd's manifest
     if manifest.contains_dependency(req_dep.name):

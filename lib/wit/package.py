@@ -36,6 +36,7 @@ class Package:
 
         self.repo = None
         self.dependents = []
+        self.replaces = []
 
     def set_source(self, source):
         self.source = self.resolve_source(source)
