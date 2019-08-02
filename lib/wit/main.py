@@ -21,7 +21,7 @@ from .inspect import inspect_tree
 from pathlib import Path
 from typing import cast, List, Tuple  # noqa: F401
 from .common import error, WitUserError, print_errors
-from .gitrepo import GitRepo
+from .gitrepo import GitRepo, GitCommitNotFound
 from .manifest import Manifest
 from .package import WitBug
 import re
