@@ -190,11 +190,8 @@ class WorkSpace:
         new_lock.write(new_lock_path)
         self.lock = new_lock
 
-    def add_dependency(self, tag) -> None:
+    def add_dependency(self, dep) -> None:
         """ Resolve a dependency then add it to the wit-workspace.json """
-        from .main import dependency_from_tag
-        dep = dependency_from_tag(self.root, tag)
-
         if self.manifest.contains_dependency(dep.name):
             error("Manifest already contains package {}".format(dep.name))
 
@@ -215,11 +212,7 @@ class WorkSpace:
 
         log.info("The workspace now depends on '{}'".format(dep.package.tag()))
 
-    def update_dependency(self, tag) -> None:
-        # init requested Dependency
-        from .main import dependency_from_tag
-        req_dep = dependency_from_tag(self.root, tag)
-
+    def update_dependency(self, req_dep) -> None:
         manifest_dep = self.manifest.get_dependency(req_dep.name)
 
         # check if the package is missing from the wit-workspace.json

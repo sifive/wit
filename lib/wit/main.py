@@ -65,6 +65,7 @@ def main() -> None:
 
     add_pkg_parser = subparsers.add_parser('add-pkg', help='add a package to the workspace')
     add_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=parse_dependency_tag)
+    add_pkg_parser.add_argument('name', nargs='?', default=None)
 
     update_pkg_parser = subparsers.add_parser('update-pkg', help='update the revision of a '
                                               'previously added package')
@@ -72,6 +73,7 @@ def main() -> None:
 
     add_dep_parser = subparsers.add_parser('add-dep', help='add a dependency to a package')
     add_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=parse_dependency_tag)
+    add_dep_parser.add_argument('name', nargs='?', default=None)
 
     update_dep_parser = subparsers.add_parser('update-dep', help='update revision of a dependency '
                                               'in a package')
@@ -105,6 +107,9 @@ def main() -> None:
         args.repo_path = " ".join([args.prepend_repo_path, args.repo_path])
     elif args.prepend_repo_path:
         args.repo_path = args.prepend_repo_path
+
+    if 'name' not in args:
+        args.name = None
 
     if args.version:
         version()
@@ -181,7 +186,8 @@ def create(args) -> None:
         dependencies = args.add_pkg
 
     ws = WorkSpace.create(args.workspace_name, parse_repo_path(args))
-    for dep in dependencies:
+    for tag in dependencies:
+        dep = dependency_from_tag(ws.root, tag, None)
         ws.add_dependency(dep)
 
     if args.update:
@@ -193,31 +199,34 @@ def create(args) -> None:
 
 def add_pkg(ws, args) -> None:
     log.info("Adding package to workspace")
-    ws.add_dependency(args.repo)
+    dep = dependency_from_tag(ws.root, args.repo, args.name)
+    ws.add_dependency(dep)
 
 
 def update_pkg(ws, args) -> None:
-    ws.update_dependency(args.repo)
+    dep = dependency_from_tag(ws.root, args.repo, args.name)
+    ws.update_dependency(dep)
 
 
-def dependency_from_tag(wsroot, tag):
+def dependency_from_tag(wsroot, tag, name):
     source, revision = tag
 
     if (wsroot/source).exists() and (wsroot/source).parent == wsroot:
         repo = GitRepo((wsroot/source).name, wsroot)
+        name = name or (wsroot/source).name
         source = repo.get_remote()
     elif (wsroot/source).exists():
         source = str((wsroot/source).resolve())
     elif Path(source).exists():
         source = str(Path(source).resolve())
 
-    return Dependency(None, source, revision)
+    return Dependency(name, source, revision)
 
 
 def add_dep(ws, args) -> None:
     """ Resolve a Dependency then add it to the cwd's wit-manifest.json """
     packages = {pkg.name: pkg for pkg in ws.lock.packages}
-    req_dep = dependency_from_tag(ws.root, args.pkg)
+    req_dep = dependency_from_tag(ws.root, args.pkg, args.name)
 
     cwd = Path(os.getcwd()).resolve()
     cwd_dirname = cwd.relative_to(ws.root).parts[0]
@@ -254,7 +263,7 @@ def add_dep(ws, args) -> None:
 
 def update_dep(ws, args) -> None:
     packages = {pkg.name: pkg for pkg in ws.lock.packages}
-    req_dep = dependency_from_tag(ws.root, args.pkg)
+    req_dep = dependency_from_tag(ws.root, args.pkg, args.name)
 
     cwd = Path(os.getcwd()).resolve()
 
