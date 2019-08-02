@@ -18,7 +18,7 @@ def print_errors(errors):
 
     for err in errors:
         log.info("--- ERROR ---")
-        log.info(err)
+        log.info(str(err))
 
 
 class WitUserError(Exception):

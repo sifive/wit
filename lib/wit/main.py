@@ -78,7 +78,9 @@ def main() -> None:
     update_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=parse_dependency_tag)
 
     subparsers.add_parser('status', help='show status of workspace')
-    subparsers.add_parser('update', help='update git repos')
+
+    update_parser = subparsers.add_parser('update', help='update git repos')
+    update_parser.add_argument('--force', action='store_true', help='checkout regardless of errors')
 
     inspect_parser = subparsers.add_parser('inspect', help='inspect lockfile')
     inspect_group = inspect_parser.add_mutually_exclusive_group()
@@ -358,10 +360,15 @@ def status(ws, args) -> None:
 
 def update(ws, args) -> None:
     packages, errors = ws.resolve(download=True)
-    if len(errors) == 0:
-        ws.checkout(packages)
-    else:
+
+    # the errors assume the repos are still in .wit
+    if len(errors) > 0:
         print_errors(errors)
+
+    if len(errors) == 0 or ('force' in args and args.force):
+        ws.checkout(packages)
+
+    if len(errors) > 0:
         sys.exit(1)
 
 
