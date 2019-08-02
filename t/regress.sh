@@ -58,7 +58,7 @@ for test_path in $test_root/*.t; do
         regression_result=1
     fi
 
-    echo -e "\033[1K\033[1G${test_results[$test_name]} - ${test_name}";
+    echo "${test_results[$test_name]} - ${test_name}";
 done
 
 echo
