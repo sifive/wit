@@ -1,7 +1,18 @@
-language: python
+services:
+  - docker
 
+language: python
 python:
-    - '3.5'
+  - '3.5'
+
+env:
+  global:
+    DOCKER_IMAGE_TAG=$(if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo "$TRAVIS_BRANCH" ; fi)
+    DOCKER_IMAGE_NAME="sifive/wit"
+
+stages:
+  - prepare
+  - test
 
 jobs:
   include:
@@ -17,3 +28,15 @@ jobs:
     - stage: test
       name: "Regression Tests"
       script: ./t/regress.sh
+    - stage: test
+      name: "Build Wit Dockerfile"
+      script: ./docker/build_image.sh
+
+deploy:
+  provider: script
+  script:
+    - ./docker/build_image.sh
+    - ./docker/push_image.sh
+  on:
+    tags: true
+    branch: master
