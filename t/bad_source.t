@@ -7,9 +7,9 @@ wit init myws
 
 cd myws
 
-output=$(wit add-pkg https://github.com/github/invalid.git)
+output=$(wit add-pkg /hopefully/this/path/doesnt/exist.git)
 
-# Should fail because of conflicting paths for foo
+# Should fail because of source doesn't exist
 check "wit add-pkg with invalid source fails" [ $? -ne 0 ]
 
 echo $output | grep -i "bad remote"
