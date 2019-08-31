@@ -13,12 +13,14 @@ env:
 stages:
   - prepare
   - test
+  - deploy
 
 jobs:
   include:
     - stage: prepare
       name: "Setup"
       script: pip3 install -r requirements.txt
+
     - stage: test
       name: "Lint"
       script: flake8
@@ -32,11 +34,10 @@ jobs:
       name: "Build Wit Dockerfile"
       script: ./docker/build_image.sh
 
-deploy:
-  provider: script
-  script:
-    - ./docker/build_image.sh
-    - ./docker/push_image.sh
-  on:
-    tags: true
-    branch: master
+    - stage: deploy
+      name: "Deploy Docker Image"
+      # For pull requests, branch is the base branch (on PR to master: branch = master)
+      if: tag IS present OR (branch = master AND type = push)
+      script:
+        - ./docker/build_image.sh
+        - ./docker/push_image.sh
