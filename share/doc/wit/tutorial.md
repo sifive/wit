@@ -70,11 +70,10 @@ You should see something like the following:
 ```
 Clean packages:
 Dirty packages:
-Untracked packages:
-    foo
+foo (will be added to workspace and lockfile)
 ```
 
-This is strange! We have added `foo` to the workspace so why does `status` indicate it as "untracked"?
+We have added `foo` to the workspace so why does `status` indicate it "will be added to workspace"?
 To explain, let us inspect the contents of the workspace and lock files.
 
 ```bash
@@ -82,11 +81,11 @@ cat wit-workspace.json
 cat wit-lock.json
 ```
 
-You will notice that while the the workspace file contains information about `foo`,
+You will notice that while the workspace file contains information about `foo`,
 the lock file remains empty.
 This is because we have not yet run `wit update`.
 The workspace file reflects the high-level, desired objectives of the user.
-In constrast, the lock file contains the resolved state of the workspace.
+In contrast, the lock file contains the resolved state of the workspace.
 When packages depend on one another, only the user-specified ones are listed in
 the `wit-workspace.json`.
 `wit-lock.json` will contain packages pulled in as dependencies and transitive
@@ -99,9 +98,15 @@ wit update
 wit status
 ```
 
-You should now see `foo` marked as a clean package.
+You should now see `foo` marked as a clean package:
 
-Another thing to note, similarly to git submodules, `wit update` will checkout
+```
+Clean packages:
+    foo
+Dirty packages:
+```
+
+Another thing to note, similarly to git submodules, `wit update` will check out
 repositories in a detached state.
 This can make development a little tricky as you may have a branch checked out
 that you're working on. This is something we will fix in a future version of wit.
@@ -132,7 +137,7 @@ Note that the inclusion `origin/` makes it clear that we want to pull `master` f
 remote repo. If we were to just write `wit update-pkg foo::master`, `master` would refer
 to the local branch.
 
-An equivalent way to accomplish this same goal is to checkout the commit we want in the
+An equivalent way to accomplish this same goal is to check out the commit we want in the
 local checkout and let `update-pkg` figure it out:
 
 ```bash
@@ -204,8 +209,6 @@ You should see something like
 Clean packages:
 Dirty packages:
     foo (untracked content)
-Untracked packages:
-    bar
 ```
 ```
 HEAD detached at <hash>
@@ -235,7 +238,7 @@ This may seem unnecessary, but since wit must create workspaces reproducibly
 and deterministically, it requires that manifest files be versioned.
 
 Recall that wit checks out repositories in a "detached" state.
-We first want to checkout a branch so that we can keep our changes and push them
+We first want to check out a branch so that we can keep our changes and push them
 to the remote.
 
 As a tip, you can use the `git branch` command to help you see what branches
@@ -247,7 +250,7 @@ git -C foo branch -r --contains # show remote branches
 git -C foo branch -a --contains # show local and remote
 ```
 
-Now let us checkout `master` and commit the manifest file.
+Now let us check out `master` and commit the manifest file.
 
 ```bash
 git -C foo checkout master
