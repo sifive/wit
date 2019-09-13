@@ -46,7 +46,7 @@ for test_path in $test_root/*.t; do
     mkdir $test_name
     cd $test_name
 
-    $test_path >& output
+    $test_path
     if [ $? -eq 0 ]; then
         test_results["$test_name"]="PASS"
         touch "PASS"
