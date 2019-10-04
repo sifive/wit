@@ -21,7 +21,7 @@ class DependeeNewerThanDepender(WitUserError):
                 "clock time being stored in a commit.\n This should be fixable "
                 "by creating a new commit in the dependee then depending on "
                 "that commit."
-                "".format(self.depender.tag(), self.dependee.tag()))
+                "".format(self.depender.id(), self.dependee.id()))
 
 
 class Dependency:
@@ -115,7 +115,7 @@ class Dependency:
         return self.package.repo.get_commit(self.specified_revision)
 
     def __repr__(self):
-        return "Dep({})".format(self.tag())
+        return "Dep({})".format(self.id())
 
     def short_revision(self):
         if self.package and self.package.repo:
@@ -124,14 +124,14 @@ class Dependency:
             return self.specified_revision
         return self.specified_revision[:8]
 
-    def tag(self):
+    def id(self):
         return "{}::{}".format(self.name, self.short_revision())
 
     def get_id(self):
-        return "dep_"+re.sub(r"([^\w\d])", "_", self.tag())
+        return "dep_"+re.sub(r"([^\w\d])", "_", self.id())
 
     def crawl_dep_tree(self, wsroot, repo_paths, packages):
-        fancy_tag = "{}::{}".format(self.name, self.short_revision())
+        fancy_tag = self.id()
         self.load(packages, repo_paths, wsroot, False)
         if self.package.repo is None:
             return {'': "{} \033[91m(missing)\033[m".format(fancy_tag)}

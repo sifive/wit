@@ -157,13 +157,13 @@ class Package:
         self.repo.path = wsroot/self.repo.name
 
     def __repr__(self):
-        return "Pkg({})".format(self.tag())
+        return "Pkg({})".format(self.id())
 
-    def tag(self):
+    def id(self):
         return "{}::{}".format(self.name, self.short_revision())
 
     def get_id(self):
-        return "pkg_"+re.sub(r"([^\w\d])", "_", self.tag())
+        return "pkg_"+re.sub(r"([^\w\d])", "_", self.id())
 
     def status(self, lock):
         if lock.contains_package(self.name):

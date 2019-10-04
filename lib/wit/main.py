@@ -249,7 +249,7 @@ def add_dep(ws, args) -> None:
     manifest.add_dependency(req_dep)
     manifest.write(manifest_path)
 
-    log.info("'{}' now depends on '{}'".format(cwd_dirname, req_dep.package.tag()))
+    log.info("'{}' now depends on '{}'".format(cwd_dirname, req_dep.package.id()))
 
 
 def update_dep(ws, args) -> None:
@@ -286,7 +286,7 @@ def update_dep(ws, args) -> None:
     manifest.replace_dependency(req_dep)
     manifest.write(cwd/'wit-manifest.json')
 
-    log.info("'{}' now depends on '{}'".format(cwd_dirname, req_pkg.tag()))
+    log.info("'{}' now depends on '{}'".format(cwd_dirname, req_pkg.id()))
 
 
 def status(ws, args) -> None:

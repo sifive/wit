@@ -53,7 +53,7 @@ def _print_dot_tree(ws, packages_dict):
     for pkg in packages:
         pkg_id = pkg.get_id()
         pkg_ids.append(pkg_id)
-        log.output('{} [label="{}"]'.format(pkg_id, pkg.tag()))
+        log.output('{} [label="{}"]'.format(pkg_id, pkg.id()))
 
     drawn_connections = []
 
@@ -73,9 +73,9 @@ def _print_dot_tree(ws, packages_dict):
             log.error("Cannot generate graph with missing repo '{}'".format(dep.name))
             sys.exit(1)
         dep_pkg_id = dep.package.get_id()
-        if dep.tag() != dep.package.tag() or VERBOSE_GRAPH:
+        if dep.id() != dep.package.id() or VERBOSE_GRAPH:
             draw_connection(dep_id, dep_pkg_id, dotted=True)
-            log.output('{} [label="{}"]{}'.format(dep_id, dep.tag(),
+            log.output('{} [label="{}"]{}'.format(dep_id, dep.id(),
                                                   " [shape=box]" if BOXED_DEPS else ""))
             draw_connection(pkg_id, dep_id)
         else:

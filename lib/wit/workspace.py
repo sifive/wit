@@ -43,12 +43,12 @@ class NotAncestorError(WitUserError):
                     orig_parent_name=orig_parent.name,
                     old_parent_name=old_parent.name,
 
-                    orig_parent_tag=orig_parent.tag(),
-                    old_parent_tag=old_parent.tag(),
+                    orig_parent_tag=orig_parent.id(),
+                    old_parent_tag=old_parent.id(),
 
                     child_name=child_name,
-                    orig_child_tag=self.orig_child.tag(),
-                    old_child_tag=self.old_child.tag(),
+                    orig_child_tag=self.orig_child.id(),
+                    old_child_tag=self.old_child.id(),
                 ))
 
 
@@ -66,7 +66,7 @@ class WorkSpace:
         self.manifest = self._load_manifest()
         self.lock = self._load_lockfile()
 
-    def tag(self):
+    def id(self):
         return "[root]"
 
     def get_id(self):
@@ -213,7 +213,7 @@ class WorkSpace:
         log.debug('my manifest_path = {}'.format(self.manifest_path()))
         self.manifest.write(self.manifest_path())
 
-        log.info("The workspace now depends on '{}'".format(dep.package.tag()))
+        log.info("The workspace now depends on '{}'".format(dep.package.id()))
 
     def update_dependency(self, tag) -> None:
         # init requested Dependency
@@ -257,7 +257,7 @@ class WorkSpace:
         self.manifest.replace_dependency(req_dep)
         self.manifest.write(self.manifest_path())
 
-        log.info("The workspace now depends on '{}'".format(req_dep.package.tag()))
+        log.info("The workspace now depends on '{}'".format(req_dep.package.id()))
 
         # if we differ from the lockfile, tell the user to update
         if not self.lock.get_package(req_dep.name).revision == req_resolved_rev:
