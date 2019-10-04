@@ -31,8 +31,6 @@ cd myws
 
 prereq off
 
-set -x
-
 wit -C bar update-dep foo
 check "Updating foo in bar should work, but..." [ $? -eq 0 ]
 
@@ -57,8 +55,6 @@ wit update-pkg bar
 wit update
 
 check "Checked out foo commit should have bumped" [ "$(git -C foo rev-parse HEAD)" = "$foo_commit2" ]
-
-set +x
 
 report
 finish

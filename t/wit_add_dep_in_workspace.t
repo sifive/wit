@@ -2,6 +2,8 @@
 
 . $(dirname $0)/regress_util.sh
 
+prereq on
+
 # Set up repo foo
 make_repo 'foo'
 foo_commit1=$(git -C foo rev-parse HEAD)
@@ -28,7 +30,7 @@ EOF
 git -C fizz add -A
 git -C fizz commit -m "Add dep on bar"
 
-set -x
+prereq off
 
 wit init myws -a $fizz_dir
 cd myws
@@ -44,8 +46,6 @@ check "Added foo dependency should have correct commit" [ "$foo_manifest_commit"
 
 foo_manifest_source=$(jq -r '.[] | select(.name=="foo") | .source' fizz/wit-manifest.json)
 check "Added foo dependency should have correct source" [ "$foo_manifest_source" = "$foo_dir" ]
-
-set +x
 
 report
 finish

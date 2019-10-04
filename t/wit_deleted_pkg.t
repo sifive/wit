@@ -16,15 +16,11 @@ rm -rf foo
 
 prereq off
 
-set -x
-
 wit update
 check "wit should redownload a deleted package" [ $? -eq 0 ]
 
 foo_ws_commit=$(git -C foo rev-parse HEAD)
 check "The checked out commit should be correct" [ "$foo_ws_commit" = "$foo_commit" ]
-
-set +x
 
 report
 finish

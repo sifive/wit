@@ -32,12 +32,13 @@ check() {
 
 prereq() {
     if [ "$1" = "off" ]
-    then in_prereq=0; set +e
-    else in_prereq=1; set -e
+    then in_prereq=0; set +e -x
+    else in_prereq=1; set -e +x
     fi
 }
 
 report() {
+    set +x
     echo "PASS: $pass"
     echo "FAIL: $fail"
 }

@@ -31,8 +31,6 @@ bar_dir=$PWD/bar
 
 prereq off
 
-set -x
-
 # Now create an empty workspace
 wit init myws
 
@@ -54,8 +52,6 @@ check "foo should depend on the correct commit of bar" [ "$foo_bar_commit" = "$b
 
 bar_manifest_source=$(jq -r '.[] | select(.name=="bar") | .source' foo/wit-manifest.json)
 check "Added bar dependency should have correct source" [ "$bar_manifest_source" = "$bar_dir" ]
-
-set +x
 
 report
 finish

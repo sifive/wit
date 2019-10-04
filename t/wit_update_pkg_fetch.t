@@ -21,8 +21,6 @@ cd myws
 
 prereq off
 
-set -x
-
 git -C foo cat-file -t $foo_commit2
 check "The remote commit should not yet be known in local foo checkout" [ $? -ne 0 ]
 
@@ -33,8 +31,6 @@ wit update
 
 foo_repo_commit=$(git -C foo rev-parse HEAD)
 check "The correct foo commit should be checked out" [ "$foo_repo_commit" = "$foo_commit2" ]
-
-set +x
 
 report
 finish

@@ -2,6 +2,8 @@
 
 . $(dirname $0)/regress_util.sh
 
+prereq on
+
 # Set up repo foo
 make_repo 'foo'
 foo_commit=$(git -C foo rev-parse HEAD)
@@ -15,7 +17,8 @@ git -C bar add -A
 git -C bar commit -m "commit2"
 bar_commit2=$(git -C bar rev-parse HEAD)
 
-set -x
+prereq off
+
 # Now create an empty workspace
 wit init myws -a $foo_dir
 
@@ -33,8 +36,6 @@ check "Added bar dependency should have correct commit" [ "$bar_manifest_commit"
 
 bar_manifest_source=$(jq -r '.[] | select(.name=="bar") | .source' foo/wit-manifest.json)
 check "Added bar dependency should have correct source" [ "$bar_manifest_source" = "$bar_dir" ]
-
-set +x
 
 report
 finish

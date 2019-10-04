@@ -32,15 +32,11 @@ cd myws
 
 prereq off
 
-set -x
-
 wit -C bar update-dep foo::origin/master
 check "Updating foo to origin/master in bar should work" [ $? -eq 0 ]
 
 foo_dep_commit=$(jq -r '.[] | select(.name=="foo") | .commit' bar/wit-manifest.json)
 check "Foos commit in bar's manifest should have bumped" [ "$foo_dep_commit" = "$foo_commit2" ]
-
-set +x
 
 report
 finish
