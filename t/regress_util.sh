@@ -10,6 +10,13 @@ fail=0
 pass=0
 in_prereq=0
 
+into_test_dir() {
+    filename=`basename $0`
+    dir="testdir.${filename%.*}"
+    mkdir $dir
+    cd $dir
+}
+
 make_repo() {
     repo_name=$1
 
