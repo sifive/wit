@@ -2,6 +2,8 @@
 
 . $(dirname $0)/regress_util.sh
 
+prereq on
+
 # Set up repo foo
 make_repo 'foo'
 foo_commit=$(git -C foo rev-parse HEAD)
@@ -14,7 +16,7 @@ git -C bar add -A
 git -C bar commit -m "commit1"
 bar_commit=$(git -C bar rev-parse HEAD)
 
-set -x
+prereq off
 
 # Now create a workspace from bar
 wit init myws -a $PWD/bar
@@ -29,8 +31,6 @@ check "ws-lock.json should contain correct foo commit" [ "$foo_lock_commit" = "$
 
 bar_lock_commit=$(jq -r '.bar.commit' wit-lock.json)
 check "ws-lock.json should contain correct bar commit" [ "$bar_lock_commit" = "$bar_commit" ]
-
-set +x
 
 report
 finish

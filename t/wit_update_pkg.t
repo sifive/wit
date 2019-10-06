@@ -19,8 +19,6 @@ git -C foo checkout master
 
 prereq off
 
-set -x
-
 wit init myws -a $foo_dir::$foo_commit
 cd myws
 
@@ -45,8 +43,6 @@ check "foo should have checked out the right commit" [ "$commit" = "$foo_commit_
 
 foo_lock_commit2=$(jq -r '.foo | .commit' wit-lock.json)
 check "After 'wit update', the lock should contain the correct commit" [ "$foo_lock_commit2" = "$foo_commit_branch" ]
-
-set +x
 
 report
 finish

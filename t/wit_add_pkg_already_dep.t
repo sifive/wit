@@ -2,6 +2,8 @@
 
 . $(dirname $0)/regress_util.sh
 
+prereq on
+
 # Set up repo foo
 make_repo 'foo'
 foo_commit1=$(git -C foo rev-parse HEAD)
@@ -12,7 +14,8 @@ make_repo 'bar'
 bar_commit=$(git -C bar rev-parse HEAD)
 bar_dir=$PWD/bar
 
-set -x
+prereq off
+
 # Now create an empty workspace
 wit init myws
 
@@ -37,8 +40,6 @@ wit update
 
 foo_ws_source=$(jq -r '.[] | select(.name=="foo") | .source' wit-workspace.json)
 check "Added repo should have source copied from remote" [ "$foo_ws_source" = "$foo_dir" ]
-
-set +x
 
 report
 finish

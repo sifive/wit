@@ -2,6 +2,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import List  # noqa: F401
+from collections import OrderedDict
 from .common import passbyval, WitUserError
 from .package import Package
 from .witlogger import getLogger
@@ -21,16 +22,17 @@ class DependeeNewerThanDepender(WitUserError):
                 "clock time being stored in a commit.\n This should be fixable "
                 "by creating a new commit in the dependee then depending on "
                 "that commit."
-                "".format(self.depender.tag(), self.dependee.tag()))
+                "".format(self.depender.id(), self.dependee.id()))
 
 
 class Dependency:
     """ A dependency that a Package specifies. From wit-manifest.json and wit-workspace.js """
 
-    def __init__(self, name, source, specified_revision=None):
+    def __init__(self, name, source, specified_revision=None, tag=None):
         self.source = source
         self.revision = None
         self.specified_revision = specified_revision or "HEAD"
+        self.tag = tag  # type: Optional[str]
         self.name = name or Dependency.infer_name(source)
         self.package = None  # type: Package
         self.dependents = []  # type: List[Package]
@@ -97,25 +99,39 @@ class Dependency:
             self.specified_revision)))
 
     def manifest(self):
-        return {
-            'name': self.name,
-            'source': self.source,
-            'commit': self.specified_revision,
-        }
+        res = OrderedDict()
+        res['name'] = self.name
+        res['source'] = self.source
+        res['commit'] = self.specified_revision
+        if self.tag is not None:
+            res['tag'] = self.tag
+        return res
 
     # used before saving to manifests/lockfiles
     def resolved(self):
-        return Dependency(self.name, self.source, self.resolved_rev())
+        return Dependency(self.name, self.source, self.resolved_rev(), self.resolved_tag())
+
+    # Check if the Dependency has a Package and repo on disk
+    def _is_bound(self) -> bool:
+        return self.package is not None and self.package.repo is not None
 
     def resolved_rev(self):
-        if self.package.repo is None or self.package.repo is None:
+        if not self._is_bound():
             raise Exception("Cannot resolve dependency that is unbound to disk")
-        if self.package.repo.is_tag(self.specified_revision):
-            return self.specified_revision
         return self.package.repo.get_commit(self.specified_revision)
 
+    def resolved_tag(self):
+        if not self._is_bound():
+            raise Exception("Cannot resolve dependency that is unbound to disk")
+        if self.tag is None:
+            repo = self.package.repo
+            rev = self.specified_revision
+            return rev if repo.is_tag(rev) else None
+        else:
+            return self.tag
+
     def __repr__(self):
-        return "Dep({})".format(self.tag())
+        return "Dep({})".format(self.id())
 
     def short_revision(self):
         if self.package and self.package.repo:
@@ -124,14 +140,14 @@ class Dependency:
             return self.specified_revision
         return self.specified_revision[:8]
 
-    def tag(self):
+    def id(self):
         return "{}::{}".format(self.name, self.short_revision())
 
     def get_id(self):
-        return "dep_"+re.sub(r"([^\w\d])", "_", self.tag())
+        return "dep_"+re.sub(r"([^\w\d])", "_", self.id())
 
     def crawl_dep_tree(self, wsroot, repo_paths, packages):
-        fancy_tag = "{}::{}".format(self.name, self.short_revision())
+        fancy_tag = self.id()
         self.load(packages, repo_paths, wsroot, False)
         if self.package.repo is None:
             return {'': "{} \033[91m(missing)\033[m".format(fancy_tag)}
@@ -169,4 +185,4 @@ def parse_dependency_tag(s):
 
 def manifest_item_to_dep(obj):
     # source can be done due to repo path
-    return Dependency(obj['name'], obj.get('source', None), obj['commit'])
+    return Dependency(obj['name'], obj.get('source', None), obj['commit'], obj.get('tag', None))

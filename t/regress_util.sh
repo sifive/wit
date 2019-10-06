@@ -10,6 +10,13 @@ fail=0
 pass=0
 in_prereq=0
 
+into_test_dir() {
+    filename=`basename $0`
+    dir="testdir.${filename%.*}"
+    mkdir $dir
+    cd $dir
+}
+
 make_repo() {
     repo_name=$1
 
@@ -32,12 +39,13 @@ check() {
 
 prereq() {
     if [ "$1" = "off" ]
-    then in_prereq=0; set +e
-    else in_prereq=1; set -e
+    then in_prereq=0; set +e -x
+    else in_prereq=1; set -e +x
     fi
 }
 
 report() {
+    set +x
     echo "PASS: $pass"
     echo "FAIL: $fail"
 }

@@ -16,8 +16,6 @@ git -C bar add -A
 git -C bar commit -m "commit1"
 bar_commit=$(git -C bar rev-parse HEAD)
 
-set -x
-
 prereq off
 
 # Now create a workspace from bar
@@ -26,8 +24,6 @@ cd myws
 
 wit status
 check "wit status should not fail" [ $? -eq 0 ]
-
-set +x
 
 report
 finish

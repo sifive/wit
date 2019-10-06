@@ -36,8 +36,6 @@ cd myws
 
 prereq off
 
-set -x
-
 wit add-pkg $foo_dir
 wit update
 
@@ -78,8 +76,6 @@ wit update
 status=$(git -C foo status --porcelain -b | md5)
 golden=$(echo "## master...origin/master" | md5)
 check "head should stay attached to same branch when not moved" [ $status = $golden ]
-
-set +x
 
 report
 finish

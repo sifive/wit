@@ -60,4 +60,5 @@ def lockfile_item_to_pkg(item):
     pkg = Package(item['name'], [])
     pkg.set_source(item['source'])
     pkg.revision = item['commit']
+    pkg.tag = item.get('tag', None)
     return pkg

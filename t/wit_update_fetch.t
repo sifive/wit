@@ -2,6 +2,8 @@
 
 . $(dirname $0)/regress_util.sh
 
+prereq on
+
 # Set up repo foo
 make_repo 'foo'
 foo_commit1=$(git -C foo rev-parse HEAD)
@@ -37,7 +39,7 @@ git -C bar add -A
 git -C bar commit -m "commit3"
 bar_commit2=$(git -C bar rev-parse HEAD)
 
-set -x
+prereq off
 
 cd myws
 
@@ -53,8 +55,6 @@ check "the correct commit of foo should be checked out" [ "$foo_ws_commit" = "$f
 
 bar_ws_commit=$(git -C bar rev-parse HEAD)
 check "the correct commit of bar should be checked out" [ "$bar_ws_commit" = "$bar_commit2" ]
-
-set +x
 
 report
 finish

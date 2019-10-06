@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 import os
 import shutil
+from collections import OrderedDict
 from .gitrepo import GitRepo, BadSource
 from .witlogger import getLogger
 
@@ -32,6 +33,7 @@ class Package:
         self.name = name
         self.source = None
         self.revision = None
+        self.tag = None
         self.repo_paths = repo_paths
 
         self.repo = None
@@ -48,7 +50,7 @@ class Package:
         return None
 
     def __key(self):
-        return (self.source, self.revision, self.name)
+        return (self.source, self.revision, self.name, self.tag)
 
     def __hash__(self):
         return hash(self.__key())
@@ -115,11 +117,13 @@ class Package:
         return deps
 
     def manifest(self):
-        return {
-            'name': self.name,
-            'source': self.source,
-            'commit': self.revision,
-        }
+        res = OrderedDict()
+        res['name'] = self.name
+        res['source'] = self.source
+        res['commit'] = self.revision
+        if self.tag is not None:
+            res['tag'] = self.tag
+        return res
 
     # this is in Package because update_dependency is in Package
     # it could be confusing to keep the two functions separate
@@ -157,13 +161,13 @@ class Package:
         self.repo.path = wsroot/self.repo.name
 
     def __repr__(self):
-        return "Pkg({})".format(self.tag())
+        return "Pkg({})".format(self.id())
 
-    def tag(self):
+    def id(self):
         return "{}::{}".format(self.name, self.short_revision())
 
     def get_id(self):
-        return "pkg_"+re.sub(r"([^\w\d])", "_", self.tag())
+        return "pkg_"+re.sub(r"([^\w\d])", "_", self.id())
 
     def status(self, lock):
         if lock.contains_package(self.name):
