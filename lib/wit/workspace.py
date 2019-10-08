@@ -156,7 +156,6 @@ class WorkSpace:
             packages[dep.name] = dep.package
             packages[dep.name].revision = dep.resolved_rev()
             packages[dep.name].set_source(dep.source)
-            packages[dep.name].tag = dep.tag
 
             source_map, packages, queue, errors = \
                 dep.resolve_deps(self.root, self.repo_paths, download,
