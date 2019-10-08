@@ -4,6 +4,8 @@
 
 prereq on
 
+into_test_dir
+
 # Set up repo foo
 mkdir foo
 git -C foo init
@@ -46,6 +48,9 @@ check "bar should not yet exist in the workspace" [ ! -d bar/.git ]
 
 wit -C foo add-dep $bar_dir::coolbranch
 check "wit add-dep should succeed" [ $? -eq 0 ]
+
+wit -C foo add-dep $bar_dir
+check "wit add-dep a second time should fail" [ $? -ne 0 ]
 
 foo_bar_commit=$(jq -r '.[] | select(.name=="bar") | .commit' foo/wit-manifest.json)
 check "foo should depend on the correct commit of bar" [ "$foo_bar_commit" = "$bar_commit" ]
