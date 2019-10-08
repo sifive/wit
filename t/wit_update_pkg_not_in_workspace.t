@@ -32,7 +32,7 @@ check "Updating a package not in the workspace should fail" [ $? -ne 0 ]
 check "foo should have been pulled in as a dependency" [ -d foo ]
 
 wit update-pkg foo
-check "Updating a package not in the lock file but not the workspace should fail" [ $? -ne 0 ]
+check "Updating a package in the lock file but not in the workspace should fail" [ $? -ne 0 ]
 
 report
 finish

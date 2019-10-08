@@ -203,8 +203,12 @@ def update_pkg(ws, args) -> None:
 def dependency_from_tag(wsroot, tag):
     source, revision = tag
 
+    dotwit = wsroot / ".wit"
     if (wsroot/source).exists() and (wsroot/source).parent == wsroot:
         repo = GitRepo((wsroot/source).name, wsroot)
+        source = repo.get_remote()
+    elif (dotwit/source).exists() and (dotwit/source).parent == dotwit:
+        repo = GitRepo((dotwit/source).name, dotwit)
         source = repo.get_remote()
     elif (wsroot/source).exists():
         source = str((wsroot/source).resolve())
