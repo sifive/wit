@@ -246,13 +246,13 @@ class WorkSpace:
             raise PackageNotInWorkspaceError(msg)
 
         try:
-            req_resolved_rev = req_dep.resolved_rev()
+            req_dep.package.revision = req_dep.resolved_rev()
         except GitCommitNotFound:
             raise WitUserError("Could not find commit or reference '{}' in '{}'"
                                "".format(req_dep.specified_revision, req_dep.name))
 
         # compare the requested revision to the revision in the wit-workspace.json
-        if manifest_dep.resolved_rev() == req_resolved_rev:
+        if manifest_dep.resolved_rev() == req_dep.package.revision:
             log.warn("Updating '{}' to the same revision it already is!".format(req_dep.name))
 
         self.manifest.replace_dependency(req_dep)
@@ -261,7 +261,8 @@ class WorkSpace:
         log.info("The workspace now depends on '{}'".format(req_dep.package.id()))
 
         # if we differ from the lockfile, tell the user to update
-        if not self.lock.get_package(req_dep.name).revision == req_resolved_rev:
+        if ((not self.lock.contains_package(req_dep.name) or
+             not self.lock.get_package(req_dep.name).revision == req_dep.package.revision)):
             log.info("Don't forget to run 'wit update'!")
 
     # Enable prettyish-printing of the class
