@@ -161,6 +161,21 @@ class WorkSpace:
             source_map, packages, queue, errors = \
                 dep.resolve_deps(self.root, self.repo_paths, download,
                                  source_map, packages, queue, errors)
+
+        for pkg in packages.values():
+            if not pkg.repo or pkg.repo.path.parts[-2] == '.wit':
+                continue
+
+            used_commit = pkg.revision
+            fs_commit = pkg.repo.get_commit('HEAD')
+            if used_commit != fs_commit:
+                log.warn("using '{}' manifest instead of checked-out version of '{}'".format(
+                    pkg.id(), pkg.name))
+                continue
+
+            if pkg.repo.modified_manifest():
+                log.warn("disregarding uncommitted changes to the '{}' manifest".format(pkg.name))
+
         return packages, errors
 
     @passbyval

@@ -164,6 +164,15 @@ class GitRepo:
                 return True
         return False
 
+    def modified_manifest(self):
+        proc = self._git_command('status', '--porcelain')
+        self._git_check(proc)
+        for line in proc.stdout.split("\n"):
+            if ((line.lstrip().startswith("M") or line.lstrip().startswith("D"))
+                    and line.endswith("wit-manifest.json")):
+                return True
+        return False
+
     # TODO Since we're storing the revision, should we be passing it as an argument?
     def commit_to_time(self, hash):
         proc = self._git_command('log', '-n1', '--format=%ct', hash)
