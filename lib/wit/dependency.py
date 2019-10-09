@@ -28,11 +28,10 @@ class DependeeNewerThanDepender(WitUserError):
 class Dependency:
     """ A dependency that a Package specifies. From wit-manifest.json and wit-workspace.js """
 
-    def __init__(self, name, source, specified_revision=None, tag=None):
+    def __init__(self, name, source, specified_revision=None):
         self.source = source
         self.revision = None
         self.specified_revision = specified_revision or "HEAD"
-        self.tag = tag  # type: Optional[str]
         self.name = name or Dependency.infer_name(source)
         self.package = None  # type: Package
         self.dependents = []  # type: List[Package]
@@ -103,13 +102,11 @@ class Dependency:
         res['name'] = self.name
         res['source'] = self.source
         res['commit'] = self.specified_revision
-        if self.tag is not None:
-            res['tag'] = self.tag
         return res
 
     # used before saving to manifests/lockfiles
     def resolved(self):
-        return Dependency(self.name, self.source, self.resolved_rev(), self.resolved_tag())
+        return Dependency(self.name, self.source, self.resolved_rev())
 
     # Check if the Dependency has a Package and repo on disk
     def _is_bound(self) -> bool:
@@ -119,16 +116,6 @@ class Dependency:
         if not self._is_bound():
             raise Exception("Cannot resolve dependency that is unbound to disk")
         return self.package.repo.get_commit(self.specified_revision)
-
-    def resolved_tag(self):
-        if not self._is_bound():
-            raise Exception("Cannot resolve dependency that is unbound to disk")
-        if self.tag is None:
-            repo = self.package.repo
-            rev = self.specified_revision
-            return rev if repo.is_tag(rev) else None
-        else:
-            return self.tag
 
     def __repr__(self):
         return "Dep({})".format(self.id())
@@ -185,4 +172,4 @@ def parse_dependency_tag(s):
 
 def manifest_item_to_dep(obj):
     # source can be done due to repo path
-    return Dependency(obj['name'], obj.get('source', None), obj['commit'], obj.get('tag', None))
+    return Dependency(obj['name'], obj.get('source', None), obj['commit'])

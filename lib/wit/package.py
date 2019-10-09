@@ -33,7 +33,6 @@ class Package:
         self.name = name
         self.source = None
         self.revision = None
-        self.tag = None
         self.repo_paths = repo_paths
 
         self.repo = None
@@ -50,7 +49,7 @@ class Package:
         return None
 
     def __key(self):
-        return (self.source, self.revision, self.name, self.tag)
+        return (self.source, self.revision, self.name)
 
     def __hash__(self):
         return hash(self.__key())
@@ -121,8 +120,6 @@ class Package:
         res['name'] = self.name
         res['source'] = self.source
         res['commit'] = self.revision
-        if self.tag is not None:
-            res['tag'] = self.tag
         return res
 
     # this is in Package because update_dependency is in Package
