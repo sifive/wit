@@ -71,7 +71,7 @@ class GitRepo:
         path.mkdir()
         source = str(self.source)
         if source == 'git@github.com:sifive/federation.git':
-            proc = self._git_command("clone", "--no-checkout", "--branch", 'add-polling-endpoint', source, str(path))
+            proc = self._git_command("clone", "--no-checkout", "--branch", 'ehalferty-test-1', source, str(path))
         else:
             proc = self._git_command("clone", "--no-checkout", source, str(path))
         try:
