@@ -69,7 +69,11 @@ class GitRepo:
 
         path = self.get_path()
         path.mkdir()
-        proc = self._git_command("clone", "--no-checkout", str(self.source), str(path))
+        source = str(self.source)
+        if source == 'git@github.com:sifive/federation.git':
+            proc = self._git_command("clone", "--no-checkout", "--branch", 'add-polling-endpoint', source, str(path))
+        else:
+            proc = self._git_command("clone", "--no-checkout", source, str(path))
         try:
             self._git_check(proc)
         except Exception as e:
