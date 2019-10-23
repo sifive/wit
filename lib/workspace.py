@@ -147,7 +147,7 @@ class WorkSpace:
                 if not repo.is_ancestor(commit, selected_commit):
                     log.error("Repo commit is not ancestor [{}]:\n"
                                   " ancestor: {}\n"
-                                  " current: {}\n".format(reponame, commit, selected_commit))
+                                  " current:  {}\n".format(reponame, commit, selected_commit))
                     raise NotAncestorError
 
                 # 5. If the repo has a selected version, go to step 3
