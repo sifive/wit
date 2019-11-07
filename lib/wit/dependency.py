@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List  # noqa: F401
 from collections import OrderedDict
-from .common import passbyval, WitUserError
+from .common import WitUserError
 from .package import Package
 from .witlogger import getLogger
 from .gitrepo import BadSource
@@ -35,8 +35,11 @@ class Dependency:
         self.package = None  # type: Package
         self.dependents = []  # type: List[Package]
 
-    @passbyval
     def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue, errors):
+        source_map = source_map.copy()
+        packages = packages.copy()
+        queue = queue.copy()
+        errors = errors.copy()
         subdeps = self.package.get_dependencies()
         log.debug("Dependencies for [{}]: [{}]".format(self.name, subdeps))
         for subdep in subdeps:
