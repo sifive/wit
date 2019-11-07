@@ -2,7 +2,9 @@
 
 . $(dirname $0)/regress_util.sh
 
-prereq "on"
+prereq on
+
+into_test_dir
 
 make_repo 'xyz'
 
@@ -40,18 +42,25 @@ foo_commit=$(git -C foo rev-parse HEAD)
 make_repo 'bar'
 cat << EOF | jq . > bar/wit-manifest.json
 [
-    { "commit": "$xyz_commit_a", "name": "xyz", "source": "$PWD/xyz" }
+    { "commit": "$xyz_commit_a", "name": "xyz", "source": "$PWD/xyz" },
+    { "commit": "$foo_commit", "name": "foo", "source": "$PWD/foo" }
 ]
 EOF
 git -C bar add -A
-git -C bar commit -m "add xyz:1"
+git -C bar commit -m "add xyz:a and foo"
 
 prereq "off"
 
 # Now create a workspace from main_repo
-wit init myws -a $PWD/foo -a $PWD/bar
+wit init myws -a $PWD/bar
 
-check "wit init should fail with AncestryError" [ $? -ne 0 ]
+check "wit init should fail" [ $? -ne 0 ]
+
+cd myws
+
+wit update | grep -e "'bar' and 'foo'" -e "'foo' and 'bar'"
+
+check "Ancestry error message should report both dependent repos" [ $? -eq 0 ]
 
 report
 finish

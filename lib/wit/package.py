@@ -148,6 +148,16 @@ class Package:
         self.move_to_root(wsroot)
         self.repo.checkout(self.revision)
 
+    def find_matching_dependent(self):
+        """
+        Finds first dependent that has the same revision as the resolved package
+        """
+        if self.revision is None:
+            return None
+        for dep in self.dependents:
+            if dep.specified_revision == self.revision:
+                return dep
+
     def dependents_have_common_ancestor(self):
         commits = [d.specified_revision for d in self.dependents]
         assert self.repo is not None

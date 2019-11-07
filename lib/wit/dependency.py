@@ -30,7 +30,6 @@ class Dependency:
 
     def __init__(self, name, source, specified_revision=None):
         self.source = source
-        self.revision = None
         self.specified_revision = specified_revision or "HEAD"
         self.name = name or Dependency.infer_name(source)
         self.package = None  # type: Package
