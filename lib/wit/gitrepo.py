@@ -8,6 +8,8 @@ import re
 from . import manifest
 from .common import WitUserError
 from .witlogger import getLogger
+from typing import Set  # noqa: F401
+from functools import lru_cache
 
 log = getLogger()
 
@@ -48,6 +50,15 @@ class GitRepo:
     def __init__(self, name, wsroot: Path):
         self.name = name
         self.path = wsroot / name
+        # Cache known hashes for quick lookup
+        self._known_hashes = set()  # type: Set[str]
+
+    def _known_hash(self, commit) -> bool:
+        """Checks if a hash exists in the current repo"""
+        return commit in self._known_hashes
+
+    def _add_known_hash(self, commit):
+        self._known_hashes.add(commit)
 
     def is_bad_source(self, source):
         tmp = self.path
@@ -96,7 +107,11 @@ class GitRepo:
     def get_head_commit(self) -> str:
         return self.get_commit('HEAD')
 
-    def get_commit(self, commit) -> str:
+    @lru_cache(maxsize=None)
+    def _get_commit_cached(self, commit):
+        return self._get_commit_impl(commit)
+
+    def _get_commit_impl(self, commit):
         proc = self._git_command('rev-parse', commit)
         try:
             self._git_check(proc)
@@ -111,10 +126,28 @@ class GitRepo:
                     raise
         return proc.stdout.rstrip()
 
-    def get_shortened_rev(self, commit):
+    def get_commit(self, commit) -> str:
+        if self._known_hash(commit):
+            result = self._get_commit_cached(commit)
+        else:
+            result = self._get_commit_impl(commit)
+        self._add_known_hash(result)
+        return result
+
+    @lru_cache(maxsize=None)
+    def _get_shortened_rev_cached(self, commit):
+        return self._get_shortened_rev_impl(commit)
+
+    def _get_shortened_rev_impl(self, commit):
         proc = self._git_command('rev-parse', '--short', commit)
         self._git_check(proc)
         return proc.stdout.rstrip()
+
+    def get_shortened_rev(self, commit):
+        if self._known_hash(commit):
+            return self._get_shortened_rev_cached(commit)
+        else:
+            return self._get_shortened_rev_impl(commit)
 
     def is_hash(self, ref):
         return self.get_commit(ref) == ref
@@ -173,11 +206,20 @@ class GitRepo:
                 return True
         return False
 
-    # TODO Since we're storing the revision, should we be passing it as an argument?
-    def commit_to_time(self, hash):
+    @lru_cache(maxsize=None)
+    def _commit_to_time_cached(self, hash):
+        return self._commit_to_time_impl(hash)
+
+    def _commit_to_time_impl(self, hash):
         proc = self._git_command('log', '-n1', '--format=%ct', hash)
         self._git_check(proc)
         return proc.stdout.rstrip()
+
+    def commit_to_time(self, hash):
+        if self._known_hash(hash):
+            return self._commit_to_time_cached(hash)
+        else:
+            return self._commit_to_time_impl(hash)
 
     def is_ancestor(self, ancestor, current=None):
         proc = self._git_command("merge-base", "--is-ancestor", ancestor,

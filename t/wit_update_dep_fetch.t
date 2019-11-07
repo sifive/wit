@@ -4,6 +4,8 @@
 
 prereq on
 
+into_test_dir
+
 # Set up repo foo
 make_repo 'foo'
 foo_commit=$(git -C foo rev-parse HEAD)
