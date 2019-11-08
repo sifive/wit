@@ -1,5 +1,5 @@
 import sys
-from .common import passbyval, print_errors
+from .common import print_errors
 from .witlogger import getLogger
 
 log = getLogger()
@@ -27,8 +27,8 @@ BOXED_DEPS = False
 VERBOSE_GRAPH = False
 
 
-@passbyval
 def _deduplicate_tree(tree, seen=None):
+    tree = tree.copy()
     seen = seen or []
     tag = tree.pop('')
     ident = tag[-8:]

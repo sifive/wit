@@ -7,7 +7,7 @@ from pprint import pformat
 from .manifest import Manifest
 from .dependency import Dependency, sources_conflict_check
 from .lock import LockFile
-from .common import WitUserError, error, passbyval
+from .common import WitUserError, error
 from .witlogger import getLogger
 from .gitrepo import GitCommitNotFound
 
@@ -177,8 +177,9 @@ class WorkSpace:
 
         return packages, errors
 
-    @passbyval
     def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue, errors):
+        source_map = source_map.copy()
+        queue = queue.copy()
         for dep in self.manifest.dependencies:
             dep.load(packages, repo_paths, wsroot, download)
 
