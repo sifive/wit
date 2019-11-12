@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. $(dirname $0)/regress_util.sh
+. $(dirname $0)/test_util.sh
 
 # Set up repo foo
 make_repo 'foo'

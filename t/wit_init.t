@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. $(dirname $0)/regress_util.sh
+. $(dirname $0)/test_util.sh
 
 wit init
 check "Wit init with no arguments should fail" [ $? -eq 2 ]
