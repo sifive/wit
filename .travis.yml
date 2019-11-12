@@ -23,13 +23,13 @@ jobs:
 
     - stage: test
       name: "Lint"
-      script: flake8
+      script: make test-lint
     - stage: test
       name: "Type Checking"
-      script: mypy lib/wit/*.py
+      script: make test-typecheck
     - stage: test
-      name: "Execution Tests"
-      script: ./t/test_all.sh
+      name: "Regression Tests"
+      script: make test-regress
     - stage: test
       name: "Build Wit Dockerfile"
       script: ./docker/build_image.sh
