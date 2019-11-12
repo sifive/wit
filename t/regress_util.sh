@@ -4,7 +4,14 @@ wit_repo='git@github.com:sifive/wit'
 test_root=$(dirname $(perl -MCwd -e "print Cwd::realpath('$0')"))
 wit_root=$(perl -MCwd -e "print Cwd::realpath('$test_root/..')")
 
-export PATH=$wit_root:${PATH}
+if [[ -z "${WIT}" ]]; then
+  export PATH=$wit_root:${PATH}
+else
+  export PATH=${WIT}:${PATH}
+fi
+
+wit_bin=$(which wit)
+echo "Running with wit: ${wit_bin}"
 
 fail=0
 pass=0

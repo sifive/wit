@@ -23,8 +23,6 @@ ignore_test () {
     fi
 }
 
-export PATH=$wit_root:${PATH}
-
 timestamp=`date +'%Y-%m-%dT%H-%M-%S'`
 regression_dir=${wit_root}/regression.${timestamp}
 echo "Running tests in ${regression_dir}"
