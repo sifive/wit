@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-. $(dirname $0)/regress_util.sh
+. $(dirname $0)/test_util.sh
 
 prereq on
 

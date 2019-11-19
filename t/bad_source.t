@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. $(dirname $0)/regress_util.sh
+. $(dirname $0)/test_util.sh
 
 # Now create a workspace from main_repo
 wit init myws

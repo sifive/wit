@@ -1,6 +1,60 @@
-# wit internals
-This document describes terms and concepts used by `wit`.
+# Wit Internals
 
+This document contains documentation for `wit` developers.`
+
+## Testing
+
+Requirements for linting and type checking can be installed with `pip3`:
+```
+$ pip3 install -r requirements.txt
+```
+
+You can run all tests with the included Makefile:
+```
+$ make test-all
+```
+
+### Regression Tests
+
+The regression tests for wit are in the `t/` directory. Each test is a bash script ending with `.t` as the filename extension. You can run individual tests:
+```
+$ ./t/wit_init.t
+```
+
+You can also run all of the regression tests via the Makefile:
+```
+$ make test-regress
+```
+
+#### Customizing wit executable
+
+By default, the regression tests use the `wit` executable in the base directory of this repository. This can be overwritten by setting the `WIT` environment variable to point to either the directory containing the `wit` executable, or setting it to the `wit` executable itself.
+
+For example, if you wish to test whatever `wit` is on your `PATH`, you can type:
+```bash
+$ WIT=`which wit` make test-regress
+```
+
+Alternatively, you can point to a `wit` installation:
+```bash
+$ WIT=/path/to/wit/installation make test-regress
+```
+
+Note that this only affects `test-regress`, linting and type checking are run on the repository itself.
+
+### Lint
+
+This projects uses [Flake8](http://flake8.pycqa.org/en/latest/) for linting. The rules are in [`.flake8`](.flake8) and linting can be run with:
+```
+$ make test-lint
+```
+
+### Type Checking
+
+We also use [mypy](http://mypy-lang.org/) for (limited) static type checking. The rules are specified in [`mypy.ini`](mypy.ini) and can be run with:
+```
+$ make test-typecheck
+```
 
 ## Terms
 

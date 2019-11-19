@@ -1,7 +1,7 @@
 *.pyc
 *.pyo
 *.swp
-regression*
+test*
 .mypy_cache
 .rsyncignore
 t/bar*

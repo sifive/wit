@@ -10,7 +10,7 @@ OPT_J=1
 
 echo "Running [$OPT_J] tests in parallel."
 
-. $(dirname $0)/regress_util.sh
+. $(dirname $0)/test_util.sh
 
 ## List of tests to ignore
 test_ignore_list=( test_fail )
@@ -23,18 +23,16 @@ ignore_test () {
     fi
 }
 
-export PATH=$wit_root:${PATH}
-
 timestamp=`date +'%Y-%m-%dT%H-%M-%S'`
-regression_dir=${wit_root}/regression.${timestamp}
-echo "Running tests in ${regression_dir}"
-mkdir $regression_dir
+test_dir=${wit_root}/test.${timestamp}
+echo "Running tests in ${test_dir}"
+mkdir $test_dir
 
 declare -A test_results
 pass=0
 fail=0
 for test_path in $test_root/*.t; do
-    cd $regression_dir
+    cd $test_dir
     test_file=$(basename $test_path)
     test_name="${test_file%%.*}"
 
@@ -55,7 +53,7 @@ for test_path in $test_root/*.t; do
         test_results["$test_name"]="FAIL"
         touch "FAIL"
         ((fail++))
-        regression_result=1
+        test_result=1
     fi
     echo -e "\033[1K\033[1G${test_results[$test_name]} - ${test_name}";
 done
