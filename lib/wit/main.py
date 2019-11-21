@@ -85,7 +85,10 @@ def main() -> None:
     inspect_group.add_argument('--tree', action="store_true")
     inspect_group.add_argument('--dot', action="store_true")
 
-    subparsers.add_parser('fetch-scala', help='Fetch dependencies for Scala projects')
+    fetch_scala_parser = subparsers.add_parser('fetch-scala',
+                                               help='Fetch dependencies for Scala projects')
+    fetch_scala_parser.add_argument('--jar', action='store_true', default=False,
+                                    help='download coursier jar instead of binary')
 
     args = parser.parse_args()
     if args.verbose == 4:
@@ -144,7 +147,7 @@ def main() -> None:
                 update(ws, args)
 
             elif args.command == 'fetch-scala':
-                fetch_scala(ws, args, agg=False)
+                fetch_scala(ws, args, agg=False, jar=args.jar)
 
             elif args.command == 'inspect':
                 if args.dot or args.tree:
@@ -369,13 +372,14 @@ def update(ws, args) -> None:
         sys.exit(1)
 
 
-def fetch_scala(ws, args, agg=True) -> None:
+def fetch_scala(ws, args, agg=True, jar=False) -> None:
     """Fetches bloop, coursier, and ivy dependencies
 
     It only fetches if ivydependencies.json files are found in packages
     ws -- the Workspace
     args -- arguments to the parser
     agg -- indicates if this invocation is part of a larger command (like init)
+    jar -- fetch coursier jar instead of binary
     """
 
     # Collect ivydependency files
@@ -410,7 +414,7 @@ def fetch_scala(ws, args, agg=True) -> None:
         else:
             log.info("Installing Scala to {}...".format(install_dir))
             os.makedirs(install_dir, exist_ok=True)
-            scalaplugin.install_coursier(install_dir)
+            scalaplugin.install_coursier(install_dir, jar)
 
         log.info("Fetching ivy dependencies...")
         scalaplugin.fetch_ivy_dependencies(files, install_dir, ivy_cache_dir)

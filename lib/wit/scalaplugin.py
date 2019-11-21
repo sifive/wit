@@ -7,6 +7,7 @@ import os
 import urllib.request
 from .witlogger import getLogger
 from typing import List, Tuple
+import sys
 
 log = getLogger()
 
@@ -86,14 +87,52 @@ def fetch_scala_compiler_bridge(coursier, bloop_home, cache, version):
     return proc.returncode == 0
 
 
-def install_coursier(install_dir):
-    version = "1.1.0-M14-6"
-    path = "io/get-coursier/coursier-cli_2.12/{}/coursier-cli_2.12-{}-standalone.jar".format(
-           version, version)
+def calc_sha256(filename):
+    import hashlib
+    block_size = 65536
+    hasher = hashlib.sha256()
+    with open(filename, 'rb') as f:
+        buf = f.read(block_size)
+        while len(buf) > 0:
+            hasher.update(buf)
+            buf = f.read(block_size)
+    return hasher.hexdigest()
+
+
+def install_coursier(install_dir, jar=False):
+    release_host = "https://github.com/coursier/coursier/releases/download"
+    version = "v2.0.0-RC4-1"
+
+    platform = sys.platform
+    # https://docs.python.org/3.5/library/platform.html#platform.architecture
+    is_64bit = sys.maxsize > 2**32
+
+    name = ""
+    sha256 = None
+    if platform == 'darwin' and is_64bit and not jar:
+        name = "cs-x86_64-apple-darwin"
+        sha256 = "3ba4f90d912497cf57dfdcc340468cbbaa26a9bd3df3be369b4f118b16305f8b"
+    elif platform == 'linux' and is_64bit and not jar:
+        name = "cs-x86_64-pc-linux"
+        sha256 = "81d72ee774f5261169c5919bbc7ff6cedd7a84b7271ecb4ee16b332d6f91a4a4"
+    else:
+        name = "coursier.jar"
+        sha256 = "ba197aec96b104fb1f8775e23f01435b865d9af3d40a9ad097ea9dd5dfcf04d1"
+
+    url = '{}/{}/{}'.format(release_host, version, name)
+
     filename = coursier_bin(install_dir)
-    url = "http://central.maven.org/maven2/{}".format(path)
+
     print("Downloading from {}".format(url))
     urllib.request.urlretrieve(url, filename)
+
+    actual_sha256 = calc_sha256(filename)
+    if actual_sha256 != sha256:
+        msg = "Error! SHA256 mismatch for {}!".format(filename)
+        suggestion = "Please delete the 'scala/' directory and re-run fetch-scala!"
+        extra_info = "  Expected: {}\n  Got:      {}".format(sha256, actual_sha256)
+        raise Exception("{} {}\n{}".format(msg, suggestion, extra_info))
+
     os.chmod(filename, 0o755)
 
 
