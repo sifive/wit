@@ -79,8 +79,8 @@ class GitRepo:
             "Trying to clone and checkout into existing git repo!"
         log.info('Cloning {}...'.format(self.name))
 
-        self.path.mkdir()
-        proc = self._git_command("clone", "--no-checkout", source, str(self.path))
+        proc = self._git_command("clone", "--no-checkout", source, str(self.path),
+                                 working_dir=str(self.path.parent))
         try:
             self._git_check(proc)
         except GitError:
@@ -283,11 +283,14 @@ class GitRepo:
             'commit': revision,
         }
 
-    def _git_command(self, *args):
-        log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), self.path))
-        proc = subprocess.run(['git', *args], stdout=subprocess.PIPE,
+    def _git_command(self, *args, working_dir=None):
+        cwd = str(self.path) if working_dir is None else str(working_dir)
+        log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), cwd))
+        proc = subprocess.run(['git', *args],
+                              stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
-                              cwd=str(self.path), universal_newlines=True)
+                              universal_newlines=True,
+                              cwd=cwd)
         return proc
 
     def _git_check(self, proc):
