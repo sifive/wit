@@ -295,8 +295,8 @@ class GitRepo:
 
     def _git_check(self, proc):
         if proc.returncode:
-            msg = "Command [{}] exited with non-zero exit status [{}]\n".format(
-                  ' '.join(proc.args), proc.returncode)
+            msg = "Command [{}] in [{}] exited with non-zero exit status [{}]\n".format(
+                  ' '.join(proc.args), str(self.path), proc.returncode)
             msg += "stdout: [{}]\n".format(proc.stdout.rstrip())
             msg += "stderr: [{}]\n".format(proc.stderr.rstrip())
             raise GitError(msg)
