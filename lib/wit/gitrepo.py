@@ -291,6 +291,8 @@ class GitRepo:
                               stderr=subprocess.PIPE,
                               universal_newlines=True,
                               cwd=cwd)
+        log.spam("   stderr: [{}]".format(proc.stderr.rstrip()))
+        log.spam("   stdout: [{}]".format(proc.stdout.rstrip()))
         return proc
 
     def _git_check(self, proc):
