@@ -55,8 +55,16 @@ update_pkg_parser = subparsers.add_parser('update-pkg', help='update the revisio
                                           'previously added package')
 update_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=parse_dependency_tag)
 
-add_dep_parser = subparsers.add_parser('add-dep', help='add a dependency to a package')
-add_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=parse_dependency_tag)
+add_dep_parser = subparsers.add_parser(
+    name='add-dep',
+    description='Adds <pkg> as a dependency to a target package determined by the current working '
+                'directory (which can be set by -C)',
+    help='add a dependency to a package')
+add_dep_parser.add_argument(
+    dest='pkg',
+    metavar='pkg[::revision]',
+    type=parse_dependency_tag,
+    help='revision can be any git commit-ish, default is the currently checked out commit')
 
 update_dep_parser = subparsers.add_parser('update-dep', help='update revision of a dependency '
                                           'in a package')
