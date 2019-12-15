@@ -91,7 +91,7 @@ def main() -> None:
                                     help='download coursier jar instead of binary')
 
     args = parser.parse_args()
-    if args.verbose == 4:
+    if args.verbose >= 4:
         log.setLevel('SPAM')
     elif args.verbose == 3:
         log.setLevel('TRACE')
