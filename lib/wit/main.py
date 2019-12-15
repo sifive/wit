@@ -24,7 +24,7 @@ from .common import error, WitUserError, print_errors
 from .gitrepo import GitRepo, GitCommitNotFound
 from .manifest import Manifest
 from .package import WitBug
-from .parser import parser
+from .parser import parser, add_dep_parser
 import re
 
 log = getLogger()
@@ -163,9 +163,8 @@ def add_dep(ws, args) -> None:
 
     cwd = Path(os.getcwd()).resolve()
     if cwd == ws.root:
-        error("add-dep must be run inside of a package, not the workspace root.\n"
-              "  A dependency is added to the package determined by the current working "
-              "directory,\n  which can also be set by -C.")
+        error("add-dep must be run inside of a package, not the workspace root.\n\n" +
+              add_dep_parser.format_help())
     cwd_dirname = cwd.relative_to(ws.root).parts[0]
     if not ws.lock.contains_package(cwd_dirname):
         raise NotAPackageError(
