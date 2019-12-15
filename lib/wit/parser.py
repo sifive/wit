@@ -15,7 +15,9 @@ def chdir(s) -> None:
 
 
 # Parse arguments. Create sub-commands for each of the modes of operation
-parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+parser = argparse.ArgumentParser(
+    prog='wit',
+    formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('-v', '--verbose', action='count', default=0,
                     help='''Specify level of verbosity
 -v:    verbose
@@ -30,7 +32,11 @@ parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'),
 parser.add_argument('--prepend-repo-path', default=None,
                     help='Prepend paths to the default repo search path.')
 
-subparsers = parser.add_subparsers(dest='command', help='sub-command help')
+subparsers = parser.add_subparsers(
+               title='subcommands',
+               dest='command',
+               metavar='<command>',
+               help='<description>')
 
 init_parser = subparsers.add_parser('init', help='create workspace')
 init_parser.add_argument('--no-update', dest='update', action='store_false',
