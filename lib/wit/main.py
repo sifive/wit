@@ -227,8 +227,11 @@ def add_dep(ws, args) -> None:
     req_dep = dependency_from_tag(ws.root, args.pkg)
 
     cwd = Path(os.getcwd()).resolve()
+    if cwd == ws.root:
+        error("add-dep must be run inside of a package, not the workspace root.\n"
+              "  A dependency is added to the package determined by the current working "
+              "directory,\n  which can also be set by -C.")
     cwd_dirname = cwd.relative_to(ws.root).parts[0]
-
     if not ws.lock.contains_package(cwd_dirname):
         raise NotAPackageError(
             "'{}' is not a package in workspace at '{}'".format(cwd_dirname, ws.path))
@@ -266,7 +269,9 @@ def update_dep(ws, args) -> None:
     cwd = Path(os.getcwd()).resolve()
 
     if cwd == ws.root:
-        error("Cannot run update-dep from root of workspace.")
+        error("update-dep must be run inside of a package, not the workspace root.\n"
+              "  A dependency is updated in the package determined by the current working "
+              "directory,\n  which can also be set by -C.")
 
     cwd_dirname = cwd.relative_to(ws.root).parts[0]
     manifest = Manifest.read_manifest(cwd/'wit-manifest.json')
