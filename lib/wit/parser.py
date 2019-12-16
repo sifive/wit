@@ -14,7 +14,7 @@ def chdir(s) -> None:
         err("'{}' is not a directory!".format(s))
 
 
-# Parse arguments. Create sub-commands for each of the modes of operation
+# ********** top-level parser **********
 parser = argparse.ArgumentParser(
     prog='wit',
     formatter_class=argparse.RawTextHelpFormatter)
@@ -32,12 +32,14 @@ parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'),
 parser.add_argument('--prepend-repo-path', default=None,
                     help='Prepend paths to the default repo search path.')
 
+# ********** command subparser aggregator **********
 subparsers = parser.add_subparsers(
                title='subcommands',
                dest='command',
                metavar='<command>',
                help='<description>')
 
+# ********** init subparser **********
 init_parser = subparsers.add_parser('init', help='create workspace')
 init_parser.add_argument('--no-update', dest='update', action='store_false',
                          help=('don\'t run update upon creating the workspace'
@@ -48,13 +50,16 @@ init_parser.add_argument('-a', '--add-pkg', metavar='repo[::revision]', action='
                          type=parse_dependency_tag, help='add an initial package')
 init_parser.add_argument('workspace_name')
 
+# ********** add-pkg subparser **********
 add_pkg_parser = subparsers.add_parser('add-pkg', help='add a package to the workspace')
 add_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=parse_dependency_tag)
 
+# ********** update-pkg subparser **********
 update_pkg_parser = subparsers.add_parser('update-pkg', help='update the revision of a '
                                           'previously added package')
 update_pkg_parser.add_argument('repo', metavar='repo[::revision]', type=parse_dependency_tag)
 
+# ********** add-dep subparser **********
 add_dep_parser = subparsers.add_parser(
     name='add-dep',
     description='Adds <pkg> as a dependency to a target package determined by the current working '
@@ -66,18 +71,24 @@ add_dep_parser.add_argument(
     type=parse_dependency_tag,
     help='revision can be any git commit-ish, default is the currently checked out commit')
 
+# ********** update-dep subparser **********
 update_dep_parser = subparsers.add_parser('update-dep', help='update revision of a dependency '
                                           'in a package')
 update_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=parse_dependency_tag)
 
+# ********** status subparser **********
 subparsers.add_parser('status', help='show status of workspace')
+
+# ********** update subparser **********
 subparsers.add_parser('update', help='update git repos')
 
+# ********** inspect subparser **********
 inspect_parser = subparsers.add_parser('inspect', help='inspect lockfile')
 inspect_group = inspect_parser.add_mutually_exclusive_group()
 inspect_group.add_argument('--tree', action="store_true")
 inspect_group.add_argument('--dot', action="store_true")
 
+# ********** fetch-scala subparser **********
 fetch_scala_parser = subparsers.add_parser('fetch-scala',
                                            help='Fetch dependencies for Scala projects')
 fetch_scala_parser.add_argument('--jar', action='store_true', default=False,
