@@ -28,12 +28,13 @@ class DependeeNewerThanDepender(WitUserError):
 class Dependency:
     """ A dependency that a Package specifies. From wit-manifest.json and wit-workspace.js """
 
-    def __init__(self, name, source, specified_revision=None):
+    def __init__(self, name, source, specified_revision, message):
         self.source = source
         self.specified_revision = specified_revision or "HEAD"
         self.name = name or Dependency.infer_name(source)
         self.package = None  # type: Package
         self.dependents = []  # type: List[Package]
+        self.message = message
 
     def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue, errors):
         source_map = source_map.copy()
@@ -104,11 +105,13 @@ class Dependency:
         res['name'] = self.name
         res['source'] = self.source
         res['commit'] = self.specified_revision
+        if self.message is not None and len(self.message) > 0:
+            res['//'] = self.message
         return res
 
     # used before saving to manifests/lockfiles
     def resolved(self):
-        return Dependency(self.name, self.source, self.resolved_rev())
+        return Dependency(self.name, self.source, self.resolved_rev(), self.message)
 
     # Check if the Dependency has a Package and repo on disk
     def _is_bound(self) -> bool:
@@ -174,4 +177,4 @@ def parse_dependency_tag(s):
 
 def manifest_item_to_dep(obj):
     # source can be done due to repo path
-    return Dependency(obj['name'], obj.get('source', None), obj['commit'])
+    return Dependency(obj['name'], obj.get('source', None), obj['commit'], obj.get('//', None))
