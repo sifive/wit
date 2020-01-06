@@ -135,6 +135,11 @@ Then reload your shell:
 exec $SHELL -l
 ```
 
+## GitHub Action
+This repo also provides a [GitHub Action](https://github.com/features/actions)
+that is available for use in GitHub CI/CD workflows. See
+[actions/wit/README.md](actions/wit/README.md) for more information.
+
 ## Contributing
 
 Please see [README-internals](README-internals.md) for information about development.

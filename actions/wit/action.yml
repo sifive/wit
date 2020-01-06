@@ -1,0 +1,29 @@
+name: 'Wit'
+author: 'Richard Xia <rxia@sifive.com>'
+description: 'Run an arbitrary Wit command.'
+inputs:
+  command:
+    description: 'The specific Wit command to run (e.g. `init` or `update`)'
+    required: true
+  arguments:
+    description: |
+      The full set of arguments for the Wit command. For example, if the command
+      is `init`, then a valid set of arguments could be:
+
+        workspace_dir -a git@github.com:sifive/api-scala-sifive.git::0.1.0
+
+      Any relative path is interpreted as relative to the $GITHUB_WORKSPACE.
+      Newline characters are safe to include and can be used to delimit
+      arguments under standard shell (bash) command parsing rules.
+    required: false
+    default: ''
+  force_github_https:
+    description: |
+      If set to any non-empty string then rewrite all git@github.com URLs to
+      https://github.com. This is useful for cloning public GitHub repositories
+      without requiring SSH credentials.
+    required: false
+    default: ''
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
