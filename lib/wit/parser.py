@@ -70,11 +70,22 @@ add_dep_parser.add_argument(
     metavar='pkg[::revision]',
     type=parse_dependency_tag,
     help='revision can be any git commit-ish, default is the currently checked out commit')
+add_dep_parser.add_argument(
+    '-m',
+    '--message',
+    dest="message",
+    help="Comment message to be added to the dependency's entry in the manifest.")
 
 # ********** update-dep subparser **********
 update_dep_parser = subparsers.add_parser('update-dep', help='update revision of a dependency '
                                           'in a package')
 update_dep_parser.add_argument('pkg', metavar='pkg[::revision]', type=parse_dependency_tag)
+update_dep_parser.add_argument(
+    '-m',
+    '--message',
+    dest="message",
+    help='Comment message to be added to the dependency\'s entry in the manifest. This will'
+         ' overwrite a previous message.')
 
 # ********** status subparser **********
 subparsers.add_parser('status', help='show status of workspace')

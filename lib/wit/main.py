@@ -138,7 +138,7 @@ def update_pkg(ws, args) -> None:
     ws.update_dependency(args.repo)
 
 
-def dependency_from_tag(wsroot, tag):
+def dependency_from_tag(wsroot, tag, message=None):
     source, revision = tag
 
     dotwit = wsroot / ".wit"
@@ -153,13 +153,13 @@ def dependency_from_tag(wsroot, tag):
     elif Path(source).exists():
         source = str(Path(source).resolve())
 
-    return Dependency(None, source, revision)
+    return Dependency(None, source, revision, message)
 
 
 def add_dep(ws, args) -> None:
     """ Resolve a Dependency then add it to the cwd's wit-manifest.json """
     packages = {pkg.name: pkg for pkg in ws.lock.packages}
-    req_dep = dependency_from_tag(ws.root, args.pkg)
+    req_dep = dependency_from_tag(ws.root, args.pkg, message=args.message)
 
     cwd = Path(os.getcwd()).resolve()
     if cwd == ws.root:
@@ -198,7 +198,7 @@ def add_dep(ws, args) -> None:
 
 def update_dep(ws, args) -> None:
     packages = {pkg.name: pkg for pkg in ws.lock.packages}
-    req_dep = dependency_from_tag(ws.root, args.pkg)
+    req_dep = dependency_from_tag(ws.root, args.pkg, message=args.message)
 
     cwd = Path(os.getcwd()).resolve()
 
