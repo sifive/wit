@@ -16,6 +16,19 @@ SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 SCRIPT_NAME = os.path.basename(__file__)
 
 
+def _report_old_version(name):
+    raise Exception("Removed function {} called, please upgrade api-scala-sifive".format(name))
+
+
+# Removed functions that might be called by old versions of api-scala-sifive
+def bloop_home(install_dir):
+    _report_old_version("bloop_home")
+
+
+def run_bloop(coursier, bloop_home, cache, args):
+    _report_old_version("run_bloop")
+
+
 def scala_install_dir(path):
     return str(path / "scala")
 
@@ -27,12 +40,9 @@ def ivy_cache_dir(path):
 def coursier_bin(install_dir):
     return "{}/coursier".format(install_dir)
 
+def mill_bin(install_dir):
+    return "{}/mill".format(install_dir)
 
-def bloop_home(install_dir):
-    """
-    The directory bloop thinks is $HOME
-    """
-    return "{}/bloop_home".format(install_dir)
 
 
 def ivy_deps_file(directory):
@@ -58,17 +68,6 @@ def bloop_classpath(coursier, cache, offline=True):
     cmd = [coursier, "fetch"] + offlineArgs + ["--classpath", "--cache", cache] + deps
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, universal_newlines=True)
     return proc.stdout.rstrip()
-
-
-def run_bloop(coursier, bloop_home, cache, args):
-    classpath = bloop_classpath(coursier, cache)
-    if classpath is None:
-        return 1
-    arglist = args.split()
-    set_home = "-Duser.home={}".format(bloop_home)
-    cmd = ["java", "-Xss8M", set_home, "-cp", classpath, "bloop.Cli"] + arglist
-    proc = subprocess.run(cmd)
-    return proc.returncode == 0
 
 
 def fetch_scala_compiler_bridge(coursier, bloop_home, cache, version):
