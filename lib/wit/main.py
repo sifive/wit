@@ -373,7 +373,7 @@ def update(ws, args) -> None:
 
 
 def fetch_scala(ws, args, agg=True, jar=False) -> None:
-    """Fetches bloop, coursier, and ivy dependencies
+    """Fetches mill, coursier, and ivy dependencies
 
     It only fetches if ivydependencies.json files are found in packages
     ws -- the Workspace
@@ -415,6 +415,7 @@ def fetch_scala(ws, args, agg=True, jar=False) -> None:
             log.info("Installing Scala to {}...".format(install_dir))
             os.makedirs(install_dir, exist_ok=True)
             scalaplugin.install_coursier(install_dir, jar)
+            scalaplugin.install_mill(install_dir, jar)
 
         log.info("Fetching ivy dependencies...")
         scalaplugin.fetch_ivy_dependencies(files, install_dir, ivy_cache_dir)

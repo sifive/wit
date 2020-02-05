@@ -40,9 +40,9 @@ def ivy_cache_dir(path):
 def coursier_bin(install_dir):
     return "{}/coursier".format(install_dir)
 
+
 def mill_bin(install_dir):
     return "{}/mill".format(install_dir)
-
 
 
 def ivy_deps_file(directory):
@@ -54,36 +54,11 @@ def scala_version_dep(version):
 
 
 def get_bloop_artifacts():
-    version = "2.12.8"
-    # The version of bsp4s that bloop depeneds on isn't published so we override it
-    deps = ["ch.epfl.scala::bloop-frontend:1.2.5", "ch.epfl.scala::bsp4s:2.0.0-M3"]
-    expanded = [expand_scala_dep(version, dep) for dep in deps]
-    allDeps = expanded + [scala_version_dep(version)]
-    return allDeps
+    _report_old_version("get_bloop_artifacts")
 
 
 def bloop_classpath(coursier, cache, offline=True):
-    deps = get_bloop_artifacts()
-    offlineArgs = ["-m", "offline"] if offline else []
-    cmd = [coursier, "fetch"] + offlineArgs + ["--classpath", "--cache", cache] + deps
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, universal_newlines=True)
-    return proc.stdout.rstrip()
-
-
-def fetch_scala_compiler_bridge(coursier, bloop_home, cache, version):
-    classpath = bloop_classpath(coursier, cache, offline=False)
-    if classpath is None:
-        return 1
-    fetcher = "{}/scala-bridge-fetcher_2.12-0.1.0.jar".format(SCRIPT_DIR)
-    classpath = classpath + ":" + fetcher
-    # Make sure bloop_home exists
-    os.makedirs(bloop_home, mode=0o755, exist_ok=True)
-    set_home = "-Duser.home={}".format(bloop_home)
-    cmd = ["java", set_home, "-cp", classpath, "sifive.ScalaCompilerBridgeFetcher", version]
-    # This creates a target directory, put it in bloop_home
-    proc = subprocess.Popen(cmd, cwd=bloop_home)
-    proc.wait()
-    return proc.returncode == 0
+    _report_old_version("bloop_classpath")
 
 
 def calc_sha256(filename):
@@ -96,6 +71,20 @@ def calc_sha256(filename):
             hasher.update(buf)
             buf = f.read(block_size)
     return hasher.hexdigest()
+
+
+def _fetch_and_check_file(filename, url, sha256):
+    print("Downloading from {}".format(url))
+    urllib.request.urlretrieve(url, filename)
+
+    actual_sha256 = calc_sha256(filename)
+    if actual_sha256 != sha256:
+        msg = "Error! SHA256 mismatch for {}!".format(filename)
+        suggestion = "Please delete the 'scala/' directory and re-run fetch-scala!"
+        extra_info = "  Expected: {}\n  Got:      {}".format(sha256, actual_sha256)
+        raise Exception("{} {}\n{}".format(msg, suggestion, extra_info))
+
+    os.chmod(filename, 0o755)
 
 
 def install_coursier(install_dir, jar=False):
@@ -122,17 +111,27 @@ def install_coursier(install_dir, jar=False):
 
     filename = coursier_bin(install_dir)
 
-    print("Downloading from {}".format(url))
-    urllib.request.urlretrieve(url, filename)
+    _fetch_and_check_file(filename, url, sha256)
 
-    actual_sha256 = calc_sha256(filename)
-    if actual_sha256 != sha256:
-        msg = "Error! SHA256 mismatch for {}!".format(filename)
-        suggestion = "Please delete the 'scala/' directory and re-run fetch-scala!"
-        extra_info = "  Expected: {}\n  Got:      {}".format(sha256, actual_sha256)
-        raise Exception("{} {}\n{}".format(msg, suggestion, extra_info))
 
-    os.chmod(filename, 0o755)
+
+# Most dependencies are in api-scala-sifive's ivydependencies.json, ideally they all would be
+#   but source jars can't currently be fetched that way
+def fetch_mill_dependencies(coursier: str, cache: str) -> None:
+    deps = ["org.scala-sbt:compiler-bridge_2.12:1.2.5"]
+    fetch_ivy_deps(coursier, cache, deps, sources=True)
+
+
+def install_mill(install_dir, jar=False):
+    release_host = "https://github.com/lihaoyi/mill/releases/download"
+    version = "0.6.0"
+    name = "0.6.0-assembly"
+    sha256 = "90bccfc5fcf3c45492f89362c287527c0127b8cdee8b245d0db62ca787d8a4db"
+    url = '{}/{}/{}'.format(release_host, version, name)
+    filename = mill_bin(install_dir)
+
+    _fetch_and_check_file(filename, url, sha256)
+    #_fetch_mill_dependencies()
 
 
 def split_scala_version(version):
@@ -234,9 +233,10 @@ def resolve_dependencies(projects: List[dict]) -> Tuple[List[tuple], List[str]]:
     return (unique_groups, unique_versions)
 
 
-def fetch_ivy_deps(coursier: str, cache: str, deps: tuple) -> None:
+def fetch_ivy_deps(coursier: str, cache: str, deps: tuple, sources: bool = False) -> None:
     log.debug("Fetching [{}]...".format(", ".join(deps)))
-    cmd = [coursier, "fetch", "--cache", cache] + list(deps)
+    srcs_cmd = ["--sources"] if sources else []
+    cmd = [coursier, "fetch", "--cache", cache] + srcs_cmd + list(deps)
     proc = subprocess.run(cmd)
     if proc.returncode != 0:
         raise Exception("Unable to fetch dependencies [{}]".format(", ".join(deps)))
@@ -245,15 +245,13 @@ def fetch_ivy_deps(coursier: str, cache: str, deps: tuple) -> None:
 def fetch_ivy_dependencies(dep_files, install_dir, ivy_cache_dir):
     coursier = coursier_bin(install_dir)
 
+    fetch_mill_dependencies(coursier, ivy_cache_dir)
+
     projects = []
     for fn in dep_files:
         projects.extend(read_ivy_file(fn))
 
     (dep_groups, scala_versions) = resolve_dependencies(projects)
-
-    bhome = bloop_home(install_dir)
-    for ver in scala_versions:
-        assert fetch_scala_compiler_bridge(coursier, bhome, ivy_cache_dir, ver)
 
     for group in dep_groups:
         fetch_ivy_deps(coursier, ivy_cache_dir, group)
