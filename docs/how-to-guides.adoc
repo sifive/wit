@@ -1,0 +1,94 @@
+= How To Guides
+
+This document describes a number of common operations for quick reference.
+
+
+== Creating a workspace
+
+You may create an empty workspace with:
+
+[source,shell]
+----
+wit init <workspace>
+----
+
+
+== Initializing a workspace with an existing repository
+
+If you want to specify one or more packages when you create the workspace, you can use the `-a` option:
+
+[source,shell]
+----
+wit init <workspace> -a </path/to/git/repo/soc.git>[::revision]
+----
+
+The revision can be a tag, branch, or commit.
+Note that wit respects normal git behavior.
+You may also specify the `-a` multiple times in the same command.
+
+
+== Adding a package to a workspace
+
+To add a package to a workspace that has already been created you use the `add-pkg` sub-command.
+
+[source,shell]
+----
+wit add-pkg </path/to/git/repo/soc.git>[::revision]
+----
+
+
+== Resolve and fetch package dependencies
+
+Once you have added one or more repositories to your workspace, you can use `update` to resolve and fetch
+the transitive dependencies of each package.
+
+[source,shell]
+----
+wit update
+----
+
+
+== Updating a package
+
+You can update the revision of a package in the workspace using the `update-pkg` sub-command.
+
+[source,shell]
+----
+wit update-pkg <package>[::revision]
+----
+
+If you update to `<package>::<branch>`, it will check out the local version of that branch.
+You can always check out remote branches by specifying the remote as well
+
+[source,shell]
+----
+wit update-pkg <package>::<remote>/<branch>
+----
+
+
+== Viewing dependency graph visually
+
+Wit comes with two ways of visualizing the dependency graph,
+one that can be printed directly on the terminal in ASCII format and one that can be rendered as an SVG image.
+
+To print out the dependency on the command line, run:
+
+[source,shell]
+----
+$ wit inspect --tree
+api-scala-sifive::4fd0852
+└─wit::298410a0
+----
+
+Wit can also generate a https://en.wikipedia.org/wiki/DOT_(graph_description_language)[DOT] file,
+which can be then rendered into an image with a number of different tools,
+https://graphviz.org/[Graphviz] being one of the most prominent.
+
+If you have Graphviz installed, then the following commands will produce an SVG image of the Wit dependency graph:
+
+[source,shell]
+----
+wit inspect --dot | dot -Tsvg > graph.svg
+----
+
+This SVG file can be directly viewed in most web browsers.

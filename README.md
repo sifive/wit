@@ -41,41 +41,10 @@ make install PREFIX=/path/to/installation
 The Makefile will create a directory with the version (it even works for commits between tags)
 and copy the contents of contents of the local clone excluding the tests and metadata.
 
+### How To Guides
 
-### Creating a workspace
-Creating a workspace does not require a git repository to be specified. You may create an empty workspace with:
+See the [How To Guides](docs/how-to-guides.adoc) for list of guides for common wit operations.
 
-    wit init <workspace>
-
-If you want to specify one or more packages when you generate the workspace you can use the `-a` option
-
-    wit init <workspace> -a </path/to/git/repo/soc.git>[::revision]
-
-The revision can be a tag, branch, or commit. Note that wit respects normal git behavior.
-
-### Adding a package to a workspace
-
-To add a package to a workspace that has already been created you use the `add-pkg` sub-command.
-
-    wit add-pkg </path/to/git/repo/soc.git>[::revision]
-
-### Resolve and fetch package dependencies
-
-Once you have added one or more repositories to your workspace, you can use `update` to resolve and fetch
-the transitive dependencies of each package.
-
-    wit update
-
-### Updating a package
-
-You can update the revision of a package in the workspace using the `update-pkg` sub-command.
-
-    wit update-pkg <package>[::revision]
-
-If you update to `<package>::<branch>`, it will checkout the local version of that branch.
-You can always checkout remote branches by specifying the remote as well
-
-    wit update-pkg <package>::<remote>/<branch>
 
 ## Autocompletion
 
