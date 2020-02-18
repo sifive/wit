@@ -18,7 +18,7 @@ class DependeeNewerThanDepender(WitUserError):
 
     def __str__(self):
         return ("Depender {} is older than its dependee {}\n"
-                "This should not happen, but it may be caused by a ficticious "
+                "This should not happen, but it may be caused by a fictitious "
                 "clock time being stored in a commit.\n This should be fixable "
                 "by creating a new commit in the dependee then depending on "
                 "that commit."
