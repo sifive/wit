@@ -24,6 +24,19 @@ inputs:
       without requiring SSH credentials.
     required: false
     default: ''
+  http_auth_username:
+    description: |
+      For HTTP Basic Authentication, the username to authenticate with. Must be used
+      with force_github_https. Defaults to the value used by GitHub for HTTP
+      authentication with GitHub Personal Access Tokens.
+    required: false
+    default: 'x-access-token'
+  http_auth_token:
+    description: |
+      For HTTP Basic Authentication, the password or token to authenticate with.
+      Must be used with force_github_https.
+    required: false
+    default: ''
 runs:
   using: 'docker'
   image: 'Dockerfile'
