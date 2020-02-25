@@ -46,6 +46,24 @@ and copy the contents of contents of the local clone excluding the tests and met
 See the [How To Guides](doc/how-to-guides.adoc) for list of guides for common wit operations.
 
 
+### Restore a previous workspace
+
+If you have a matching pair `wit-lock.json` and `wit-workspace.json` from another workspace, you can create
+a new clean workspace by pointing at the previous workspace via the `restore` sub-command.
+
+    $ wit restore -n <new-workspace-name> -w $OTHER_WS
+
+Dependencies are only specified by the `wit-lock.json` file, no other dependency resolution is performed.
+If you are keeping your wit-lock.json and wit-workspace.json under revision control you can do an in-place
+restore
+
+    $ git clone http://example.com/my_workspaces
+    $ cd my_workspaces/project1
+    $ ls
+    wit-lock.json wit-workspace.json
+    $ wit restore
+
+
 ## Autocompletion
 
 Tab completion can be enabled via `source complete.bash`. If you want it to persist, see below.

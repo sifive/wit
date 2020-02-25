@@ -4,11 +4,12 @@ wit_repo='git@github.com:sifive/wit'
 test_root=$(dirname $(perl -MCwd -e "print Cwd::realpath('$0')"))
 wit_root=$(perl -MCwd -e "print Cwd::realpath('$test_root/..')")
 
-if [[ -z "${WIT}" ]]; then
+if [ -z "${WIT}" ]; then
   export PATH=$wit_root:${PATH}
 else
   export PATH=${WIT}:${PATH}
 fi
+
 
 wit_bin=$(which wit)
 echo "Running with wit: ${wit_bin}"
@@ -34,6 +35,15 @@ make_repo() {
     git -C $repo_name commit -m "commit1"
 }
 
+make_bare_repo() {
+    repo_name=$1
+
+    make_repo $repo_name
+    mv ${repo_name}/.git ${repo_name}.git
+    rm -rf ${repo_name}
+    git -C ${repo_name}.git config --bool core.bare true
+}
+
 check() {
     check_name=$1
     shift;
@@ -51,10 +61,21 @@ prereq() {
     fi
 }
 
+has_color() {
+  [ $(tput colors) != 0 ]
+}
+
+red_fail() {
+    fail=$1
+    has_color && [ $fail != 0 ] && tput setaf 1; # red
+    echo "FAIL: $fail"
+    has_color && tput sgr0; # reset
+}
+
 report() {
     set +x
     echo "PASS: $pass"
-    echo "FAIL: $fail"
+    red_fail $fail
 }
 
 finish() {

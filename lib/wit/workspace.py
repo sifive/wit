@@ -2,6 +2,8 @@
 
 import sys
 import shutil
+import threading
+import queue
 from pathlib import Path
 from pprint import pformat
 from .manifest import Manifest
@@ -60,7 +62,7 @@ class WorkSpace:
     MANIFEST = "wit-workspace.json"
     LOCK = "wit-lock.json"
 
-    def __init__(self, root, repo_paths, jobs):
+    def __init__(self, root, repo_paths, jobs=None):
         self.root = root
         self.repo_paths = repo_paths
         self.manifest = self._load_manifest()
@@ -106,6 +108,36 @@ class WorkSpace:
         lockfile.write(cls._lockfile_path(root))
 
         return WorkSpace(root, repo_paths, jobs)
+
+    @classmethod
+    def restore(cls, root):
+        # constructing WorkSpace will parse the lock file
+        ws = WorkSpace(root, [])
+
+        def do_clone(pkg, root, errors):
+            try:
+                pkg.load(root, True)
+                pkg.checkout(root)
+            except Exception as e:
+                errors.put(e)
+
+        errors = queue.Queue()
+        threads = list()
+        for pkg in ws.lock.packages:
+            t = threading.Thread(target=do_clone, args=(pkg, root, errors))
+            threads.append(t)
+            t.start()
+
+        for t in threads:
+            t.join()
+
+        if not errors.empty():
+            while not errors.empty():
+                e = errors.get()
+                log.error("Unable to create workspace [{}]: {}".format(str(root), e))
+            sys.exit(1)
+
+        return ws
 
     def _load_manifest(self):
         return Manifest.read_manifest(self.manifest_path())

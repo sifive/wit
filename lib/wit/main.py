@@ -12,6 +12,7 @@
 
 import subprocess
 import sys
+import shutil
 import os
 from .witlogger import getLogger
 from .workspace import WorkSpace, PackageNotInWorkspaceError
@@ -63,6 +64,8 @@ def main() -> None:
         # FIXME: This big switch statement... no good.
         if args.command == 'init':
             create(args)
+        elif args.command == 'restore':
+            restore_from_lock(args)
 
         else:
             # These commands assume the workspace already exists. Error out if the
@@ -152,6 +155,49 @@ def create(args) -> None:
 
     if args.update:
         update(ws, args)
+
+
+# A user can restore a workspace in the current directory, or in a new directory.
+# A wit-lock.json and wit-workspace.json needs to be found either in the current directory
+# or separately specified by arguments.
+def restore_from_lock(args) -> None:
+    current_dir = Path.cwd()
+    lock_dir = current_dir
+    dest_ws = current_dir
+
+    if args.workspace_name:
+        dest_ws = current_dir / args.workspace_name
+        if dest_ws.exists():
+            log.error("New workspace directory [{}] already exists.".format(str(dest_ws)))
+            sys.exit(1)
+        else:
+            log.info("Creating new workspace [{}]".format(str(dest_ws)))
+            dest_ws.mkdir()
+
+    dotwit = dest_ws/'.wit'
+    if dotwit.exists():
+        log.error("Directory [{}] is already a workspace, contains a .wit directory."
+                  .format(str(dest_ws)))
+        sys.exit(1)
+    dotwit.mkdir()
+
+    if args.from_workspace:
+        lock_dir = Path(args.from_workspace)
+
+    ws = 'wit-workspace.json'
+    lock = 'wit-lock.json'
+    if not (lock_dir/lock).exists():
+        log.error("Could not find {}".format(str(lock_dir/lock)))
+        sys.exit(1)
+    if not (lock_dir/ws).exists():
+        log.error("Could not find {}".format(str(lock_dir/ws)))
+        sys.exit(1)
+
+    if args.from_workspace or args.workspace_name:
+        shutil.copy(str(lock_dir/ws), str(dest_ws/ws))
+        shutil.copy(str(lock_dir/lock), str(dest_ws/lock))
+
+    WorkSpace.restore(dest_ws)
 
 
 def add_pkg(ws, args) -> None:
