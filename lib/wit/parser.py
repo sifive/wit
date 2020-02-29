@@ -99,6 +99,31 @@ inspect_group = inspect_parser.add_mutually_exclusive_group()
 inspect_group.add_argument('--tree', action="store_true")
 inspect_group.add_argument('--dot', action="store_true")
 
+# ********** foreach subparser **********
+foreach_parser = subparsers.add_parser(
+    'foreach',
+    help='perform a command in each repository directory',
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    description="""
+Perform a command in each repository directory.
+The repository list is created by reading records contained in 'wit-lock.json'.
+
+Any options, such as --continue-on-fail must be specified before the command.
+
+Wit sets the following environment variables for each invocation of the command:
+    WIT_REPO_NAME    repository name
+    WIT_REPO_PATH    path to repository
+    WIT_LOCK_SOURCE  initial source location of repository
+    WIT_LOCK_COMMIT  commit recorded in lockfile, actual repository contents could be different
+    WIT_WORKSPACE    path to root of wit workspace""")
+
+foreach_parser.add_argument('--continue-on-fail', action='store_true',
+                            help='run the command in each repository regardless of failures')
+
+# 'cmd' and 'args' eventually become one list, but this forces at least one input string
+foreach_parser.add_argument('cmd', help='command to run in each repository')
+foreach_parser.add_argument('args', nargs=argparse.REMAINDER, help='arguments for the command')
+
 # ********** fetch-scala subparser **********
 fetch_scala_parser = subparsers.add_parser('fetch-scala',
                                            help='Fetch dependencies for Scala projects')
