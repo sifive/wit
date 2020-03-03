@@ -92,6 +92,9 @@ def main() -> None:
             elif args.command == 'update':
                 update(ws, args)
 
+            elif args.command == 'foreach':
+                foreach(ws, args)
+
             elif args.command == 'fetch-scala':
                 fetch_scala(ws, args, agg=False, jar=args.jar)
 
@@ -106,6 +109,34 @@ def main() -> None:
         error(e)
     except AssertionError as e:
         raise WitBug(e)
+
+
+def foreach(ws, args):
+    has_fail = False
+    for pkg in ws.lock.packages:
+        env = os.environ.copy()
+        env["WIT_REPO_NAME"] = pkg.name
+        env["WIT_REPO_PATH"] = str(ws.root / pkg.name)
+        env["WIT_LOCK_SOURCE"] = pkg.source
+        env["WIT_LOCK_COMMIT"] = pkg.revision
+        env["WIT_WORKSPACE"] = str(ws.root)
+
+        log.info("Entering '{}'".format(pkg.name))
+
+        location = str(ws.root / pkg.name)
+        proc = subprocess.run([args.cmd, *args.args], shell=True,
+                              env=env, cwd=location, universal_newlines=True)
+
+        if proc.returncode != 0:
+            has_fail = True
+            command = " ".join([args.cmd, *args.args])
+            log.error("Command '{}' in '{}' failed with exitcode: {}"
+                      .format(command, location, proc.returncode))
+            if not args.continue_on_fail:
+                sys.exit(proc.returncode)
+
+    if has_fail:
+        sys.exit(1)
 
 
 def parse_repo_path(args):
