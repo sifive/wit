@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import sys
 from pathlib import Path
 from .witlogger import getLogger
 
@@ -59,7 +60,11 @@ class Manifest:
     def read_manifest(path, safe=False):
         if safe and not Path(path).exists():
             return Manifest([])
-        content = json.loads(path.read_text())
+        try:
+          content = json.loads(path.read_text())
+        except:
+          log.fatal("Failed to parse " + str(path))
+          sys.exit(1)
         return Manifest.process_manifest(content)
 
     @staticmethod
