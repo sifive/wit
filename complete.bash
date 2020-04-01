@@ -12,7 +12,7 @@ _wit()
             COMPREPLY=( $(compgen -W "${global_flags}" -- ${cur}) )
             return 0
         else
-            opts="init add-pkg update-pkg add-dep update-dep status update fetch-scala"
+            opts="init add-pkg update-pkg add-dep update-dep status update"
             COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
             return 0
         fi
@@ -22,7 +22,7 @@ _wit()
         return 0
     elif [[ ${prev} == init ]] ; then
         if [[ ${cur} == -* ]] ; then
-            additional="--no-update --no-fetch-scala -a --add-pkg"
+            additional="--no-update -a --add-pkg"
             COMPREPLY=( $(compgen -W "${global_flags} ${additional}" -- ${cur}) )
             return 0
         else
