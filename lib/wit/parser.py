@@ -42,10 +42,7 @@ subparsers = parser.add_subparsers(
 # ********** init subparser **********
 init_parser = subparsers.add_parser('init', help='create workspace')
 init_parser.add_argument('--no-update', dest='update', action='store_false',
-                         help=('don\'t run update upon creating the workspace'
-                               ' (implies --no-fetch-scala)'))
-init_parser.add_argument('--no-fetch-scala', dest='fetch_scala', action='store_false',
-                         help='don\'t run fetch-scala upon creating the workspace')
+                         help='don\'t run update upon creating the workspace')
 init_parser.add_argument('-a', '--add-pkg', metavar='repo[::revision]', action='append',
                          type=parse_dependency_tag, help='add an initial package')
 init_parser.add_argument('workspace_name')
@@ -123,9 +120,3 @@ foreach_parser.add_argument('--continue-on-fail', action='store_true',
 # 'cmd' and 'args' eventually become one list, but this forces at least one input string
 foreach_parser.add_argument('cmd', help='command to run in each repository')
 foreach_parser.add_argument('args', nargs=argparse.REMAINDER, help='arguments for the command')
-
-# ********** fetch-scala subparser **********
-fetch_scala_parser = subparsers.add_parser('fetch-scala',
-                                           help='Fetch dependencies for Scala projects')
-fetch_scala_parser.add_argument('--jar', action='store_true', default=False,
-                                help='download coursier jar instead of binary')

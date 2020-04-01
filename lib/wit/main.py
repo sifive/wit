@@ -17,7 +17,6 @@ from .witlogger import getLogger
 from .workspace import WorkSpace, PackageNotInWorkspaceError
 from .dependency import Dependency
 from .inspect import inspect_tree
-from . import scalaplugin
 from pathlib import Path
 from typing import cast, List, Tuple  # noqa: F401
 from .common import error, WitUserError, print_errors
@@ -95,9 +94,6 @@ def main() -> None:
             elif args.command == 'foreach':
                 foreach(ws, args)
 
-            elif args.command == 'fetch-scala':
-                fetch_scala(ws, args, agg=False, jar=args.jar)
-
             elif args.command == 'inspect':
                 if args.dot or args.tree:
                     inspect_tree(ws, args)
@@ -155,9 +151,6 @@ def create(args) -> None:
 
     if args.update:
         update(ws, args)
-
-        if args.fetch_scala:
-            fetch_scala(ws, args, agg=True)
 
 
 def add_pkg(ws, args) -> None:
@@ -340,54 +333,6 @@ def update(ws, args) -> None:
     else:
         print_errors(errors)
         sys.exit(1)
-
-
-def fetch_scala(ws, args, agg=True, jar=False) -> None:
-    """Fetches bloop, coursier, and ivy dependencies
-
-    It only fetches if ivydependencies.json files are found in packages
-    ws -- the Workspace
-    args -- arguments to the parser
-    agg -- indicates if this invocation is part of a larger command (like init)
-    jar -- fetch coursier jar instead of binary
-    """
-
-    # Collect ivydependency files
-    files = []
-    for package in ws.lock.packages:
-        package.load(ws.root, False)
-        ivyfile = scalaplugin.ivy_deps_file(package.repo.path)
-        if os.path.isfile(ivyfile):
-            files.append(ivyfile)
-        else:
-            log.debug("No ivydependencies.json file found in package {}".format(package.name))
-
-    if len(files) == 0:
-        msg = "No ivydependencies.json files found, skipping fetching Scala..."
-        if agg:
-            log.debug(msg)
-        else:
-            # We want to print something if you run `wit fetch-scala` directly and nothing happens
-            log.info(msg)
-    else:
-        log.info("Fetching Scala install and dependencies...")
-
-        install_dir = scalaplugin.scala_install_dir(ws.root)
-
-        ivy_cache_dir = scalaplugin.ivy_cache_dir(ws.root)
-        os.makedirs(ivy_cache_dir, exist_ok=True)
-
-        # Check if we need to install Bloop
-        if os.path.isdir(install_dir):
-            log.info("Scala install directory {} exists, skipping installation..."
-                     .format(install_dir))
-        else:
-            log.info("Installing Scala to {}...".format(install_dir))
-            os.makedirs(install_dir, exist_ok=True)
-            scalaplugin.install_coursier(install_dir, jar)
-
-        log.info("Fetching ivy dependencies...")
-        scalaplugin.fetch_ivy_dependencies(files, install_dir, ivy_cache_dir)
 
 
 def version() -> None:
