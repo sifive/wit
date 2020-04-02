@@ -5,6 +5,7 @@ from pathlib import Path
 from pprint import pformat
 import json
 import re
+import os
 from . import manifest
 from .common import WitUserError
 from .witlogger import getLogger
@@ -79,8 +80,14 @@ class GitRepo:
             "Trying to clone and checkout into existing git repo!"
         log.info('Cloning {}...'.format(self.name))
 
-        proc = self._git_command("clone", "--no-checkout", source, str(self.path),
-                                 working_dir=str(self.path.parent))
+        cmd = ["clone"]
+        env_ref_path = os.getenv("WIT_WORKSPACE_REFERENCE")
+        if env_ref_path:
+            ref_path = Path(env_ref_path).joinpath(self.name)
+            cmd.extend(["--reference-if-able", str(ref_path), "--dissociate"])
+        cmd.extend(["--no-checkout", source, str(self.path)])
+
+        proc = self._git_command(*cmd, working_dir=str(self.path.parent))
         try:
             self._git_check(proc)
         except GitError:
