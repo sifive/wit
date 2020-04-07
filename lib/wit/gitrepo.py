@@ -5,12 +5,12 @@ from pathlib import Path
 from pprint import pformat
 import json
 import re
-import os
 from . import manifest
 from .common import WitUserError
 from .witlogger import getLogger
 from typing import Set  # noqa: F401
 from functools import lru_cache
+from .env import git_reference_workspace
 
 log = getLogger()
 
@@ -80,12 +80,7 @@ class GitRepo:
             "Trying to clone and checkout into existing git repo!"
         log.info('Cloning {}...'.format(self.name))
 
-        cmd = ["clone"]
-        ok, opts = self.git_reference_capable()
-        if ok:
-            cmd.extend(opts)
-        cmd.extend(["--no-checkout", source, str(self.path)])
-
+        cmd = ["clone", *self._git_reference_options(), "--no-checkout", source, str(self.path)]
         proc = self._git_command(*cmd, working_dir=str(self.path.parent))
         try:
             self._git_check(proc)
@@ -95,16 +90,18 @@ class GitRepo:
             else:
                 raise
 
-    # Only newer git versions can use '--reference-if-able', so we emulate the 'if-able'.
-    def git_reference_capable(self):
-        env_ref_path = os.getenv("WIT_WORKSPACE_REFERENCE")
-        paths = [Path(env_ref_path) / self.name,
-                 Path(env_ref_path) / (self.name+'.git')]
+    # Use git clone's '--reference' to point at a local repository cache to copy objects/commits
+    # to save network traffic. Any missing objects/commits are downloaded from the true remote.
+    # Only newer git versions can use '--reference-if-able', so we emulate the 'if-able' bit.
+    def _git_reference_options(self):
+        if not git_reference_workspace:
+            return []
+        paths = [Path(git_reference_workspace) / self.name,
+                 Path(git_reference_workspace) / (self.name+'.git')]
         for path in paths:
-            log.warn("{} {}".format(path, os.path.isdir(path)))
-            if os.path.isdir(path):
-                return True, ["--reference", str(path), "--dissociate"]
-        return False, []
+            if path.is_dir():
+                return ["--reference", str(path), "--dissociate"]
+        return []
 
     # name is needed for generating error messages
     def fetch(self, source, name):
