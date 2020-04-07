@@ -81,10 +81,9 @@ class GitRepo:
         log.info('Cloning {}...'.format(self.name))
 
         cmd = ["clone"]
-        env_ref_path = os.getenv("WIT_WORKSPACE_REFERENCE")
-        if env_ref_path:
-            ref_path = Path(env_ref_path).joinpath(self.name)
-            cmd.extend(["--reference-if-able", str(ref_path), "--dissociate"])
+        ok, opts = self.git_reference_capable()
+        if ok:
+            cmd.extend(opts)
         cmd.extend(["--no-checkout", source, str(self.path)])
 
         proc = self._git_command(*cmd, working_dir=str(self.path.parent))
@@ -95,6 +94,17 @@ class GitRepo:
                 raise BadSource(name, source)
             else:
                 raise
+
+    # Only newer git versions can use '--reference-if-able', so we emulate the 'if-able'.
+    def git_reference_capable(self):
+        env_ref_path = os.getenv("WIT_WORKSPACE_REFERENCE")
+        paths = [Path(env_ref_path) / self.name,
+                 Path(env_ref_path) / (self.name+'.git')]
+        for path in paths:
+            log.warn("{} {}".format(path, os.path.isdir(path)))
+            if os.path.isdir(path):
+                return True, ["--reference", str(path), "--dissociate"]
+        return False, []
 
     # name is needed for generating error messages
     def fetch(self, source, name):
