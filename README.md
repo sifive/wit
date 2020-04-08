@@ -19,7 +19,7 @@ When multiple versions of the same package are requested, Wit chooses the latest
 
 ## Getting started
 
-The best way to learn wit is to check out the [tutorial](share/doc/wit/tutorial.md).
+The best way to learn wit is to check out the [tutorial](doc/tutorial.md).
 
 ### Installation
 
@@ -43,7 +43,7 @@ and copy the contents of contents of the local clone excluding the tests and met
 
 ### How To Guides
 
-See the [How To Guides](docs/how-to-guides.adoc) for list of guides for common wit operations.
+See the [How To Guides](doc/how-to-guides.adoc) for list of guides for common wit operations.
 
 
 ## Autocompletion

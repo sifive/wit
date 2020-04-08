@@ -90,10 +90,12 @@ class GitRepo:
             else:
                 raise
 
-    # Use git clone's '--reference' to point at a local repository cache to copy objects/commits
-    # to save network traffic. Any missing objects/commits are downloaded from the true remote.
-    # Only newer git versions can use '--reference-if-able', so we emulate the 'if-able' bit.
     def _git_reference_options(self):
+        """
+        Use git clone's '--reference' to point at a local repository cache to copy objects/commits
+        to save network traffic. Any missing objects/commits are downloaded from the true remote.
+        Only newer git versions can use '--reference-if-able', so we emulate the 'if-able' bit.
+        """
         if not git_reference_workspace:
             return []
         paths = [Path(git_reference_workspace) / self.name,
