@@ -11,8 +11,8 @@ wit_exe=$(find $install_dir -name 'wit' -type f)
 echo $wit_exe
 check "We should find the wit executable" [ ! -z "$wit_exe" ]
 
-$wit_exe -vvvv --version | grep -q 'Version as read from'
-check "Wit logging should tell us it read from __version__" [ $? -eq 0 ]
+$wit_exe --version
+check "Wit --version should execute" [ $? -eq 0 ]
 
 report
 finish
