@@ -24,6 +24,7 @@ from .gitrepo import GitRepo, GitCommitNotFound
 from .manifest import Manifest
 from .package import WitBug
 from .parser import parser, add_dep_parser
+from .version import __version__
 import re
 
 log = getLogger()
@@ -336,22 +337,22 @@ def update(ws, args) -> None:
 
 
 def version() -> None:
-    path = Path(__file__).resolve().parent.parent.parent
-    log.trace("Wit root is {}".format(path))
-    version_file = path.joinpath('__version__')
-
-    try:
-        with version_file.open() as fh:
-            version = fh.readline().rstrip()
-            log.spam("Version as read from [{}]: [{}]".format(version_file, version))
-
-    except FileNotFoundError:
-        # not an official release, use git to get an explicit version
-        log.spam("Running [git -C {} describe --tags --dirty]".format(str(path)))
-        proc = subprocess.run(['git', '-C', str(path), 'describe', '--tags', '--dirty'],
-                              stdout=subprocess.PIPE)
-        version = proc.stdout.decode('utf-8').rstrip()
-        log.spam("Output: [{}]".format(version))
-        version = re.sub(r"^v", "", version)
-
+    version = get_git_version()
+    if not version:
+        version = get_dist_version()
     print("wit {}".format(version))
+
+
+def get_git_version():
+    # not an official release, use git to get an explicit version
+    path = Path(__file__).resolve().parent.parent.parent
+    log.spam("Running [git -C {} describe --tags --dirty]".format(str(path)))
+    proc = subprocess.run(['git', '-C', str(path), 'describe', '--tags', '--dirty'],
+                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    version = proc.stdout.decode('utf-8').rstrip()
+    log.spam("Output: [{}]".format(version))
+    return re.sub(r"^v", "", version)
+
+
+def get_dist_version():
+    return __version__
