@@ -10,6 +10,7 @@ from .common import WitUserError
 from .witlogger import getLogger
 from typing import Set  # noqa: F401
 from functools import lru_cache
+from .env import git_reference_workspace
 
 log = getLogger()
 
@@ -79,8 +80,8 @@ class GitRepo:
             "Trying to clone and checkout into existing git repo!"
         log.info('Cloning {}...'.format(self.name))
 
-        proc = self._git_command("clone", "--no-checkout", source, str(self.path),
-                                 working_dir=str(self.path.parent))
+        cmd = ["clone", *self._git_reference_options(), "--no-checkout", source, str(self.path)]
+        proc = self._git_command(*cmd, working_dir=str(self.path.parent))
         try:
             self._git_check(proc)
         except GitError:
@@ -88,6 +89,21 @@ class GitRepo:
                 raise BadSource(name, source)
             else:
                 raise
+
+    def _git_reference_options(self):
+        """
+        Use git clone's '--reference' to point at a local repository cache to copy objects/commits
+        to save network traffic. Any missing objects/commits are downloaded from the true remote.
+        Only newer git versions can use '--reference-if-able', so we emulate the 'if-able' bit.
+        """
+        if not git_reference_workspace:
+            return []
+        paths = [Path(git_reference_workspace) / self.name,
+                 Path(git_reference_workspace) / (self.name+'.git')]
+        for path in paths:
+            if path.is_dir():
+                return ["--reference", str(path), "--dissociate"]
+        return []
 
     # name is needed for generating error messages
     def fetch(self, source, name):
