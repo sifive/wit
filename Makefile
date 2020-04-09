@@ -1,10 +1,9 @@
 install_root := $(PREFIX)
-version := $(shell ./wit --version | sed 's/^wit //')
+version := $(shell cat lib/wit/version.py | grep -o '[.0-9]*')
 install_dir := $(install_root)/$(version)
 
 install:
 	mkdir -p $(install_dir)
-	echo $(version) > $(install_dir)/__version__
 	cat .gitignore > .rsyncignore
 	git ls-files -o >> .rsyncignore
 	rsync -ar --include=wit --include='*.py' --exclude-from=.rsyncignore --exclude='actions/' --exclude='t/' --exclude='__pycache__/' --exclude='.*' --exclude='mypy.ini' --exclude='Makefile' . $(install_dir)
