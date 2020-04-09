@@ -168,8 +168,8 @@ class WorkSpace:
             used_commit = pkg.revision
             fs_commit = pkg.repo.get_commit('HEAD')
             if used_commit != fs_commit:
-                log.warn("using '{}' manifest instead of checked-out version of '{}'".format(
-                    pkg.id(), pkg.name))
+                log.warn("using '{}' manifest instead of currently checked-out version in '{}'"
+                         .format(pkg.id(), pkg.name))
                 continue
 
             if pkg.repo.modified_manifest():

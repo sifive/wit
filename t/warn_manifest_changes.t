@@ -33,14 +33,14 @@ wit add-pkg $foo_dir
 output=$(wit update)
 echo $output | grep "disregarding uncommitted changes"
 check "initial wit update should not log uncommitted manifest warnings" [ $? -ne 0 ]
-echo $output | grep "manifest instead of checked-out version"
+echo $output | grep "manifest instead of currently checked-out version"
 check "initial wit update should not log different manifest warnings" [ $? -ne 0 ]
 
 rm foo/wit-manifest.json
 output=$(wit update)
 echo $output | grep "disregarding uncommitted changes"
 check "initial wit update should log uncommitted manifest warnings" [ $? -eq 0 ]
-echo $output | grep "manifest instead of checked-out version"
+echo $output | grep "manifest instead of currently checked-out version"
 check "initial wit update should not log different manifest warnings" [ $? -ne 0 ]
 
 git -C foo add -A
@@ -48,7 +48,7 @@ git -C foo commit -m "remove manifest"
 output=$(wit update)
 echo $output | grep "disregarding uncommitted changes"
 check "initial wit update should not log uncommitted manifest warnings" [ $? -ne 0 ]
-echo $output | grep "manifest instead of checked-out version"
+echo $output | grep "manifest instead of currently checked-out version"
 check "initial wit update should log different manifest warnings" [ $? -eq 0 ]
 
 set +x
