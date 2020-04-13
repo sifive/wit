@@ -256,7 +256,7 @@ class GitRepo:
             log.debug("No dependency file found in repo [{}:{}]".format(revision,
                       self.path))
         json_content = [] if proc.returncode else json.loads(proc.stdout)
-        return manifest.Manifest.process_manifest(json_content)
+        return manifest.Manifest.process_manifest(json_content, self.name)
 
     def checkout(self, revision):
         wanted_hash = self.get_commit(revision)

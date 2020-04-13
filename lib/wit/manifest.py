@@ -52,18 +52,21 @@ class Manifest:
         manifest_json = json.dumps(contents, sort_keys=True, indent=4) + '\n'
         path.write_text(manifest_json)
 
-    # FIXME It's maybe a little weird that we need wsroot but that's because
-    # this method is being used for both wit-workspace and wit-manifest in
-    # packages
     @staticmethod
     def read_manifest(path, safe=False):
         if safe and not Path(path).exists():
             return Manifest([])
         content = json.loads(path.read_text())
-        return Manifest.process_manifest(content)
+        return Manifest.process_manifest(content, path)
 
     @staticmethod
-    def process_manifest(json_content):
+    def process_manifest(json_content, location):
+        # Fail if there are dependencies with the same name
+        dep_names = [dep['name'] for dep in json_content]
+        if len(dep_names) != len(set(dep_names)):
+            dup = [x for x in dep_names if dep_names.count(x) > 1][0]
+            raise Exception("Two dependencies have the same name in {}: {}".format(location, dup))
+
         # import here to prevent circular dependency
         from .dependency import manifest_item_to_dep
         dependencies = [manifest_item_to_dep(x) for x in json_content]
