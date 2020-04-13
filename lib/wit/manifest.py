@@ -64,8 +64,8 @@ class Manifest:
         # Fail if there are dependencies with the same name
         dep_names = [dep['name'] for dep in json_content]
         if len(dep_names) != len(set(dep_names)):
-            dup = [x for x in dep_names if dep_names.count(x) > 1][0]
-            raise Exception("Two dependencies have the same name in {}: {}".format(location, dup))
+            dup = set([x for x in dep_names if dep_names.count(x) > 1])
+            raise Exception("Two dependencies have the same name in '{}': {}".format(location, dup))
 
         # import here to prevent circular dependency
         from .dependency import manifest_item_to_dep
