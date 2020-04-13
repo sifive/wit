@@ -1,4 +1,5 @@
 import re
+import multiprocessing.dummy
 from datetime import datetime
 from pathlib import Path
 from typing import List  # noqa: F401
@@ -36,22 +37,18 @@ class Dependency:
         self.dependents = []  # type: List[Package]
         self.message = message
 
-    def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue, errors):
+    def resolve_deps(self, wsroot, repo_paths, download, source_map, packages, queue, jobs):
         source_map = source_map.copy()
         packages = packages.copy()
         queue = queue.copy()
-        errors = errors.copy()
         subdeps = self.package.get_dependencies()
         log.debug("Dependencies for [{}]: [{}]".format(self.name, subdeps))
+
+        errors = self._parallel_clone(subdeps, wsroot, repo_paths, download, jobs)
+
         for subdep in subdeps:
-            try:
-                subdep.load(packages, repo_paths, wsroot, download)
-            except BadSource as e:
-                errors.append(e)
-                continue
-
+            subdep.load(packages, repo_paths, wsroot, download=False)
             sources_conflict_check(subdep, source_map)
-
             source_map[subdep.name] = subdep.package.resolve_source(subdep.source)
 
             if subdep.package.repo is None:
@@ -67,6 +64,21 @@ class Dependency:
         queue.sort(key=lambda tup: tup[0])
 
         return source_map, packages, queue, errors
+
+    def _parallel_clone(self, deps, wsroot, repo_paths, download, jobs):
+        errors = []
+
+        def do(dep):
+            try:
+                p = Package(dep.name, repo_paths)
+                p.load(wsroot, download, dep.source, dep.specified_revision)
+            except BadSource as e:
+                errors.append(e)
+
+        with multiprocessing.dummy.Pool(jobs) as pool:
+            pool.map(do, deps)
+
+        return errors
 
     def __key(self):
         return (self.source, self.specified_revision, self.name)

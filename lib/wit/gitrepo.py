@@ -78,7 +78,6 @@ class GitRepo:
     def clone(self, source, name):
         assert not GitRepo.is_git_repo(self.path), \
             "Trying to clone and checkout into existing git repo!"
-        log.info('Cloning {}...'.format(self.name))
 
         cmd = ["clone", *self._git_reference_options(), "--no-checkout", source, str(self.path)]
         proc = self._git_command(*cmd, working_dir=str(self.path.parent))
@@ -89,6 +88,7 @@ class GitRepo:
                 raise BadSource(name, source)
             else:
                 raise
+        log.info('Cloned {}'.format(self.name))
 
     def _git_reference_options(self):
         """
