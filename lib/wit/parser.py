@@ -2,6 +2,9 @@ import argparse
 import os
 from .dependency import parse_dependency_tag
 
+# default max parallel git clones possible by 'init' or 'update'
+_max_clone_jobs = 64
+
 
 def chdir(s) -> None:
     def err(msg):
@@ -31,6 +34,9 @@ parser.add_argument('--repo-path', default=os.environ.get('WIT_REPO_PATH'),
                     help='Specify alternative paths to look for packages')
 parser.add_argument('--prepend-repo-path', default=None,
                     help='Prepend paths to the default repo search path.')
+parser.add_argument('-j', '--max-parallel-clones', dest='jobs', default=_max_clone_jobs, type=int,
+                    help="Max quantity of 'git clone' to run in parallel. "
+                    "Default is '{}'. Set to '1' for serial cloning.".format(_max_clone_jobs))
 
 # ********** command subparser aggregator **********
 subparsers = parser.add_subparsers(

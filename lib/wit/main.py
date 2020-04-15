@@ -68,7 +68,7 @@ def main() -> None:
             # These commands assume the workspace already exists. Error out if the
             # workspace cannot be found.
             try:
-                ws = WorkSpace.find(Path.cwd(), parse_repo_path(args))
+                ws = WorkSpace.find(Path.cwd(), parse_repo_path(args), args.jobs)
 
             except FileNotFoundError as e:
                 log.error("Unable to find workspace root [{}]. Cannot continue.".format(e))
@@ -146,7 +146,7 @@ def create(args) -> None:
     else:
         dependencies = args.add_pkg
 
-    ws = WorkSpace.create(args.workspace_name, parse_repo_path(args))
+    ws = WorkSpace.create(args.workspace_name, parse_repo_path(args), args.jobs)
     for dep in dependencies:
         ws.add_dependency(dep)
 
