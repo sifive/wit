@@ -11,7 +11,7 @@ See [action.yml](./action.yml) for a detailed list of input parameters.
 
 ```yaml
 - name: 'Wit Init'
-  uses: sifive/wit/actions/wit@v0.12.0
+  uses: sifive/wit/actions/wit@v0.13.0
   with:
     command: init
     arguments: |
