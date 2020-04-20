@@ -1,25 +1,13 @@
-FROM ubuntu:xenial AS build
+FROM python:3.8-alpine
 
-RUN apt-get update && apt-get install -y \
-    git \
-    make \
-    python3-pip
+# Since we have no python deps outside the standard library,
+# just copy in the python files we need
+COPY ./lib/wit/*.py /wit/lib/wit/
 
-COPY . /wit/
-WORKDIR /wit
-RUN make install install_dir=/opt/sifive/wit
+RUN apk add git --no-cache                    && \
+    echo exec python3 -m wit '$@' > /bin/wit  && \
+    chmod +x /bin/wit
 
-# Actual image build
-FROM ubuntu:xenial
+ENV PYTHONPATH=/wit/lib:$PYTHONPATH
 
-WORKDIR /root/
-
-RUN apt-get update && apt-get install -y \
-   git \
-   openjdk-8-jdk \
-   software-properties-common
-
-COPY --from=build /opt/sifive/wit/ /opt/sifive/wit/
-ENV PATH=$PATH:/opt/sifive/wit
-
-CMD bash
+CMD /bin/sh
