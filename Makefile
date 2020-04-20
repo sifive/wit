@@ -1,5 +1,5 @@
 install_root := $(PREFIX)
-version := $(shell cat lib/wit/version.py | grep -o '[.0-9]*')
+version := $(shell cat lib/wit/version.py | grep __version__ | cut -d= -f2 | tr -d ' "')
 install_dir := $(install_root)/$(version)
 
 install:
