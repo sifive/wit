@@ -25,7 +25,12 @@ The best way to learn wit is to check out the [tutorial](doc/tutorial.md).
 
 Wake is intended to be as lightweight as possible. It simply requires `git` and `Python` version 3.5 or greater.
 
-You can simply clone the repo and add it to your `PATH`, for example:
+You can use `pip` to install:
+```bash
+python3 -m pip install wit-sifive
+```
+
+Or you can simply clone the repo and add it to your `PATH`, for example:
 ```bash
 git clone https://github.com/sifive/wit.git
 PATH=$PATH:$PWD/wit
