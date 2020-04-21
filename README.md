@@ -37,36 +37,19 @@ PATH=$PATH:$PWD/wit
 which wit
 ```
 
-It also includes a `Makefile` for installing specific versions. The installation flow requires `make`, `rsync`, and `sed`.
+It also includes a `Makefile` for installing specific versions (requires `make`).
 
 ```bash
 make install PREFIX=/path/to/installation
+export PYTHONPATH=$PYTHONPATH:/path/to/installation/$VERSION
 ```
 
 The Makefile will create a directory with the version (it even works for commits between tags)
-and copy the contents of contents of the local clone excluding the tests and metadata.
+and use pip to install the contents of the local clone excluding the tests and metadata.
 
 ### How To Guides
 
 See the [How To Guides](doc/how-to-guides.adoc) for list of guides for common wit operations.
-
-
-### Restore a previous workspace
-
-If you have a matching pair `wit-lock.json` and `wit-workspace.json` from another workspace, you can create
-a new clean workspace by pointing at the previous workspace via the `restore` sub-command.
-
-    $ wit restore -n <new-workspace-name> -w $OTHER_WS
-
-Dependencies are only specified by the `wit-lock.json` file, no other dependency resolution is performed.
-If you are keeping your wit-lock.json and wit-workspace.json under revision control you can do an in-place
-restore
-
-    $ git clone http://example.com/my_workspaces
-    $ cd my_workspaces/project1
-    $ ls
-    wit-lock.json wit-workspace.json
-    $ wit restore
 
 
 ## Autocompletion
@@ -134,7 +117,7 @@ that is available for use in GitHub CI/CD workflows. See
 
 ## Contributing
 
-Please see [README-internals](README-internals.md) for information about development.
+Please see [doc/internals.md](doc/internals.md) for information about development.
 
 ## License
 
