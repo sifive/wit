@@ -11,7 +11,7 @@ setuptools.setup(
     long_description="See README.md at https://github.com/sifive/wit/",
     author='SiFive',
     author_email='',
-    url='www.github.com/sifive/wit',
+    url='https://www.github.com/sifive/wit',
     packages=["wit"],
     entry_points={'console_scripts': ['wit=wit.main:main']},
     python_requires='>=3.5',
