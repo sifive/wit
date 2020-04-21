@@ -32,6 +32,7 @@ declare -A test_results
 pass=0
 fail=0
 for test_path in $test_root/*.t; do
+    echo "====================================================="
     cd $test_dir
     test_file=$(basename $test_path)
     test_name="${test_file%%.*}"
