@@ -1,13 +1,10 @@
-install_root := $(PREFIX)
+ifdef PREFIX
 version := $(shell cat lib/wit/version.py | grep __version__ | cut -d= -f2 | tr -d ' "')
-install_dir := $(install_root)/$(version)
+target_arg := --target=$(PREFIX)/$(version)
+endif
 
 install:
-	mkdir -p $(install_dir)
-	cat .gitignore > .rsyncignore
-	git ls-files -o >> .rsyncignore
-	rsync -ar --include=wit --include='*.py' --exclude-from=.rsyncignore --exclude='actions/' --exclude='t/' --exclude='__pycache__/' --exclude='.*' --exclude='mypy.ini' --exclude='Makefile' . $(install_dir)
-
+	python3 -m pip install $(target_arg) ./lib
 
 test-lint:
 	flake8
