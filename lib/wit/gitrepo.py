@@ -3,14 +3,13 @@
 import subprocess
 from pathlib import Path
 from pprint import pformat
-import json
 import re
-from . import manifest
 from .common import WitUserError
 from .witlogger import getLogger
-from typing import Set  # noqa: F401
+from typing import List, Set  # noqa: F401
 from functools import lru_cache
 from .env import git_reference_workspace
+from .repo_entries import RepoEntry, RepoEntries
 
 log = getLogger()
 
@@ -242,21 +241,14 @@ class GitRepo:
                                  current or self.get_head_commit())
         return proc.returncode == 0
 
-    def read_manifest(self) -> manifest.Manifest:
-        mpath = self.manifest_path()
-        return manifest.Manifest.read_manifest(mpath, safe=True)
-
-    def write_manifest(self, manifest) -> None:
-        mpath = self.manifest_path()
-        manifest.write(mpath)
-
-    def read_manifest_from_commit(self, revision) -> manifest.Manifest:
-        proc = self._git_command("show", "{}:{}".format(revision, GitRepo.PKG_DEPENDENCY_FILE))
+    def repo_entries_from_commit(self, revision) -> List[RepoEntry]:
+        where = "{}:{}".format(revision, GitRepo.PKG_DEPENDENCY_FILE)
+        proc = self._git_command("show", where)
         if proc.returncode:
             log.debug("No dependency file found in repo [{}:{}]".format(revision,
                       self.path))
-        json_content = [] if proc.returncode else json.loads(proc.stdout)
-        return manifest.Manifest.process_manifest(json_content, self.name)
+            return []
+        return RepoEntries.parse(proc.stdout, Path(GitRepo.PKG_DEPENDENCY_FILE), revision)
 
     def checkout(self, revision):
         wanted_hash = self.get_commit(revision)
