@@ -56,10 +56,10 @@ check "foo should be pulled in as a dependency of bar" [ -d foo ]
 foo_ws_commit=$(git -C foo rev-parse HEAD)
 check "foo commit should match the dependency in bar" [ "$foo_ws_commit" = "$foo_commit" ]
 
-foo_lock_commit=$(jq -r '.foo.commit' wit-lock.json)
+foo_lock_commit=$(jq -r '.[] | select(.name=="foo") | .commit' wit-lock.json)
 check "ws-lock.json should contain correct foo commit" [ "$foo_lock_commit" = "$foo_commit" ]
 
-bar_lock_commit=$(jq -r '.bar.commit' wit-lock.json)
+bar_lock_commit=$(jq -r '.[] | select(.name=="bar") | .commit' wit-lock.json)
 check "ws-lock.json should contain correct bar commit" [ "$bar_lock_commit" = "$bar_commit" ]
 
 report

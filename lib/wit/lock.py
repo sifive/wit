@@ -2,7 +2,6 @@
 
 import json
 from .gitrepo import GitRepo
-from collections import OrderedDict
 from typing import Optional
 from .witlogger import getLogger
 from .package import Package
@@ -35,7 +34,7 @@ class LockFile:
 
     def write(self, path):
         log.debug("Writing lock file to {}".format(path))
-        contents = OrderedDict((p.name, p.manifest()) for p in self.packages)
+        contents = [p.manifest() for p in self.packages]
         manifest_json = json.dumps(contents, sort_keys=True, indent=4) + '\n'
         path.write_text(manifest_json)
 
@@ -47,7 +46,7 @@ class LockFile:
 
     @staticmethod
     def process(content):
-        pkgs = [lockfile_item_to_pkg(x) for _, x in content.items()]
+        pkgs = [lockfile_item_to_pkg(x) for x in content]
         return LockFile(pkgs)
 
 
