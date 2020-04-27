@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 import os
 import shutil
-from collections import OrderedDict
 from .gitrepo import GitRepo, BadSource
+from .repo_entries import RepoEntry
 from .witlogger import getLogger
 
 log = getLogger()
@@ -109,18 +109,22 @@ class Package:
         return source
 
     def get_dependencies(self):
-        manifest = self.repo.read_manifest_from_commit(self.revision)
-        deps = manifest.dependencies
+        from .dependency import Dependency
+        entries = self.repo.repo_entries_from_commit(self.revision)
+        deps = [Dependency.from_repo_entry(e) for e in entries]
         for dep in deps:
             dep.add_dependent(self)
         return deps
 
-    def manifest(self):
-        res = OrderedDict()
-        res['name'] = self.name
-        res['source'] = self.source
-        res['commit'] = self.revision
-        return res
+    def to_repo_entry(self):
+        return RepoEntry(self.name, self.revision, self.source)
+
+    @staticmethod
+    def from_repo_entry(entry):
+        pkg = Package(entry.workspace_name, [])
+        pkg.set_source(entry.remote_path)
+        pkg.revision = entry.revision
+        return pkg
 
     # this is in Package because update_dependency is in Package
     # it could be confusing to keep the two functions separate

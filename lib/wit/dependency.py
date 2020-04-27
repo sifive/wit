@@ -3,11 +3,11 @@ import multiprocessing.dummy
 from datetime import datetime
 from pathlib import Path
 from typing import List  # noqa: F401
-from collections import OrderedDict
 from .common import WitUserError
-from .package import Package
-from .witlogger import getLogger
 from .gitrepo import BadSource
+from .package import Package
+from .repo_entries import RepoEntry
+from .witlogger import getLogger
 
 log = getLogger()
 
@@ -112,14 +112,12 @@ class Dependency:
         return datetime.utcfromtimestamp(int(self.package.repo.commit_to_time(
             self.specified_revision)))
 
-    def manifest(self):
-        res = OrderedDict()
-        res['name'] = self.name
-        res['source'] = self.source
-        res['commit'] = self.specified_revision
-        if self.message is not None and len(self.message) > 0:
-            res['//'] = self.message
-        return res
+    def to_repo_entry(self):
+        return RepoEntry(self.name, self.specified_revision, self.source, message=self.message)
+
+    @staticmethod
+    def from_repo_entry(entry):
+        return Dependency(entry.workspace_name, entry.remote_path, entry.revision, entry.message)
 
     # used before saving to manifests/lockfiles
     def resolved(self):
@@ -185,8 +183,3 @@ def parse_dependency_tag(s):
     rev = parts[1] if parts[1:] else None
 
     return source, rev
-
-
-def manifest_item_to_dep(obj):
-    # source can be done due to repo path
-    return Dependency(obj['name'], obj.get('source', None), obj['commit'], obj.get('//', None))

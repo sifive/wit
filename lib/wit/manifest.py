@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-import json
 from pathlib import Path
 from .witlogger import getLogger
+from .repo_entries import RepoEntries
 
 log = getLogger()
 
@@ -48,29 +48,18 @@ class Manifest:
         self.dependencies = newdeps
 
     def write(self, path):
-        contents = [p.manifest() for p in self.dependencies]
-        manifest_json = json.dumps(contents, sort_keys=True, indent=4) + '\n'
-        path.write_text(manifest_json)
+        contents = [d.to_repo_entry() for d in self.dependencies]
+        RepoEntries.write_repo_entries(path, contents)
 
     @staticmethod
     def read_manifest(path, safe=False):
         if safe and not Path(path).exists():
             return Manifest([])
-        content = json.loads(path.read_text())
-        return Manifest.process_manifest(content, path)
+        entries = RepoEntries.read_repo_entries(path)
 
-    @staticmethod
-    def process_manifest(json_content, location):
-        # Fail if there are dependencies with the same name
-        dep_names = [dep['name'] for dep in json_content]
-        if len(dep_names) != len(set(dep_names)):
-            dup = set([x for x in dep_names if dep_names.count(x) > 1])
-            raise Exception("Two dependencies have the same name in '{}': {}".format(location, dup))
-
-        # import here to prevent circular dependency
-        from .dependency import manifest_item_to_dep
-        dependencies = [manifest_item_to_dep(x) for x in json_content]
-        return Manifest(dependencies)
+        from .dependency import Dependency
+        deps = [Dependency.from_repo_entry(e) for e in entries]
+        return Manifest(deps)
 
 
 if __name__ == '__main__':
