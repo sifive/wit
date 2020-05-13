@@ -17,35 +17,18 @@ may exist only once.
 ## How does Wit deduplicate packages?
 When multiple versions of the same package are requested, Wit chooses the latest requested version, making sure the selected version's commit is a descendant of every other requested versions' commits.
 
-## Getting started
+## Installation
 
-The best way to learn wit is to check out the [tutorial](doc/tutorial.md).
+Wake is intended to be as lightweight as possible. It requires `git` and `Python` version 3.5 or greater.
 
-### Installation
-
-Wake is intended to be as lightweight as possible. It simply requires `git` and `Python` version 3.5 or greater.
-
-You can use `pip` to install:
+Use `pip` to install from PyPI:
 ```bash
 python3 -m pip install wit-sifive
 ```
 
-Or you can simply clone the repo and add it to your `PATH`, for example:
-```bash
-git clone https://github.com/sifive/wit.git
-PATH=$PATH:$PWD/wit
-which wit
-```
+## Getting started
 
-It also includes a `Makefile` for installing specific versions (requires `make`).
-
-```bash
-make install PREFIX=/path/to/installation
-export PYTHONPATH=$PYTHONPATH:/path/to/installation/$VERSION
-```
-
-The Makefile will create a directory with the version (it even works for commits between tags)
-and use pip to install the contents of the local clone excluding the tests and metadata.
+The best way to learn wit is to check out the [tutorial](doc/tutorial.md).
 
 ### How To Guides
 
@@ -118,6 +101,25 @@ that is available for use in GitHub CI/CD workflows. See
 ## Contributing
 
 Please see [doc/internals.md](doc/internals.md) for information about development.
+
+## Installing development versions
+
+Clone the repo and add it to your `PATH`, for example:
+```bash
+git clone https://github.com/sifive/wit.git -b $BRANCH
+PATH=$PATH:$PWD/wit
+which wit
+```
+
+It also includes a `Makefile` for installing specific versions (requires `make`).
+
+```bash
+make install PREFIX=/path/to/installation
+export PYTHONPATH=$PYTHONPATH:/path/to/installation/$VERSION
+```
+
+The Makefile will create a directory with the version (it even works for commits between tags)
+and use pip to install the contents of the local clone excluding the tests and metadata.
 
 ## License
 
