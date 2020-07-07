@@ -40,22 +40,26 @@ for test_path in $test_root/*.t; do
     then continue
     fi
 
-    echo "Running test [$test_name]"
-    mkdir $test_name
-    cd $test_name
+    printf "Running test [$test_name]: "
+    output=$({
+        mkdir $test_name
+        cd $test_name
+        $test_path
+    } 2>&1 )
 
-    $test_path
     if [ $? -eq 0 ]; then
         test_results["$test_name"]="PASS"
         touch "PASS"
         ((pass++))
+        echo "${test_results[$test_name]}";
     else
         test_results["$test_name"]="FAIL"
         touch "FAIL"
         ((fail++))
         test_result=1
+        echo "${test_results[$test_name]}";
+        echo "$output"
     fi
-    echo -e "\033[1K\033[1G${test_results[$test_name]} - ${test_name}";
 done
 
 echo
