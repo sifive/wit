@@ -49,7 +49,7 @@ check "wit init with conflicting paths fails" [ $? -ne 0 ]
 
 echo $output
 
-echo $output | grep "Two repositories have same checkout path"
+echo $output | grep "Two dependencies have the same name"
 
 check "error message is somewhat descriptive" [ $? -eq 0 ]
 

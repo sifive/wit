@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 
+import json
 from .gitrepo import GitRepo
+from collections import OrderedDict
 from typing import Optional
 from .witlogger import getLogger
-from .repo_entries import RepoEntries
+from .package import Package
 
 log = getLogger()
 
 
+# TODO
+# Should we use different datastructures?
+# The JSON file format slightly differs from manifest, why?
 class LockFile:
     """
     Common class for the description of package dependencies and a workspace
@@ -30,16 +35,29 @@ class LockFile:
 
     def write(self, path):
         log.debug("Writing lock file to {}".format(path))
-        contents = [p.to_repo_entry() for p in self.packages]
-        RepoEntries.write(path, contents)
+        contents = OrderedDict((p.name, p.manifest()) for p in self.packages)
+        manifest_json = json.dumps(contents, sort_keys=True, indent=4) + '\n'
+        path.write_text(manifest_json)
 
     @staticmethod
     def read(path):
         log.debug("Reading lock file from {}".format(path))
-        from .package import Package
-        return LockFile([Package.from_repo_entry(x) for x in RepoEntries.read(path)])
+        content = json.loads(path.read_text())
+        return LockFile.process(content)
+
+    @staticmethod
+    def process(content):
+        pkgs = [lockfile_item_to_pkg(x) for _, x in content.items()]
+        return LockFile(pkgs)
 
 
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+
+
+def lockfile_item_to_pkg(item):
+    pkg = Package(item['name'], [])
+    pkg.set_source(item['source'])
+    pkg.revision = item['commit']
+    return pkg
