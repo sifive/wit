@@ -16,10 +16,19 @@ cd myws
 
 prereq off
 
-output=$(wit foreach --quiet 'echo $WIT_REPO_NAME' | tr '\n' ' ')
-expected='baa foo '
-check "wit foreach should know the repository names" $([ "$output" = "$expected" ])
+output=$(wit foreach 'echo $WIT_REPO_NAME' 2>&1 | tr "\n" ' ')
+expected='Entering baa baa Entering foo foo '
+check "wit foreach should know the repository names" $([[ "$output" = "$expected" ]])
 
+output2=$(wit foreach git status)
+RES=$?
+check "git status should return 0 for each repository" [ $RES ]
+
+echo "my file" > foo/myfile
+echo "my file" > baa/myfile
+output3=$(wit foreach grep "my file" *)
+RES=$?
+check "multiword args should be passed through to grep" [ $RES ]
 
 report
 finish

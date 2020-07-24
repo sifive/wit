@@ -124,12 +124,11 @@ def foreach(ws, args):
         log.info("Entering '{}'".format(pkg.name))
 
         location = str(ws.root / pkg.name)
-        proc = subprocess.run([args.cmd, *args.args], shell=True,
-                              env=env, cwd=location, universal_newlines=True)
+        command = [args.cmd] + args.args
+        proc = subprocess.run(command, env=env, cwd=location, universal_newlines=True)
 
         if proc.returncode != 0:
             has_fail = True
-            command = " ".join([args.cmd, *args.args])
             log.error("Command '{}' in '{}' failed with exitcode: {}"
                       .format(command, location, proc.returncode))
             if not args.continue_on_fail:
