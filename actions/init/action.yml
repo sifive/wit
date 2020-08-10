@@ -7,12 +7,12 @@ inputs:
       including the invoking repository, will be subdirections of workspace.
     required: false
     default: '.'
-  environment:
+  additional_packages:
     description: |
-      The environment package to use when building this repository. This project
-      will be automatically added to the wit workspace
+      Include additional repositories into the wit workpace.  This argument
+      expects a space separated list of repositories to include.
     required: false
-    default: 'git@github.com:sifive/environment-example-sifive.git'
+    default: ''
   force_github_https:
     description: |
       If set to true then rewrite all git@github.com URLs to
@@ -51,7 +51,7 @@ runs:
         fi
         ${{ github.action_path }}/../../wit init ${{ inputs.workspace }}
         ${{ github.action_path }}/../../wit -C ${{ inputs.workspace }} add-pkg git@github.com:${{ github.repository }}.git::${{ github.sha }}
-        ${{ github.action_path }}/../../wit -C ${{ inputs.workspace }} add-pkg ${{ inputs.environment }}
+        for i in ${{ inputs.additional_packages }}; do ${{ github.action_path }}/../../wit -C ${{ inputs.workspace }} add-pkg $i; done
         repo="${{ github.repository }}"; git -C ${{ inputs.workspace }}/.wit/${repo#*/} fetch origin ${{ github.sha }}
         ${{ github.action_path }}/../../wit -C ${{ inputs.workspace }} update
       shell: bash
