@@ -1,0 +1,57 @@
+name: 'Wit Init'
+description: 'Initialize a wit workspace including the github project which invokes this action'
+inputs:
+  workspace:
+    description: |
+      The location where wit will initialize the workspace. All repositories,
+      including the invoking repository, will be subdirections of workspace.
+    required: false
+    default: '.'
+  additional_packages:
+    description: |
+      Include additional repositories into the wit workpace.  This argument
+      expects a space separated list of repositories to include.
+    required: false
+    default: ''
+  force_github_https:
+    description: |
+      If set to true then rewrite all git@github.com URLs to
+      https://github.com.  This is useful for cloning public GitHub
+      repositories without requiring SSH credentials.
+    required: false
+    default: true
+  http_auth_username:
+    description: |
+      For HTTP Basic Authentication, the username to authenticate with. Must be used
+      with force_github_https. Defaults to the value used by GitHub for HTTP
+      authentication with GitHub Personal Access Tokens.
+    required: false
+    default: 'x-access-token'
+  http_auth_token:
+    description: |
+      For HTTP Basic Authentication, the password or token to authenticate with.
+      Must be used with force_github_https.
+    required: false
+    default: ''
+
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        set -euo pipefail
+        if ${{ inputs.force_github_https }}; then
+          # Don't echo the token
+          set +x
+          if [[ -n "${{ inputs.http_auth_token }}" ]]; then
+            git config --global url."https://${{ inputs.http_auth_username }}:${{ inputs.http_auth_token }}@github.com/".insteadOf 'git@github.com:'
+          else
+            git config --global url.'https://github.com/'.insteadOf 'git@github.com:'
+          fi
+          set -x
+        fi
+        ${{ github.action_path }}/../../wit init ${{ inputs.workspace }}
+        ${{ github.action_path }}/../../wit -C ${{ inputs.workspace }} add-pkg git@github.com:${{ github.repository }}.git::${{ github.sha }}
+        for i in ${{ inputs.additional_packages }}; do ${{ github.action_path }}/../../wit -C ${{ inputs.workspace }} add-pkg $i; done
+        repo="${{ github.repository }}"; git -C ${{ inputs.workspace }}/.wit/${repo#*/} fetch origin ${{ github.sha }}
+        ${{ github.action_path }}/../../wit -C ${{ inputs.workspace }} update
+      shell: bash
