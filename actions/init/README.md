@@ -9,6 +9,20 @@ See [action.yml](./action.yml) for a detailed list of input parameters.
 
 ## Example Usage
 
+In the simplest scenario, something like this would work:
+```yaml
+jobs:
+  test:
+    name: Print daffy in workspace
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: sifive/wit/actions/init@v0.13.2
+    - run: echo "Daffy duck"
+```
+
+However, if you are using wake and have an environment packge to include,
+this is probably a more representative example:
 ```yaml
 jobs:
   test:
