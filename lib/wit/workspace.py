@@ -196,6 +196,9 @@ class WorkSpace:
                 dep.resolve_deps(self.root, self.repo_paths, download, source_map,
                                  packages, queue, self.jobs)
 
+            if len(errors + dep_errors) > 0:
+                return {}, errors + dep_errors
+
         for pkg in packages.values():
             if not pkg.repo or pkg.repo.path.parts[-2] == '.wit':
                 continue
