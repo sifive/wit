@@ -45,6 +45,8 @@ class Dependency:
         log.debug("Dependencies for [{}]: [{}]".format(self.name, subdeps))
 
         errors = self._parallel_clone(subdeps, wsroot, repo_paths, download, jobs)
+        if len(errors) > 0:
+            return {}, [], [], errors
 
         for subdep in subdeps:
             subdep.load(packages, repo_paths, wsroot, download=False)
@@ -72,7 +74,7 @@ class Dependency:
             try:
                 p = Package(dep.name, repo_paths)
                 p.load(wsroot, download, dep.source, dep.specified_revision)
-            except BadSource as e:
+            except Exception as e:
                 errors.append(e)
 
         with multiprocessing.dummy.Pool(jobs) as pool:
