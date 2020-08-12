@@ -4,7 +4,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import List  # noqa: F401
 from .common import WitUserError
-from .gitrepo import BadSource
 from .package import Package
 from .repo_entries import RepoEntry
 from .witlogger import getLogger
