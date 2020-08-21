@@ -48,7 +48,7 @@ class Dependency:
             return {}, [], [], errors
 
         for subdep in subdeps:
-            subdep.load(packages, repo_paths, wsroot, download=False)
+            subdep.load(packages, repo_paths, wsroot, download)
             sources_conflict_check(subdep, source_map)
             source_map[subdep.name] = subdep.package.resolve_source(subdep.source)
 
