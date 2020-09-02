@@ -4,7 +4,10 @@ import subprocess
 from pathlib import Path
 from pprint import pformat
 import re
+import os
+import sys
 from .common import WitUserError
+from collections import OrderedDict
 from .witlogger import getLogger
 from typing import List, Set  # noqa: F401
 from functools import lru_cache
@@ -46,10 +49,12 @@ class GitRepo:
     Note there can be multiple GitRepo objects for the same package
     """
     PKG_DEPENDENCY_FILE = "wit-manifest.json"
+    SUBMODULE_FILE = ".gitmodules"
 
     def __init__(self, name, wsroot: Path):
         self.name = name
         self.path = wsroot / name
+        self.wsroot = wsroot
         # Cache known hashes for quick lookup
         self._known_hashes = set()  # type: Set[str]
 
@@ -242,13 +247,90 @@ class GitRepo:
         return proc.returncode == 0
 
     def repo_entries_from_commit(self, revision) -> List[RepoEntry]:
-        where = "{}:{}".format(revision, GitRepo.PKG_DEPENDENCY_FILE)
-        proc = self._git_command("show", where)
+        manifest_entries = self._read_manifest_from_commit(revision)
+        if len(manifest_entries) == 0:
+            manifest_entries = self._read_submodules_from_commit(revision)
+        return manifest_entries
+
+    def _read_manifest_from_commit(self, revision) -> List[RepoEntry]:
+        proc = self._git_command("show", "{}:{}".format(revision, GitRepo.PKG_DEPENDENCY_FILE))
         if proc.returncode:
-            log.debug("No dependency file found in repo [{}:{}]".format(revision,
+            log.debug("No wit dependency file found in repo [{}:{}]".format(revision,
                       self.path))
             return []
         return RepoEntries.parse(proc.stdout, Path(GitRepo.PKG_DEPENDENCY_FILE), revision)
+
+    def _read_submodules_from_commit(self, revision) -> List[RepoEntry]:
+        proc = self._git_command("show", "{}:{}".format(revision, GitRepo.SUBMODULE_FILE))
+        if proc.returncode:
+            log.debug("No .gitmodules file found in repo [{}:{}]".format(revision, self.path))
+            return []
+
+        log.debug("{}:{} does not have wit-manifest.json, "
+                  "reading dependencies from .gitmodules instead"
+                  .format(self.name, revision))
+
+        # Use the 'git config' parser to read the submodule contents.
+        # Output is of the form:
+        #     submodule.$NAME.path $PATH
+        #     submodule.$NAME.url  $REMOTE
+        proc = self._git_command("config", "-f-", "--get-regex", r"submodule\..*",
+                                 input=proc.stdout)
+        self._git_check(proc)
+
+        paths_by_name = OrderedDict()  # type: OrderedDict
+        urls_by_name = {}
+
+        path_r = re.compile(r'^submodule\.(.*)\.path (.*)$')
+        for line in proc.stdout.splitlines():
+            m = path_r.match(line)
+            if m:
+                paths_by_name[m.group(1)] = m.group(2)
+
+        url_r = re.compile(r'^submodule\.(.*)\.url (.*)$')
+        for line in proc.stdout.splitlines():
+            m = url_r.match(line)
+            if m:
+                urls_by_name[m.group(1)] = m.group(2)
+
+        if len(paths_by_name) != len(urls_by_name):
+            log.error("Error matching paths with urls in {}/{}"
+                      .format(self.name, GitRepo.SUBMODULE_FILE))
+            sys.exit(1)
+
+        submodules = []
+        for name_key, path in paths_by_name.items():
+            # We use the relative path within the repository to ask the git index
+            # for the pointer that's currently commited
+            submodule_ref = self._get_submodule_pointer(revision, path)
+
+            url = urls_by_name[name_key]
+            name = name_key
+            if "/" in name:
+                # Wit only supports a 'flat' checkout pattern.
+                # By default, git submodules uses the relative checkout path to name the submodule.
+                # The user can add an explict name, but often do not.
+                # So if the submodule happens to have a name that looks like a nested path,
+                # use the the final path component in the remote url instead as the path-based names
+                # as sometimes they're easy-to-clash names like docs/html.
+                name = re.sub(r"\.git$", "", os.path.basename(url))
+
+            submodules.append(RepoEntry(name, submodule_ref, url))
+
+        return submodules
+
+    def _get_submodule_pointer(self, revision, path):
+        """
+        Get the submodule pointer commit in the index.
+        Note: This is NOT always the currently checked-out commit for a submodule.
+        The 'git ls-tree' output is defined as:
+           ^<mode> space <type> space <git object hash> tab <file>$
+        """
+        proc = self._git_command("ls-tree", revision, path)
+        self._git_check(proc)
+        first_line = proc.stdout.splitlines()[0]
+        no_tab = first_line.split("\t")[0]
+        return no_tab.split(" ")[2]
 
     def checkout(self, revision):
         wanted_hash = self.get_commit(revision)
@@ -281,9 +363,6 @@ class GitRepo:
         # If our revision was a branch or tag, get the actual commit
         self.revision = self.get_head_commit()
 
-    def manifest_path(self):
-        return self.path / self.PKG_DEPENDENCY_FILE
-
     def manifest(self, source, revision):
         return {
             'name': self.name,
@@ -291,13 +370,14 @@ class GitRepo:
             'commit': revision,
         }
 
-    def _git_command(self, *args, working_dir=None):
+    def _git_command(self, *args, working_dir=None, input=None):
         cwd = str(self.path) if working_dir is None else str(working_dir)
         log.debug("Executing [{}] in [{}]".format(' '.join(['git', *args]), cwd))
         proc = subprocess.run(['git', *args],
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
                               universal_newlines=True,
+                              input=input,
                               cwd=cwd)
         log.spam("   stderr: [{}]".format(proc.stderr.rstrip()))
         log.spam("   stdout: [{}]".format(proc.stdout.rstrip()))

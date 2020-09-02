@@ -226,6 +226,16 @@ def dependency_from_tag(wsroot, tag, message=None):
     return Dependency(None, source, revision, message)
 
 
+def check_submodule_only(repo_path):
+    """ Refuse to modify dependencies on repositories that only use git submodules"""
+    dirname = os.path.basename(str(repo_path))
+    manifest_path = repo_path/GitRepo.PKG_DEPENDENCY_FILE
+    submodule_path = repo_path/GitRepo.SUBMODULE_FILE
+    if not manifest_path.exists() and submodule_path.exists():
+        log.error("{} uses git submodules to specify dependencies".format(dirname))
+        sys.exit(1)
+
+
 def add_dep(ws, args) -> None:
     """ Resolve a Dependency then add it to the cwd's wit-manifest.json """
     packages = {pkg.name: pkg for pkg in ws.lock.packages}
@@ -249,7 +259,9 @@ def add_dep(ws, args) -> None:
         raise WitUserError("Could not find commit or reference '{}' in '{}'"
                            "".format(req_dep.specified_revision, req_dep.name))
 
-    manifest_path = cwd/'wit-manifest.json'
+    check_submodule_only(cwd)
+
+    manifest_path = cwd/GitRepo.PKG_DEPENDENCY_FILE
     if manifest_path.exists():
         manifest = Manifest.read_manifest(manifest_path)
     else:
@@ -278,7 +290,9 @@ def update_dep(ws, args) -> None:
               "directory,\n  which can also be set by -C.")
 
     cwd_dirname = cwd.relative_to(ws.root).parts[0]
-    manifest = Manifest.read_manifest(cwd/'wit-manifest.json')
+
+    check_submodule_only(cwd)
+    manifest = Manifest.read_manifest(cwd/GitRepo.PKG_DEPENDENCY_FILE)
 
     # make sure the package is already in the cwd's manifest
     if not manifest.contains_dependency(req_dep.name):
@@ -300,7 +314,7 @@ def update_dep(ws, args) -> None:
 
     log.info("Updating to {}".format(req_dep.resolved_rev()))
     manifest.replace_dependency(req_dep)
-    manifest.write(cwd/'wit-manifest.json')
+    manifest.write(cwd/GitRepo.PKG_DEPENDENCY_FILE)
 
     log.info("'{}' now depends on '{}'".format(cwd_dirname, req_pkg.id()))
 
