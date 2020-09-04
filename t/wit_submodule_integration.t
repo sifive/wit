@@ -6,17 +6,14 @@ prereq on
 # Set up repo foo to use as a package
 make_repo 'foo'
 foo_dir=$PWD/foo
-foo_commit_1=$(git -C foo rev-parse HEAD)
 
 # 'baa' to use as wit-manifest-dependency of 'foo'
 make_repo 'baa'
 baa_dir=$PWD/baa
-baa_commit_1=$(git -C baa rev-parse HEAD)
 
 # 'xyz' to use as submodule dependency of 'baa'
 make_repo 'xyz'
 xyz_dir=$PWD/xyz
-xyz_commit_1=$(git -C baa rev-parse HEAD)
 
 make_repo 'abc'
 abc_dir=$PWD/abc
@@ -27,12 +24,12 @@ abc_dir=$PWD/abc
   git submodule add $xyz_dir
   git commit -am "add submodule dep"
 )
-baa_commit_2=$(git -C baa rev-parse HEAD)
+baa_commit=$(git -C baa rev-parse HEAD)
 
 # add baa as wit-dependency of foo
 (
   cd $foo_dir
-  echo "[{\"name\":\"baa\", \"commit\":\"$baa_commit_2\", \"source\":\"$baa_dir\"}]" > wit-manifest.json
+  echo "[{\"name\":\"baa\", \"commit\":\"$baa_commit\", \"source\":\"$baa_dir\"}]" > wit-manifest.json
   git add wit-manifest.json
   git commit -m "add wit dep"
 )
