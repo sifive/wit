@@ -20,7 +20,10 @@ def chdir(s) -> None:
 # ********** top-level parser **********
 parser = argparse.ArgumentParser(
     prog='wit',
-    formatter_class=argparse.RawTextHelpFormatter)
+    formatter_class=argparse.RawTextHelpFormatter,
+    description="Wit is a git repository workspace manager.\n\n"
+                "Use env var WIT_WORKSPACE_REFERENCE to point to another"
+                " workspace to use a cache for faster git clones.")
 parser.add_argument('-v', '--verbose', action='count', default=0,
                     help='''Specify level of verbosity
 -v:    verbose

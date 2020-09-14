@@ -21,6 +21,7 @@ from .inspect import inspect_tree
 from pathlib import Path
 from typing import cast, List, Tuple  # noqa: F401
 from .common import error, WitUserError, print_errors
+from .env import git_reference_workspace
 from .gitrepo import GitRepo, GitCommitNotFound
 from .manifest import Manifest
 from .package import WitBug
@@ -36,6 +37,11 @@ class NotAPackageError(WitUserError):
 
 
 def main() -> None:
+
+    if git_reference_workspace and not Path(git_reference_workspace).is_absolute():
+        log.error("Environment variable $WIT_WORKSPACE_REFERENCE contains a relative path: "
+                  "'{}'. Please use an absolute path.".format(git_reference_workspace))
+        sys.exit(1)
 
     args = parser.parse_args()
     if args.verbose >= 4:
