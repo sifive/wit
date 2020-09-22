@@ -325,7 +325,7 @@ class GitRepo:
     def _should_ignore_submodule(self, name, gitconfig):
         """
         In a repository that has deliberately removed/not-added a wit-manifest.json,
-        we can still read additional metadata for the repository from the .gitmodules
+        we can still read additional metadata for the dependency from .gitmodules
         Here we check if the submodule should be ignored and thereby not considered
         as a wit dependency.
         """
