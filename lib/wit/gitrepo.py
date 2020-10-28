@@ -300,6 +300,9 @@ class GitRepo:
 
         submodules = []
         for name_key, path in paths_by_name.items():
+            if self._should_ignore_submodule(name_key, proc.stdout):
+                continue
+
             # We use the relative path within the repository to ask the git index
             # for the pointer that's currently commited
             submodule_ref = self._get_submodule_pointer(revision, path)
@@ -318,6 +321,17 @@ class GitRepo:
             submodules.append(RepoEntry(name, submodule_ref, url))
 
         return submodules
+
+    def _should_ignore_submodule(self, name, gitconfig):
+        """
+        In a repository that has deliberately removed/not-added a wit-manifest.json,
+        we can still read additional metadata for the dependency from .gitmodules
+        Here we check if the submodule should be ignored and thereby not considered
+        as a wit dependency.
+        """
+        if "submodule.{}.wit ignore".format(name) in gitconfig:
+            return True
+        return False
 
     def _get_submodule_pointer(self, revision, path):
         """

@@ -110,3 +110,39 @@ restore
     $ ls
     wit-lock.json wit-workspace.json
     $ wit restore
+
+== Specify dependencies via git submodules
+
+Some repositories that you would like to use as a dependency already use git submodules.
+Wit can read the git subomodule metadata from the repository as if it were a `wit-manifest.json`
+file.
+Wit will only read submodule data when there is no `wit-manifest.json` file.
+
+This is intended as a convenience only. While wit can *read* the depencency metadata
+it can not *write* the metadata. So functionality like `wit update-dep` will not update
+submodule metadata in those particular repositories, while otherwise still functioning
+normally in other dependency repositories.
+
+== Ignore git submodules
+
+=== Ignore all git submodules
+
+Provide a valid `wit-manifest.json` file.
+This can be produced when using `wit add-dep` if you have a dependency to add.
+Otherwise, you can provide a wit-manifest.json file containing only `[]`.
+
+=== Ignore a specific git submodule
+
+In a `.gitmodules` file within your repository, you can add a line
+to the git submodule: `wit = ignore`
+
+    $ cat workspace/foo/.gitmodules
+    [submodule "baa"]
+        path = baa
+        url = https://github.com/baa-corp/baa.git
+        wit = ignore
+
+This is only a local effect, it's the equivelant of deleting an entry in the `wit-manifest.json`.
+If another repository were to have `baa` as a dependency without a `wit = ignore` then `baa`
+will still appear in the workspace, but the metadata for which revision to use will ignore the
+input of `foo`
