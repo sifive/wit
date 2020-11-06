@@ -93,6 +93,9 @@ wit inspect --dot | dot -Tsvg > graph.svg
 
 This SVG file can be directly viewed in most web browsers.
 
+There is also a `--simple` option for `--dot` mode, which constructs a simpler
+version of the graph.
+
 
 == Restore a previous workspace
 

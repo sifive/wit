@@ -117,6 +117,13 @@ inspect_parser = subparsers.add_parser('inspect', help='inspect lockfile')
 inspect_group = inspect_parser.add_mutually_exclusive_group()
 inspect_group.add_argument('--tree', action="store_true")
 inspect_group.add_argument('--dot', action="store_true")
+# Common to all
+inspect_parser.add_argument(
+    '--simple',
+    action='store_true',
+    help='Print simple view. When used with --dot, this will collapse all versions of a dependency'
+         ' into a single node.'
+)
 
 # ********** foreach subparser **********
 foreach_parser = subparsers.add_parser(

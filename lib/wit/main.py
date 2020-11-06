@@ -108,7 +108,7 @@ def main() -> None:
                 if args.dot or args.tree:
                     inspect_tree(ws, args)
                 else:
-                    log.error('`wit inspect` must be run with a flag')
+                    log.error('`wit inspect` must be run with --dot or --tree')
                     print(parser.parse_args('inspect -h'.split()))
                     sys.exit(1)
     except WitUserError as e:

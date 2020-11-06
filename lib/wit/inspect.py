@@ -1,6 +1,7 @@
 import sys
 from .common import print_errors
 from .witlogger import getLogger
+from .workspace import WorkSpace
 
 log = getLogger()
 
@@ -18,7 +19,10 @@ def inspect_tree(ws, args):
             _print_generic_tree(x)
 
     if args.dot:
-        _print_dot_tree(ws, packages)
+        if args.simple:
+            _print_simple_dot_tree(ws, packages)
+        else:
+            _print_dot_tree(ws, packages)
 
     print_errors(errors)
 
@@ -87,6 +91,58 @@ def _print_dot_tree(ws, packages_dict):
     for pkg in packages:
         for dep in pkg.get_dependencies():
             print_dep(pkg, dep)
+
+    log.output('}')
+
+
+def _print_simple_dot_tree(ws, packages_dict):
+    # This algorithm is based on the normal one except we identify nodes based
+    # on just the package name and not the revision.
+    packages = list(packages_dict.values())
+
+    def sanitize(s):
+        return s.replace(r"-", "_")
+
+    nodes = set()
+    for pkg in packages:
+        nodes.add(sanitize(pkg.name))
+
+    drawn_connections = set()
+
+    def draw_connection(from_id, to_id):
+        if from_id == to_id:
+            return
+        pair = (from_id, to_id)
+        if pair not in drawn_connections:
+            drawn_connections.add(pair)
+
+    def print_dep(pkg, dep):
+        if isinstance(pkg, WorkSpace):
+            pkg_name = "root"
+        else:
+            pkg_name = sanitize(pkg.name)
+        dep_name = sanitize(dep.name)
+        dep.load(packages_dict, ws.repo_paths, ws.root, False)
+        if dep.package.repo is None:
+            log.error("Cannot generate graph with missing repo '{}'".format(dep.name))
+            sys.exit(1)
+        draw_connection(pkg_name, dep_name)
+
+    for dep in ws.manifest.dependencies:
+        print_dep(ws, dep)
+
+    for pkg in packages:
+        for dep in pkg.get_dependencies():
+            print_dep(pkg, dep)
+
+    log.output('digraph dependencies {')
+    log.output('root [label="[root]"]')
+
+    for node in sorted(nodes):
+        log.output('{} [label="{}"]'.format(node, node))
+
+    for from_id, to_id in sorted(drawn_connections):
+        log.output("{} -> {}".format(from_id, to_id))
 
     log.output('}')
 
